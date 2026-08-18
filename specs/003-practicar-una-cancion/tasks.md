@@ -42,24 +42,24 @@ renderizador de componentes (T004a).
 
 ### La escena: lo que el núcleo produce y la pantalla consume
 
-- [ ] T005 Prueba en `core/tests/vista_test.rs`: `vista()` devuelve solo las notas cuyo intervalo se solapa con la ventana pedida, y ninguna más
-- [ ] T006 Implementar `NotaVisible`, `EstadoNota` y `vista(cancion, desde, hasta, out)` en `core/src/practica/vista.rs`, escribiendo en un `Vec` del llamante
-- [ ] T007 Prueba en `core/tests/vista_test.rs`: el recorte usa un cursor monótono con cota superior de duración, y su coste **no** crece con el tamaño de la canción — se cuentan notas examinadas, no milisegundos
-- [ ] T008 Implementar el recorte con cursor monótono en `core/src/practica/vista.rs`
-- [ ] T009 Prueba de presupuesto en `core/tests/vista_presupuesto_test.rs`: producir la escena de un fotograma con una pieza densa (40 notas visibles, 10.000 en total) cabe holgadamente en 16,7 ms. **Es la puerta de rendimiento que sí puede bloquear un cambio**, porque es determinista y no necesita pantalla
+- [X] T005 Prueba en `core/tests/vista_test.rs`: `vista()` devuelve solo las notas cuyo intervalo se solapa con la ventana pedida, y ninguna más
+- [X] T006 Implementar `NotaVisible`, `EstadoNota` y `vista(cancion, desde, hasta, out)` en `core/src/practica/vista.rs`, escribiendo en un `Vec` del llamante
+- [X] T007 Prueba en `core/tests/vista_test.rs`: el recorte usa un cursor monótono con cota superior de duración, y su coste **no** crece con el tamaño de la canción — se cuentan notas examinadas, no milisegundos
+- [X] T008 Implementar el recorte con cursor monótono en `core/src/practica/vista.rs`
+- [X] T009 Prueba de presupuesto en `core/tests/vista_presupuesto_test.rs`: producir la escena de un fotograma con una pieza densa (40 notas visibles, 10.000 en total) cabe holgadamente en 16,7 ms. **Es la puerta de rendimiento que sí puede bloquear un cambio**, porque es determinista y no necesita pantalla
 
 ### El puente
 
-- [ ] T010 Implementar el estado gestionado y `registrar_canal` en `src-tauri/src/comandos.rs`, con **un solo `Channel`** por sesión para eventos de tecla y anclas, discriminados por etiqueta
-- [ ] T011 Implementar el hilo reenviador en `src-tauri/src/reenviador.rs`, que drena el anillo con `Receptor::esperar()` y empuja por el canal. **Nunca desde el hilo de tiempo real**: `send` cuesta hasta 13 ms en el peor caso y eso rompería el presupuesto que la feature 002 dejó cerrado
-- [ ] T012 Implementar `MensajeAlFrontend` en `src-tauri/src/comandos.rs` conforme al contrato
+- [X] T010 Implementar el estado gestionado y `registrar_canal` en `src-tauri/src/comandos.rs`, con **un solo `Channel`** por sesión para eventos de tecla y anclas, discriminados por etiqueta
+- [X] T011 Implementar el hilo reenviador en `src-tauri/src/reenviador.rs`, que drena el anillo con `Receptor::esperar()` y empuja por el canal. **Nunca desde el hilo de tiempo real**: `send` cuesta hasta 13 ms en el peor caso y eso rompería el presupuesto que la feature 002 dejó cerrado
+- [X] T012 Implementar `MensajeAlFrontend` en `src-tauri/src/comandos.rs` conforme al contrato
 
 ### La capa que pinta
 
-- [ ] T013 Sustituir el andamio de Vite: `src/App.tsx`, `src/practica/` y el estilo base
-- [ ] T014 Implementar `pintar(ctx, escena)` en `src/practica/Lienzo.tsx`. **Único archivo acogido a la excepción del Principio II.** Sin sombras, sin desenfoques y sin filtros: está medido que `shadowBlur` hunde la cadencia a 40,9 fotogramas por segundo mientras el cronómetro interno sigue marcando 0,7 ms
-- [ ] T015 Prueba en `src/practica/modelo.test.ts`: la interpolación entre anclas devuelve la posición correcta en instantes intermedios, y es exacta en los extremos
-- [ ] T016 Implementar la interpolación entre anclas en `src/practica/modelo.ts`. **Sí se prueba**: no forma parte de la excepción
+- [X] T013 Sustituir el andamio de Vite: `src/App.tsx`, `src/practica/` y el estilo base
+- [X] T014 Implementar `pintar(ctx, escena)` en `src/practica/Lienzo.tsx`. **Único archivo acogido a la excepción del Principio II.** Sin sombras, sin desenfoques y sin filtros: está medido que `shadowBlur` hunde la cadencia a 40,9 fotogramas por segundo mientras el cronómetro interno sigue marcando 0,7 ms
+- [X] T015 Prueba en `src/practica/modelo.test.ts`: la interpolación entre anclas devuelve la posición correcta en instantes intermedios, y es exacta en los extremos
+- [X] T016 Implementar la interpolación entre anclas en `src/practica/modelo.ts`. **Sí se prueba**: no forma parte de la excepción
 
 **Checkpoint**: se puede pintar una escena fija y el cálculo de la escena tiene puerta de rendimiento.
 

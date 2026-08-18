@@ -1,51 +1,30 @@
+// La aplicación. **Sí se prueba**: decide qué archivo abrir y qué mostrar ante un error,
+// y eso son decisiones. La excepción del Principio II cubre solo `Lienzo.tsx`.
+
 import { useState } from "react";
-import reactLogo from "./assets/react.svg";
-import { invoke } from "@tauri-apps/api/core";
 import "./App.css";
 
-function App() {
-  const [greetMsg, setGreetMsg] = useState("");
-  const [name, setName] = useState("");
-
-  async function greet() {
-    // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
-    setGreetMsg(await invoke("greet", { name }));
-  }
+export default function App() {
+  const [cancion, setCancion] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   return (
-    <main className="container">
-      <h1>Welcome to Tauri + React</h1>
-
-      <div className="row">
-        <a href="https://vite.dev" target="_blank">
-          <img src="/vite.svg" className="logo vite" alt="Vite logo" />
-        </a>
-        <a href="https://tauri.app" target="_blank">
-          <img src="/tauri.svg" className="logo tauri" alt="Tauri logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
-      </div>
-      <p>Click on the Tauri, Vite, and React logos to learn more.</p>
-
-      <form
-        className="row"
-        onSubmit={(e) => {
-          e.preventDefault();
-          greet();
-        }}
-      >
-        <input
-          id="greet-input"
-          onChange={(e) => setName(e.currentTarget.value)}
-          placeholder="Enter a name..."
-        />
-        <button type="submit">Greet</button>
-      </form>
-      <p>{greetMsg}</p>
+    <main className="practica">
+      <h1>Piano Tutor</h1>
+      {error !== null && (
+        <p role="alert" className="error">
+          {error}
+        </p>
+      )}
+      {cancion === null ? (
+        <p>Abre una canción para empezar a practicar.</p>
+      ) : (
+        <p>{cancion}</p>
+      )}
+      {/* El selector de archivos y el lienzo llegan en la fase 3 (T041, T042). */}
+      <button type="button" onClick={() => { setCancion(null); setError(null); }}>
+        Reiniciar
+      </button>
     </main>
   );
 }
-
-export default App;

@@ -1,6 +1,8 @@
 //! Aplicacion de escritorio de Piano Tutor.
 
+pub mod comandos;
 pub mod preferencias;
+pub mod reenviador;
 
 use piano_core::clock::MonotonicClock;
 
@@ -30,8 +32,9 @@ pub fn run() {
 
     tauri::Builder::default()
         .manage(reloj)
+        .manage(std::sync::Arc::new(comandos::Estado::default()))
         .plugin(tauri_plugin_opener::init())
-        .invoke_handler(tauri::generate_handler![greet])
+        .invoke_handler(tauri::generate_handler![greet, comandos::registrar_canal])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

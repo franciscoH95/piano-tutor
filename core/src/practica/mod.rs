@@ -5,3 +5,5 @@
 //! Principio II en la v1.1.0).
 
 mod vista;
+
+pub use vista::{vista, EstadoNota, NotaVisible, Vista};
