@@ -12,6 +12,31 @@
 
 ### Session 2026-08-18
 
+- Q: ¿Cómo se mide que las notas cayendo se ven fluidas? → A: El **99 % de los fotogramas** debe
+  dibujarse en menos de **16,7 ms** (60 por segundo) a lo largo de una pieza de diez minutos.
+  Igualar la frecuencia real de la pantalla sería lo ideal, pero convertiría el criterio en algo
+  dependiente de la máquina y por tanto imposible de afirmar de forma estable en integración
+  continua.
+
+- Q: En modo espera, ¿qué gobierna el control de velocidad? → A: Entre notas la canción **avanza a
+  la velocidad elegida**, y se detiene al llegar a una nota que el alumno aún no ha tocado. Así el
+  alumno sigue percibiendo la figura rítmica, que es lo que salva la tensión entre el modo espera y
+  el Principio I: el ritmo no desaparece, solo se vuelve indulgente.
+
+- Q: ¿Qué control tiene el alumno sobre dónde está dentro de la canción? → A: Puede **saltar a
+  cualquier punto**. El bucle de repetición A-B queda para más adelante: añade estado propio,
+  interfaz y decidir cómo se comporta el modo espera dentro del bucle.
+
+- Q: Si la aplicación asigna una nota a la mano equivocada, ¿puede el alumno corregirlo? → A: Sí,
+  mediante un **punto de corte por altura ajustable**, que solo entra en juego cuando el archivo no
+  trae las manos separadas. Un editor de reasignación nota a nota resolvería también las manos
+  cruzadas, pero es una feature en sí misma y no cabe en la primera interfaz del producto.
+
+- Q: A tempo fijo, ¿qué cuenta como que lo tocado «coincide con lo esperado»? → A: Que la canción
+  tenga esa nota **sonando en ese instante**, es decir, que el momento actual caiga entre su ataque
+  y su final. Es una comprobación exacta sobre datos que el núcleo ya tiene y no introduce ninguna
+  ventana de tolerancia, que es lo que FR-027 aparta para la feature de evaluación.
+
 - Q: ¿Cómo se representa la canción en pantalla? → A: Notas cayendo sobre el teclado, **con el
   nombre de la nota y el dedo sugerido escritos sobre cada una**. No partitura: el núcleo no
   guarda claves, compases ni alteraciones, y añadirlas obligaría a reabrir la feature 001.
@@ -177,6 +202,12 @@ elegir uno inicia la captura sobre ése, y que al volver a abrir la aplicación 
 - **FR-002**: El sistema MUST mostrar la canción cargada representada visualmente, con cada nota en
   su altura y su momento.
 - **FR-003**: El sistema MUST distinguir visualmente a qué mano corresponde cada nota.
+- **FR-003a**: Cuando el archivo traiga las manos en voces separadas, el sistema MUST usar esa
+  información y MUST NOT deducirla por altura.
+- **FR-003b**: Cuando el archivo traiga todo en una sola voz, el sistema MUST repartir las notas
+  entre las dos manos por un **punto de corte por altura**, y el alumno MUST poder moverlo.
+- **FR-003c**: Mover el punto de corte MUST recalcular tanto el reparto de manos como la digitación
+  propuesta, porque FR-033 la calcula por manos separadas.
 - **FR-004**: El sistema MUST rechazar un archivo ilegible indicando el motivo, sin dejar de
   funcionar ni quedar en un estado a medias.
 - **FR-005**: Abrir una canción nueva MUST sustituir por completo a la anterior.
@@ -190,6 +221,11 @@ elegir uno inicia la captura sobre ése, y que al volver a abrir la aplicación 
 ### Reproducir
 
 - **FR-007**: El alumno MUST poder poner en marcha, pausar y volver al principio.
+- **FR-007a**: El alumno MUST poder saltar a cualquier punto de la canción, sin tener que
+  reproducir lo anterior. Practicar es repetir un pasaje concreto, y sin esto repetir el compás 40
+  obliga a tocar los 39 anteriores cada vez.
+- **FR-007b**: Saltar MUST dejar la práctica en un estado coherente: sin notas colgando de antes
+  del salto y con el modo de práctica vigente intacto.
 - **FR-008**: El sistema MUST hacer avanzar la canción al tempo de la pieza, respetando sus cambios
   de tempo.
 - **FR-009**: El alumno MUST poder cambiar la velocidad de práctica sin que cambien las alturas.
@@ -204,8 +240,15 @@ elegir uno inicia la captura sobre ése, y que al volver a abrir la aplicación 
 
 - **FR-013**: El sistema MUST reflejar en pantalla las teclas que el alumno pulsa y suelta, mientras
   las pulsa.
-- **FR-014**: El sistema MUST poder determinar si lo que el alumno acaba de tocar coincide con lo
-  que la canción esperaba en ese punto.
+- **FR-014**: El sistema MUST poder determinar si una tecla pulsada corresponde a una nota que la
+  canción tiene **sonando en ese instante**, entendiendo por tal que el momento actual caiga entre
+  el ataque y el final de esa nota.
+- **FR-014a**: El sistema MUST distinguir tres situaciones: una tecla pulsada que la canción pedía
+  (acierto), una que no pedía (nota extra) y una que la canción pedía y el alumno no tocó en ningún
+  momento de su duración (nota omitida).
+- **FR-014b**: El sistema MUST NOT aplicar ninguna ventana de tolerancia temporal para decidirlo.
+  Medir con cuánta precisión se tocó respecto al momento ideal es cosa de la feature de evaluación;
+  aquí la pregunta es únicamente si la nota estaba sonando o no.
 - **FR-015**: El sistema MUST funcionar sin teclado conectado: la canción se ve y se reproduce
   igual, y la falta de teclado se comunica sin bloquear nada.
 - **FR-016**: El sistema MUST seguir mostrando y reproduciendo la canción si el teclado se
@@ -214,8 +257,12 @@ elegir uno inicia la captura sobre ése, y que al volver a abrir la aplicación 
 ### Modo espera
 
 - **FR-017**: El alumno MUST poder activar y desactivar el modo espera.
-- **FR-018**: Con el modo espera activo, el cursor MUST NOT avanzar hasta que el alumno toque lo
-  que se le pide.
+- **FR-018**: Con el modo espera activo, el cursor MUST avanzar a la velocidad de práctica elegida
+  mientras no haya nada pendiente, y MUST detenerse al alcanzar una nota que el alumno todavía no
+  haya tocado, esperando ahí indefinidamente.
+- **FR-018a**: El tiempo entre notas MUST transcurrir de verdad, no saltarse. Es lo que permite al
+  alumno percibir la figura rítmica —si una nota es una redonda o una semicorchea— incluso mientras
+  la canción le espera.
 - **FR-019**: Una nota equivocada MUST NOT hacer avanzar el cursor, y MUST comunicarse sin
   interrumpir la práctica.
 - **FR-020**: El sistema MUST ofrecer una salida cuando el modo espera no pueda satisfacerse, por
@@ -272,9 +319,13 @@ elegir uno inicia la captura sobre ése, y que al volver a abrir la aplicación 
   o el acierto de las notas, según el modo.
 - **Modo de práctica**: si el cursor lo gobierna el tiempo o el acierto.
 - **Velocidad de práctica**: proporción respecto al tempo original, sin afectar a las alturas.
+  Gobierna el avance del cursor en los dos modos: a tempo fijo de principio a fin, y en modo espera
+  durante los tramos en que no hay ninguna nota pendiente.
 - **Teclas pulsadas**: qué está tocando el alumno en este instante.
 - **Digitación propuesta**: qué dedo se sugiere para cada nota, y de qué mano.
 - **Mano en práctica**: si se está practicando la pieza completa, la izquierda o la derecha.
+- **Punto de corte de manos**: la altura que separa mano izquierda de derecha cuando el archivo no
+  las trae separadas. Ajustable por el alumno.
 - **Sesión de práctica**: la canción, el cursor, el modo, la velocidad y el teclado elegido.
 
 ## Success Criteria *(mandatory)*
@@ -284,15 +335,20 @@ elegir uno inicia la captura sobre ése, y que al volver a abrir la aplicación 
 - **SC-001**: Desde que el alumno abre la aplicación hasta que ve una canción suya en pantalla pasan
   menos de 30 segundos y no más de tres acciones.
 - **SC-002**: Una canción de 1.000 notas se abre y aparece en pantalla en menos de 2 segundos.
-- **SC-003**: La representación en pantalla se mantiene fluida durante toda la reproducción de una
-  pieza de 10 minutos, sin tirones perceptibles.
-- **SC-004**: Al pulsar una tecla, el alumno ve el reflejo en pantalla sin percibir retraso.
+- **SC-003**: Durante la reproducción completa de una pieza de 10 minutos, el 99 % de los
+  fotogramas se dibuja en menos de 16,7 milisegundos (60 por segundo).
+- **SC-004**: Al pulsar una tecla, el reflejo aparece en pantalla en menos de 50 milisegundos en el
+  percentil 95, medidos desde que el sistema operativo entrega el mensaje.
 - **SC-005**: En modo espera, el 100 % de las notas correctas hace avanzar el cursor y el 100 % de
   las incorrectas no lo hace.
+- **SC-005a**: A tempo fijo, una tecla pulsada mientras su nota suena en la canción se distingue
+  del 100 % de las teclas pulsadas que la canción no pedía.
 - **SC-006**: Un alumno que no sabe tocar la pieza consigue llegar a su final en modo espera.
 - **SC-007**: Toda la funcionalidad, salvo lo que requiere un teclado físico, se verifica de forma
   automática sin ningún dispositivo conectado.
 - **SC-008**: Reducir la velocidad a la mitad duplica exactamente la duración de la reproducción.
+- **SC-008a**: Saltar a cualquier punto de una canción de 10 minutos deja la práctica lista en ese
+  punto sin retraso perceptible por el alumno.
 - **SC-009**: El 100 % de las notas de cualquier canción cargable recibe un dedo propuesto.
 - **SC-010**: La misma canción produce la misma digitación propuesta en 100 ejecuciones seguidas.
 - **SC-011**: En una escala sencilla de una octava, la digitación propuesta coincide con la que

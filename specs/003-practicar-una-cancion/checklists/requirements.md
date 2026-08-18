@@ -36,5 +36,12 @@
   alcance: además de las notas cayendo, se piden el nombre de la nota y el dedo sugerido. Como los
   archivos MIDI no contienen digitación, eso añadió cuatro requisitos nuevos (FR-030 a FR-033) y
   cuatro criterios de éxito (SC-009 a SC-012) para una pieza que antes no existía en la feature.
-- Todos los criterios pasan. Spec lista para `/speckit-plan`.
+- Todos los criterios pasan.
+- Iteración 3 (`/speckit-clarify`, 2026-08-18): 5 preguntas asignadas y respondidas. Ningún criterio
+  cambió de estado; seguían todos pasando. Lo que cambió es la **precisión**: se definió qué
+  significa «coincide» a tempo fijo (era indemostrable), se dio salida al fallo de reparto de manos,
+  se añadió saltar a un punto, se dijo qué gobierna la velocidad en modo espera, y se sustituyeron
+  dos adjetivos sin cuantificar («sin tirones perceptibles», «sin percibir retraso») por umbrales
+  medibles. De 38 requisitos funcionales a 48, y de 12 criterios de éxito a 15.
+- Spec lista para `/speckit-plan`.
 - Items marked incomplete require spec updates before `/speckit-clarify` or `/speckit-plan`
