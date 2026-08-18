@@ -12,6 +12,15 @@
 
 ### Session 2026-08-18
 
+- Q: ¿Sirve el criterio de fluidez tal y como se redactó? → A: **No**, y se sustituye. Al medirlo se
+  descubrió que era un criterio que **un pintor que no dibuja nada falla** (percentil 95 de 34 ms y
+  16 % de intervalos por encima de 25 ms, peor que el pintor real con 59 notas). El motivo es que,
+  con la pantalla sincronizada, el intervalo entre fotogramas vale 16,667 ms por construcción, mida
+  lo que mida el dibujo: el percentil no distingue nada. Se sustituye por cinco cifras encabezadas
+  por el **déficit de fotogramas**, que sí distingue. Además se descubrió, también midiendo, que
+  este criterio **no se puede comprobar sin una pantalla real**, así que deja de ser una puerta
+  automática y pasa a informe.
+
 - Q: ¿Cómo se mide que las notas cayendo se ven fluidas? → A: El **99 % de los fotogramas** debe
   dibujarse en menos de **16,7 ms** (60 por segundo) a lo largo de una pieza de diez minutos.
   Igualar la frecuencia real de la pantalla sería lo ideal, pero convertiría el criterio en algo
@@ -335,8 +344,29 @@ elegir uno inicia la captura sobre ése, y que al volver a abrir la aplicación 
 - **SC-001**: Desde que el alumno abre la aplicación hasta que ve una canción suya en pantalla pasan
   menos de 30 segundos y no más de tres acciones.
 - **SC-002**: Una canción de 1.000 notas se abre y aparece en pantalla en menos de 2 segundos.
-- **SC-003**: Durante la reproducción completa de una pieza de 10 minutos, el 99 % de los
-  fotogramas se dibuja en menos de 16,7 milisegundos (60 por segundo).
+- **SC-003**: Durante la reproducción completa de una pieza de 10 minutos, de todos los fotogramas
+  que deberían mostrarse a 60 por segundo se muestra al menos el **99,5 %**.
+- **SC-003a**: Menos del **0,1 %** de los intervalos entre fotogramas consecutivos supera los 25
+  milisegundos.
+- **SC-003b**: **Ningún** intervalo supera los 33,4 milisegundos, que equivale a perder dos
+  fotogramas seguidos y es lo primero que el ojo percibe como un tirón.
+- **SC-003c**: Las suspensiones del sistema —intervalos por encima de 200 milisegundos, que ocurren
+  cuando la ventana queda tapada por otra— MUST detectarse, excluirse del cálculo y **declararse en
+  el informe**. Un informe que no las declare no es válido: en la primera medición se perdieron 430
+  de 600 segundos por esta causa, y un cálculo que las ignore publica un número inventado.
+- **SC-003d**: El coste de dibujar un fotograma, medido **aparte** del ritmo al que la pantalla los
+  muestra, se mantiene por debajo de 16,7 milisegundos.
+
+> **Por qué estos cinco criterios y no uno solo.** La redacción anterior —«el 99 % de los fotogramas
+> se dibuja en menos de 16,7 ms»— resultó inmedible al probarla: cuando la pantalla va sincronizada,
+> el intervalo entre fotogramas vale 16,667 ms por construcción, dibuje lo que dibuje la aplicación.
+> Un pintor que **no dibujaba nada** falló ese criterio con más holgura que el pintor real. Contar
+> cuántos fotogramas faltan (SC-003) sí distingue; medir el percentil del intervalo, no.
+>
+> **Estos cinco criterios no se comprueban de forma automática en cada cambio**, y no por falta de
+> ganas: está medido que sin una ventana visible en pantalla el sistema no dibuja ni un fotograma.
+> Se verifican con un informe periódico. Lo que sí bloquea cada cambio es que el cálculo de lo que
+> hay que dibujar quepa en su presupuesto, que es determinista y no necesita pantalla.
 - **SC-004**: Al pulsar una tecla, el reflejo aparece en pantalla en menos de 50 milisegundos en el
   percentil 95, medidos desde que el sistema operativo entrega el mensaje.
 - **SC-005**: En modo espera, el 100 % de las notas correctas hace avanzar el cursor y el 100 % de

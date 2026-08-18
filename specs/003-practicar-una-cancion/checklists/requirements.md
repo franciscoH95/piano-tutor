@@ -43,5 +43,9 @@
   se añadió saltar a un punto, se dijo qué gobierna la velocidad en modo espera, y se sustituyeron
   dos adjetivos sin cuantificar («sin tirones perceptibles», «sin percibir retraso») por umbrales
   medibles. De 38 requisitos funcionales a 48, y de 12 criterios de éxito a 15.
-- Spec lista para `/speckit-plan`.
+- Iteración 4 (enmienda tras medir, 2026-08-18): SC-003 se sustituye por cinco criterios. La
+  redacción anterior era **inmedible**: un pintor que no dibuja nada la fallaba con más holgura que
+  el pintor real, porque con la pantalla sincronizada el intervalo entre fotogramas es constante por
+  construcción. Se descubrió midiendo, no revisando. 14 → 18 criterios de éxito.
+- Todos los criterios siguen pasando. Spec lista para `/speckit-tasks`.
 - Items marked incomplete require spec updates before `/speckit-clarify` or `/speckit-plan`
