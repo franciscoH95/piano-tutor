@@ -1,6 +1,23 @@
 <!--
 Sync Impact Report
-- Cambio de versión: plantilla sin rellenar → 1.0.0 (ratificación inicial)
+- Cambio de versión: 1.0.0 → 1.1.0 (2026-08-18)
+- Tipo de salto: MINOR — amplía materialmente la guía de un principio existente, sin
+  eliminar ni redefinir ninguno.
+- Principio modificado: II. Desarrollo Guiado por Pruebas (NO NEGOCIABLE) — se añade la
+  subsección "Excepción acotada: adaptadores de plataforma". El título no cambia y el
+  principio sigue siendo no negociable; lo que se añade es la única vía por la que una
+  desviación puede quedar amparada, con cuatro condiciones acumulativas.
+- Motivo: la feature 002 (captura MIDI) necesita una capa que traduce entre la API del
+  sistema operativo y los tipos del dominio, y ningún runner de integración continua tiene
+  un teclado enchufado. La sección Governance exige que un PR que viole un principio vaya
+  acompañado de la enmienda correspondiente; hasta ahora la desviación solo estaba anotada
+  en el Complexity Tracking de un plan, que no es una enmienda.
+- Principios sin tocar: I, III, IV, V.
+- Secciones añadidas o eliminadas: ninguna.
+- Placeholders pendientes: ninguno.
+
+Historial previo
+- Cambio de versión: plantilla sin rellenar → 1.0.0 (ratificación inicial, 2026-08-17)
 - Principios definidos (5):
   - I. Precisión Musical Primero (NO NEGOCIABLE)
   - II. Desarrollo Guiado por Pruebas (NO NEGOCIABLE)
@@ -50,9 +67,30 @@ defecto MUST empezar por una prueba que lo reproduzca y falle. Está prohibido d
 silenciar una prueba para que pase el build; si una prueba es incorrecta, se corrige la
 prueba de forma explícita y justificada en el PR.
 
+**Excepción acotada: adaptadores de plataforma.** El código cuya única función es traducir
+entre una API del sistema operativo y los tipos del dominio MAY quedar sin prueba automática
+cuando el hardware o el sistema que requiere no existan en integración continua. Para
+acogerse, MUST cumplir las cuatro condiciones **a la vez**:
+
+1. No contiene ninguna decisión de dominio: no interpreta, no puntúa, no decide. Traduce y
+   reenvía.
+2. Vive en archivos **enumerados explícitamente** en el `plan.md` de su feature, y esa lista
+   es parte de la revisión.
+3. Se prueba de verdad allí donde la plataforma lo permita —por ejemplo, con dispositivos
+   virtuales—, de modo que la excepción quede reducida al mínimo residual demostrable.
+4. Existe una prueba manual documentada que lo ejerce, con su procedimiento escrito.
+
+Si un archivo acogido a la excepción empieza a necesitar lógica, esa lógica MUST mudarse a un
+módulo cubierto por pruebas. **La excepción no se amplía: se estrecha.**
+
 Rationale: el núcleo musical es lógica temporal difícil de depurar a mano y prácticamente
 imposible de verificar tocando manualmente cada caso. Las pruebas son la única forma
 sostenible de saber que la app puntúa bien.
+
+Rationale de la excepción: sin ella, la única salida honesta ante un adaptador de hardware
+sería incumplir el principio y anotarlo en un plan, que es exactamente lo que Governance
+prohíbe. Con ella, la desviación tiene una puerta estrecha, condiciones verificables en
+revisión y una obligación explícita de encogerse cuando la plataforma permita probar más.
 
 ### III. Núcleo Determinista Desacoplado de la UI
 
@@ -167,4 +205,4 @@ planificación. La guía operativa en tiempo de ejecución para agentes de desar
 mantiene en `CLAUDE.md` en la raíz del repositorio; ese archivo MUST NOT contradecir esta
 constitución y, ante discrepancia, se corrige `CLAUDE.md`.
 
-**Version**: 1.0.0 | **Ratified**: 2026-08-17 | **Last Amended**: 2026-08-17
+**Version**: 1.1.0 | **Ratified**: 2026-08-17 | **Last Amended**: 2026-08-18
