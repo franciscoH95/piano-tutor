@@ -13,7 +13,7 @@ Cómo comprobar, desde cero, que esta funcionalidad hace lo que promete.
 ## Validación completa
 
 ```sh
-cd /Users/frankohiggins/Projects/teacher_learn_piano_songs_app
+cd <raíz del repositorio>
 cargo test -p piano-core
 ```
 
