@@ -22,6 +22,7 @@
 
 pub mod clock;
 pub mod error;
+pub mod feedforward;
 mod midi;
 pub mod tempo;
 pub mod time;
@@ -38,7 +39,7 @@ use crate::timeline::ScheduledNote;
 /// Inmutable: todo el trabajo caro (parsear, construir el mapa de tempo, emparejar notas,
 /// calcular tiempos reales) ocurre una sola vez, en la carga. Reproducir no vuelve a
 /// tocar nada de esto.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Song {
     tempo_map: TempoMap,
     notes: Box<[ScheduledNote]>,
