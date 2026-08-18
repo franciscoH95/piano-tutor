@@ -140,17 +140,17 @@ core/                              # EXISTE. Suma un módulo; sigue sin dependen
     ├── dispositivo.rs             # identidad: id del sistema (primaria) + (nombre, posición)
     ├── evento.rs                  # EventoCrudo de 16 bytes, PulsacionCapturada, Cierre
     ├── transporte.rs              # cola rtrb acotada, descarte contado, despertar por unpark
-    ├── emparejador.rs             # FIFO por voz, cierres por parada y por pérdida
-    └── informe.rs                 # contadores de lo tolerado
+    ├── emparejador.rs             # emparejado, cierres y contadores de lo tolerado
+    └── sesion.rs                  # estados, doble confirmación de pérdida
 
 midi-io/                           # NUEVO. La única capa sin cobertura automática
 ├── Cargo.toml
 └── src/
     ├── lib.rs                     # MidiIoSource<C: Clock>: implementa FuenteDeEventos
     ├── parser.rs                  # bytes -> nota. ~60 líneas, deny(indexing_slicing)
-    ├── macos.rs                   # coremidi: puertos, apertura, paquetes, notificaciones
-    ├── windows.rs                 # WinMM + CM_Register_Notification
-    └── vigia.rs                   # push por plataforma + sondeo de 1000 ms de respaldo
+    ├── macos.rs                   # coremidi: puertos, apertura, bucle de paquetes
+    ├── windows.rs                 # WinMM + CM_Register_Notification  (PENDIENTE, ver T042)
+    └── vigia.rs                   # sondeo de 1000 ms; notificaciones como acelerador
 
 bench/                             # NUEVO. Fuera de `cargo test`
 ├── Cargo.toml
@@ -189,7 +189,7 @@ imprime esa advertencia en cada ejecución, para que su número no se lea como l
 
 | Violation | Why Needed | Simpler Alternative Rejected Because |
 |-----------|------------|-------------------------------------|
-| Una porción del código —el backend de Windows y su vigía— no queda cubierta por pruebas automáticas | Ningún runner de integración continua tiene un piano enchufado, y no hay máquina Windows en el entorno de desarrollo. | Simular el sistema operativo entero fue descartado: se acabaría probando el simulador, no el sistema. **La excepción se estrechó al revisar el plan**: `coremidi` permite crear teclados virtuales, así que el adaptador de macOS **sí** se ejerce sin hardware (T036a–T036f) y sale de esta excepción. Lo que queda es la rama de Windows. La mitigación del resto es estructural: esa capa se reduce a abrir el puerto y reenviar bytes, sin ninguna decisión propia. **Archivos acogidos a la excepción**: `midi-io/src/windows.rs` y la ruta de Windows de `midi-io/src/vigia.rs`. Esta lista es parte de la revisión y no se amplía sin discutirlo. |
+| Una porción del código —el backend de Windows y su vigía— no queda cubierta por pruebas automáticas | Ningún runner de integración continua tiene un piano enchufado, y no hay máquina Windows en el entorno de desarrollo. | Simular el sistema operativo entero fue descartado: se acabaría probando el simulador, no el sistema. **La excepción se estrechó al revisar el plan**: `coremidi` permite crear teclados virtuales, así que el adaptador de macOS **sí** se ejerce sin hardware (T036a–T036f) y sale de esta excepción. Lo que queda es la rama de Windows. La mitigación del resto es estructural: esa capa se reduce a abrir el puerto y reenviar bytes, sin ninguna decisión propia. **Archivos acogidos a la excepción, tras la implementación**: únicamente `midi-io/src/windows.rs`. Todo lo demás de `midi-io/` acabó cubierto: `parser.rs`, `macos.rs` y `vigia.rs` se ejercen contra teclados virtuales de CoreMIDI (`macos_virtual_test.rs`, `vigia_test.rs`, `parser_test.rs`). La condición (3) de la excepción —probar donde la plataforma lo permita— se cumple, y la excepción quedó reducida a un archivo que aún no existe. Esta lista es parte de la revisión y no se amplía sin discutirlo. |
 | La deuda del Principio IV se salda **parcialmente**: el banco existe, corre sin teclado y falla, pero sin remoto git quien bloquea es un hook `pre-push` local, evitable con `--no-verify` | No hay remoto configurado ni infraestructura de integración continua, y crear uno es una decisión del proyecto, no un detalle técnico que este plan pueda tomar por su cuenta. | Dejar T053 y T059 apuntando a una integración continua inexistente fue descartado: habrían quedado como tareas imposibles de completar, y la feature que existe **para** saldar esta deuda la habría dejado abierta fingiendo lo contrario. En su lugar, `scripts/verificar.sh` concentra las cuatro puertas en un solo comando y `ci.yml` se versiona ya, inerte, para que el día que haya remoto no haya nada que inventar. **Deuda restante, acotada a una acción**: activar el remoto. |
 | La ruta de Windows no ha sido ejecutada ni una sola vez: todo lo planificado sobre ella es lectura de código, documentación oficial e issues públicos | No hay ninguna máquina Windows en el entorno de desarrollo, y la compilación cruzada verifica que compila, no que funcione. | Planificar solo macOS fue descartado: la Constitución fija Windows como plataforma objetivo y descubrir los problemas al final es peor. **Deuda explícita y acotada**: un trabajo de un día en una máquina Windows real, como **primer** trabajo del lado Windows, que valide en este orden: enumeración y apertura, notificaciones de conexión, cierre tras retirada del dispositivo sin cuelgue (Microsoft KB4460006 documenta un cuelgue irrecuperable), y la cifra de latencia. Hasta entonces, ninguna afirmación sobre Windows en estos documentos debe leerse como medida. |
 | El banco de latencia no vive dentro de `cargo test` | La suite completa debe seguir por debajo de 1 segundo (SC-002 de la feature 001, ya verificado en 60 ms). Un benchmark honesto necesita cientos de muestras y descarte de calentamiento: metido en la suite, la haría inutilizable como bucle de desarrollo. | Meterlo en la suite con menos muestras fue descartado porque un p95 sobre pocas muestras es ruido, y un benchmark intermitente se acaba desactivando, que es la peor deuda posible: la puerta sigue ahí pero ya no protege nada. |

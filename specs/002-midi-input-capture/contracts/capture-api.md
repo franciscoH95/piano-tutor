@@ -59,10 +59,18 @@ impl Emparejador {
 /// Extremo del productor. Vive dentro del callback del sistema operativo.
 pub struct Emisor { /* ... */ }
 impl Emisor {
-    /// Publica un evento. **Nunca bloquea y nunca asigna.**
-    /// Si no hay sitio, descarta el evento ENTRANTE e incrementa el contador.
-    pub fn emitir(&mut self, ev: EventoCrudo);
+    /// Publica una observacion. **Nunca bloquea y nunca asigna.**
+    ///
+    /// Toma una `Observacion` (instante, altura, intensidad, tipo, canal) y NO un
+    /// `EventoCrudo` ya formado: el `seq` lo asigna el transporte, no el llamante.
+    /// Si lo pusiera quien llama, el hueco en la secuencia dejaria de demostrar nada,
+    /// porque nadie garantizaria que es monotono.
+    ///
+    /// Si no hay sitio, descarta la observacion ENTRANTE e incrementa el contador.
+    pub fn emitir(&mut self, o: Observacion);
     pub fn descartados(&self) -> u32;
+    /// Cuantas veces se sujeto un instante que retrocedia (FR-013).
+    pub fn retrocesos(&self) -> u32;
 }
 
 /// Extremo del consumidor.
@@ -92,17 +100,48 @@ pub fn abrir<C: Clock + Clone + Send + 'static>(
     clock: C,
 ) -> Result<Captura, ErrorDeEntrada>;
 
+/// Reabre tras una reconexion. Es exactamente `abrir`: el reconocimiento por identidad ya
+/// cubre que el sistema haya renumerado los puertos, que es la ventaja de no haber usado
+/// nunca el indice de puerto como identidad.
+pub fn reabrir<C: Clock + Send + 'static>(
+    dispositivo: &Dispositivo,
+    clock: C,
+) -> Result<Captura, ErrorDeEntrada>;
+
 pub struct Captura { /* ... */ }
 impl Captura {
     /// El extremo de lectura, que implementa `FuenteDeEventos`.
-    pub fn receptor(&mut self) -> &mut impl FuenteDeEventos;
-    /// Cambios de disponibilidad del dispositivo, sin bloquear.
-    pub fn novedades(&mut self) -> Option<NovedadDeDispositivo>;
+    pub fn receptor(&mut self) -> &mut Receptor;
+    /// Espera hasta `ventana` a que llegue algo, y dice si llego.
+    ///
+    /// Existe por un fallo documentado de Windows: tras reconectar, el puerto se abre con
+    /// exito y nunca entrega un solo mensaje. Devolver `false` NO significa que este roto
+    /// —puede que nadie este tocando—, pero impide dar por hecho que funciona.
+    pub fn confirmar_actividad(&mut self, ventana: Duration) -> bool;
     /// Libera el dispositivo para otras aplicaciones (FR-006).
     pub fn cerrar(self);
 }
+```
 
-pub enum NovedadDeDispositivo { Perdido, Reaparecido }
+## Vigilancia del dispositivo: `piano_midi_io::vigia`
+
+El vigia informa de **hechos**, no de conclusiones. Quien decide si una ausencia es una
+perdida es `SesionDeCaptura`, con su regla de doble confirmacion. La separacion no es
+decorativa: permite probar la **decision** sin hardware y el **hecho** con hardware virtual,
+que es lo que hace verificable toda la historia P3.
+
+```rust
+pub enum Presencia { Presente, Ausente }
+
+pub struct Vigia { /* ... */ }
+impl Vigia {
+    /// Empieza a vigilar con el intervalo por defecto (un segundo).
+    pub fn nuevo(objetivo: Dispositivo) -> Self;
+    /// Igual, con intervalo a medida. Existe para que las pruebas no tarden segundos.
+    pub fn con_intervalo(objetivo: Dispositivo, intervalo: Duration) -> Self;
+    /// Lo ultimo observado, si hay algo nuevo. No bloquea.
+    pub fn novedad(&mut self) -> Option<Presencia>;
+}
 ```
 
 **Contrato de `abrir`**: nunca entra en pánico, sea cual sea la secuencia de bytes que entregue el

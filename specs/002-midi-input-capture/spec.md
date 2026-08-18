@@ -205,8 +205,17 @@ comprobando que el sistema lo comunica y conserva lo capturado hasta ese momento
 
 - **FR-007**: El sistema MUST registrar cada pulsación con su altura, su intensidad y el instante
   en que ocurrió.
-- **FR-008**: El sistema MUST registrar cada suelta de tecla y emparejarla con su pulsación,
-  siguiendo la misma política de emparejamiento que ya usa la carga de canciones.
+- **FR-008**: El sistema MUST registrar cada suelta de tecla y emparejarla con su pulsación. Una
+  tecla solo puede estar hundida una vez, así que si llega un segundo ataque de una tecla que
+  seguía hundida, el sistema MUST cerrar la anterior **en ese instante** y MUST etiquetar ese
+  final como producido por la repulsación, no por una suelta.
+- **FR-008a**: Esa política **difiere a propósito** de la que usa la carga de canciones, que
+  empareja en orden de llegada mirando la pieza entera. La captura es un flujo: cuando llega el
+  segundo ataque hay que decidir en ese mismo instante qué pasa con el primero, sin saber qué
+  vendrá después. Esperar a saberlo significaría retrasar la entrega, y eso es exactamente lo que
+  prohíbe el presupuesto de latencia. La divergencia MUST quedar visible en el dato, mediante la
+  etiqueta de cierre, para que quien compare lo tocado con lo esperado sepa que ese final no lo
+  puso el alumno.
 - **FR-009**: El sistema MUST tratar una pulsación de intensidad cero como una suelta de tecla.
 - **FR-010**: El sistema MUST conservar el orden en que ocurrieron las pulsaciones, y MUST aplicar
   un desempate estable y definido cuando dos comparten instante.
@@ -242,8 +251,16 @@ comprobando que el sistema lo comunica y conserva lo capturado hasta ese momento
   MUST NOT descartarlas, porque el alumno sí pulsó esa tecla, ni asignarles una duración inventada,
   porque un dato fabricado es indistinguible de uno real y contaminaría cualquier evaluación
   posterior. Es la misma política que aplica la carga de canciones a las notas colgadas.
-- **FR-016**: El sistema MUST contar los eventos anómalos tolerados (sueltas sin pulsación previa,
-  notas cerradas al detener) igual que hace la carga de canciones, sin escribir en disco.
+- **FR-016**: El sistema MUST contar los eventos anómalos tolerados —sueltas sin pulsación previa,
+  notas cerradas al detener, notas cerradas al perderse el dispositivo, teclas repulsadas, notas
+  de percusión y notas fuera de las 88 teclas— igual que hace la carga de canciones, sin escribir
+  en disco. Las pulsaciones descartadas por desbordamiento MUST contarse también, aunque su
+  contador viva en el transporte y no en el informe: son un problema de la ruta crítica, no del
+  material tocado.
+- **FR-016a**: El sistema MUST NOT contar los mensajes que no son notas. Descartar un pedal o un
+  mensaje de reloj no es tolerar una anomalía: es el funcionamiento normal que exige FR-014. Un
+  teclado que emita reloj MIDI genera veinticuatro mensajes por negra, así que ese contador sería
+  un número enorme y sin significado.
 
 ### Latencia
 
@@ -292,10 +309,11 @@ comprobando que el sistema lo comunica y conserva lo capturado hasta ese momento
   secuencia controlada para pruebas.
 - **Reloj de sesión**: el origen de tiempo único, creado al arrancar la sesión y compartido por la
   captura y la reproducción. Sustituible por uno controlado en las pruebas.
-- **Informe de captura**: contadores de eventos anómalos tolerados durante la sesión: pulsaciones
-  descartadas por desbordamiento, sueltas sin pulsación previa, notas cerradas al detener la
-  captura, notas cerradas al perderse el dispositivo, teclas repulsadas sin haberse soltado, notas
-  fuera de las 88 teclas de un piano y mensajes descartados por no ser notas.
+- **Informe de captura**: contadores de eventos anómalos tolerados durante la sesión: sueltas sin
+  pulsación previa, notas cerradas al detener la captura, notas cerradas al perderse el
+  dispositivo, teclas repulsadas sin haberse soltado, notas de percusión y notas fuera de las 88
+  teclas de un piano. Las pulsaciones descartadas por desbordamiento se cuentan aparte, en el
+  transporte, porque describen un problema de la ruta crítica y no del material tocado.
 - **Medición de retraso**: el resultado de la comprobación automática de latencia, con su
   percentil 95 y su veredicto frente al presupuesto.
 

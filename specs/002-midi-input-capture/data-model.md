@@ -124,10 +124,21 @@ detección llega hasta un segundo más tarde, y datar la nota ahí inventaría d
 
 ### `InformeDeCaptura`
 
-Contadores `u32`, todos a cero en una sesión limpia:
+Seis contadores `u32`, todos a cero en una sesión limpia:
 
-`descartados_por_desbordamiento`, `sueltas_sin_pulsacion`, `cerradas_por_parada`,
-`cerradas_por_perdida`, `repulsaciones`, `notas_fuera_de_88_teclas`, `mensajes_no_nota_descartados`.
+`sueltas_sin_pulsacion`, `cerradas_por_parada`, `cerradas_por_perdida`, `repulsaciones`,
+`percusion`, `fuera_de_88_teclas`.
+
+Dos que podrían esperarse y **no están aquí**, cada uno por su motivo:
+
+- **Descartes por desbordamiento**: existen, pero viven en el transporte
+  (`Emisor::descartados`), no en este informe. Describen un problema de la ruta crítica, no
+  del material que se tocó, y mezclarlos obligaría a meter un contador atómico compartido
+  dentro de un tipo que hoy es puro dato.
+- **Mensajes descartados por no ser notas**: **no se cuentan**. Descartar un pedal o un
+  mensaje de reloj es el funcionamiento normal que exige FR-014, no una anomalía tolerada.
+  Un teclado que emita reloj MIDI genera veinticuatro mensajes por negra: el contador sería
+  un número enorme y sin significado.
 
 Sin registro en disco ni en consola: son exactamente los valores sobre los que assertan las pruebas
 de casos límite, igual que el informe de carga de la feature 001.
