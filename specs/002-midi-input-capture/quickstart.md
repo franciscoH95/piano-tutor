@@ -93,6 +93,22 @@ de integración continua es exactamente el tramo que el banco sintético no cubr
 ejecute al menos una vez, el informe imprime `DELTA_SO_USB: SIN CALIBRAR`, y eso es honesto: no lo
 sabemos.
 
+### 4. Que una sesión larga no se degrada (SC-008)
+
+```sh
+cargo run -p piano-bench --release --bin latencia -- --sostenido
+```
+
+Diez minutos reales. Compara el percentil 95 del último minuto con el del primero y falla si la
+degradación supera el 10 %. **Medido el 2026-08-18**: p95 por minuto entre 39 y 62 µs, primero
+52 µs, último 44 µs, límite 57 µs. Código de salida 0.
+
+Para comprobar que el modo funciona sin gastar diez minutos:
+
+```sh
+PIANO_BENCH_MINUTOS=2 cargo run -p piano-bench --release --bin latencia -- --sostenido
+```
+
 ## Lo que este quickstart todavía NO valida
 
 - **Windows.** Nada de lo planificado para Windows se ha ejecutado ni una sola vez: está sostenido
