@@ -165,14 +165,9 @@ fn barrer_todos_los_bytes_posibles_no_provoca_panico() {
 fn los_bytes_de_datos_se_enmascaran_a_siete_bits() {
     // Un flujo malformado podria colar un valor >= 0x80 donde iba un dato. Enmascarar lo
     // mantiene dentro del rango real de notas del estandar.
-    let mut p = Parser::nuevo();
-    p.consumir(Micros(0), &[0x90, 60, 100], |_| {});
-    let mut v = Vec::new();
-    p.consumir(Micros(0), &[0xFF_u8 & 0x7F, 0x7F], |o| v.push(o)); // dato valido tras enmascarar
     let mut w = Vec::new();
     Parser::nuevo().consumir(Micros(0), &[0x90, 200, 200], |o| w.push(o));
     assert_eq!(w.len(), 1);
-    assert!(w[0].key <= 127, "altura fuera de rango: {}", w[0].key);
-    assert!(w[0].velocity <= 127, "intensidad fuera de rango: {}", w[0].velocity);
-    let _ = v;
+    assert_eq!(w[0].key, 200 & 0x7F, "altura enmascarada a siete bits");
+    assert_eq!(w[0].velocity, 200 & 0x7F, "intensidad enmascarada a siete bits");
 }

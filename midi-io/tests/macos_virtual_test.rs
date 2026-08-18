@@ -6,7 +6,7 @@
 #![cfg(target_os = "macos")]
 
 use coremidi::{Client, PacketBuffer};
-use piano_core::capture::{Cierre, Emparejador, EventoCrudo, FuenteDeEventos, TipoEvento};
+use piano_core::capture::{Cierre, Emparejador, EventoCrudo, TipoEvento};
 use piano_core::clock::MonotonicClock;
 use piano_midi_io::{abrir, dispositivos};
 use std::time::{Duration, Instant};
