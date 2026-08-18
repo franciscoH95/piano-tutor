@@ -47,6 +47,41 @@ impl Captura {
     pub fn cerrar(self) {
         drop(self);
     }
+
+    /// Espera hasta `ventana` a que llegue **algo**, y dice si llego.
+    ///
+    /// Existe por un fallo documentado de Windows (`microsoft/MIDI` #906): tras
+    /// reconectar, el puerto se abre con exito y **nunca entrega un solo mensaje**. Sin
+    /// esta comprobacion, la aplicacion mostraria una captura activa que en realidad esta
+    /// muerta, y el alumno tocaria contra el vacio sin saber por que.
+    ///
+    /// Devolver `false` **no** significa que el dispositivo este roto: puede que
+    /// simplemente no se este tocando. Quien llama decide que contar al usuario; lo que no
+    /// puede es dar por hecho que funciona.
+    pub fn confirmar_actividad(&mut self, ventana: std::time::Duration) -> bool {
+        let limite = std::time::Instant::now() + ventana;
+        let mut buffer = Vec::with_capacity(64);
+        while std::time::Instant::now() < limite {
+            if self.receptor.recoger(&mut buffer) > 0 {
+                return true;
+            }
+            std::thread::sleep(std::time::Duration::from_millis(5));
+        }
+        false
+    }
+}
+
+/// Reabre un dispositivo tras una reconexion, reconociendolo de nuevo por su identidad.
+///
+/// Es exactamente [`abrir`]: el reconocimiento (identificador del sistema primero, pareja
+/// (nombre, posicion) despues) ya cubre el caso de que el sistema haya renumerado los
+/// puertos al reconectar. No hace falta nada especial, y esa es justamente la ventaja de
+/// no haber usado nunca el indice de puerto como identidad.
+pub fn reabrir<C>(dispositivo: &Dispositivo, clock: C) -> Result<Captura, ErrorDeEntrada>
+where
+    C: Clock + Send + 'static,
+{
+    abrir(dispositivo, clock)
 }
 
 /// Abre un dispositivo y empieza a capturar.
@@ -68,8 +103,19 @@ where
             return Err(ErrorDeEntrada::NoSePudoAbrir { nombre: dispositivo.nombre.clone() })
         }
     };
-    let fuente = Source::from_index(indice)
+    // Resolver la fuente por su IDENTIFICADOR, no por el indice de enumeracion. El indice
+    // es valido solo en el instante en que se enumero: si otro aparato aparece o
+    // desaparece entre medias, apunta a un dispositivo distinto. Es exactamente el fallo
+    // que la identidad estable existe para evitar, y usarlo aqui lo reintroducia por la
+    // puerta de atras.
+    let elegido = disponibles
+        .get(indice)
         .ok_or_else(|| ErrorDeEntrada::NoSePudoAbrir { nombre: dispositivo.nombre.clone() })?;
+    let fuente = match elegido.id_sistema {
+        Some(id) => u32::try_from(id.0).ok().and_then(Source::from_unique_id),
+        None => Source::from_index(indice),
+    }
+    .ok_or_else(|| ErrorDeEntrada::NoSePudoAbrir { nombre: dispositivo.nombre.clone() })?;
 
     let cliente = Client::new("Piano Tutor")
         .map_err(|_| ErrorDeEntrada::NoSePudoAbrir { nombre: dispositivo.nombre.clone() })?;

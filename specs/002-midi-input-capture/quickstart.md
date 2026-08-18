@@ -15,8 +15,12 @@ cd /Users/frankohiggins/Projects/teacher_learn_piano_songs_app
 cargo test -p piano-core
 ```
 
-**Resultado esperado**: todo en verde, y la suite completa (las 79 pruebas de la feature 001 más
-las nuevas) por debajo de **1 segundo**.
+**Resultado esperado** (medido el 2026-08-18): **162 pruebas en verde**, suite completa por debajo
+de un segundo. De ellas, 79 son de la feature 001 y 83 nuevas.
+
+El adaptador de macOS **sí está cubierto**: `coremidi` permite crear teclados virtuales, así que
+`midi-io/tests/macos_virtual_test.rs` y `vigia_test.rs` lo ejercen de verdad contra CoreMIDI, sin
+hardware. Lo único sin cobertura automática es la rama de Windows, que aún no existe.
 
 ## Las tres puertas que hay que mirar
 
@@ -37,7 +41,17 @@ cargo run -p piano-bench --release --bin latencia
 ```
 
 **Resultado esperado**: código de salida 0, y un informe con el percentil 95 por debajo de **1 ms**
-(la puerta de nuestra capa) y muy por debajo de **30 ms** (la puerta constitucional).
+(la puerta de nuestra capa) y muy por debajo de **30 ms** (la puerta constitucional). Medido el
+2026-08-18 en un portátil Apple Silicon: **p95 = 21–25 µs**.
+
+Para comprobar que la puerta **muerde** de verdad, y no solo que está escrita:
+
+```sh
+PIANO_BENCH_PUERTA_US=0 cargo run -p piano-bench --release --bin latencia; echo $?
+```
+
+Debe imprimir `1`. Esa misma variable es la que permite calibrar el umbral en un runner real
+antes de fijarlo, en vez de heredar un número medido en otra máquina.
 
 Códigos de salida: `0` correcto · `1` supera la puerta de capa · `2` supera la constitucional ·
 `3` error de ejecución.

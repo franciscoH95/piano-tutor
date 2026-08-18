@@ -2521,6 +2521,7 @@ name = "piano-bench"
 version = "0.1.0"
 dependencies = [
  "piano-core",
+ "piano-midi-io",
 ]
 
 [[package]]
@@ -2544,6 +2545,8 @@ dependencies = [
 name = "piano-tutor"
 version = "0.1.0"
 dependencies = [
+ "piano-core",
+ "piano-midi-io",
  "serde",
  "serde_json",
  "tauri",

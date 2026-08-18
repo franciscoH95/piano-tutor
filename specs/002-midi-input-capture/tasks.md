@@ -132,16 +132,16 @@ cobertura queda reducida a la rama de Windows.
 
 **Prueba independiente**: `cargo run -p piano-bench --release --bin latencia` termina con código 0.
 
-- [ ] T045 [US2] Implementar el arnés de medición en `bench/src/bin/latencia.rs`: t0 justo antes de publicar en el anillo, t1 tras despertar de un bloqueo real **y** tras decodificar al tipo de dominio (D4). El despertar cuenta
-- [ ] T046 [US2] Implementar el muestreo en `bench/src/bin/latencia.rs`: n = 3.000 muestras a 1 ms, 500 de calentamiento descartadas, k = 3 repeticiones tomando el **mínimo de los p95**
-- [ ] T047 [US2] Implementar las dos puertas y los códigos de salida en `bench/src/bin/latencia.rs`: 1 ms p95 (capa) y 30 ms p95 (constitucional); salida `0` correcto, `1` supera la de capa, `2` supera la constitucional, `3` error de ejecución
-- [ ] T048 [US2] Implementar en `bench/src/bin/latencia.rs` el informe que se imprime **en cada ejecución**: la tabla de tramos no medidos y la frase de alcance. **El banco cubre en torno al 0,11 % del recorrido que percibe el alumno**, y sin esa advertencia el número se lee como lo que no es
-- [ ] T049 [US2] Implementar el campo `DELTA_SO_USB` en el informe de `bench/src/bin/latencia.rs`, que imprime `SIN CALIBRAR` mientras no exista una medición con hardware real. Decirlo es más honesto que estimarlo
-- [ ] T050 [US2] Implementar el modo `--con-hardware` en `bench/src/bin/latencia.rs`, que mide desde el sello del propio sistema operativo. Su diferencia con el número de CI es exactamente el tramo no cubierto
-- [ ] T050a [US2] Implementar el modo `--sostenido` en `bench/src/bin/latencia.rs`: diez minutos de eventos a ritmo realista, comparando el p95 del último minuto con el del primero; falla si la degradación supera el 10 % (SC-008). **No entra en `scripts/verificar.sh`** por duración: se ejecuta a mano o en una tarea nocturna
+- [X] T045 [US2] Implementar el arnés de medición en `bench/src/bin/latencia.rs`: t0 justo antes de publicar en el anillo, t1 tras despertar de un bloqueo real **y** tras decodificar al tipo de dominio (D4). El despertar cuenta
+- [X] T046 [US2] Implementar el muestreo en `bench/src/bin/latencia.rs`: n = 3.000 muestras a 1 ms, 500 de calentamiento descartadas, k = 3 repeticiones tomando el **mínimo de los p95**
+- [X] T047 [US2] Implementar las dos puertas y los códigos de salida en `bench/src/bin/latencia.rs`: 1 ms p95 (capa) y 30 ms p95 (constitucional); salida `0` correcto, `1` supera la de capa, `2` supera la constitucional, `3` error de ejecución
+- [X] T048 [US2] Implementar en `bench/src/bin/latencia.rs` el informe que se imprime **en cada ejecución**: la tabla de tramos no medidos y la frase de alcance. **El banco cubre en torno al 0,11 % del recorrido que percibe el alumno**, y sin esa advertencia el número se lee como lo que no es
+- [X] T049 [US2] Implementar el campo `DELTA_SO_USB` en el informe de `bench/src/bin/latencia.rs`, que imprime `SIN CALIBRAR` mientras no exista una medición con hardware real. Decirlo es más honesto que estimarlo
+- [X] T050 [US2] Implementar el modo `--con-hardware` en `bench/src/bin/latencia.rs`, que mide desde el sello del propio sistema operativo. Su diferencia con el número de CI es exactamente el tramo no cubierto
+- [X] T050a [US2] Implementar el modo `--sostenido` en `bench/src/bin/latencia.rs`: diez minutos de eventos a ritmo realista, comparando el p95 del último minuto con el del primero; falla si la degradación supera el 10 % (SC-008). **No entra en `scripts/verificar.sh`** por duración: se ejecuta a mano o en una tarea nocturna
 - [ ] T051 [US2] **Calibrar el umbral en el runner real**: ejecutar el banco 20 veces en el entorno de integración continua y fijar la puerta de capa **con el dato en la mano**, nunca por corazonada. Documentar el valor y su fecha en `bench/README.md`. Los números de referencia se midieron en un M1 Max de 10 núcleos, no en un runner compartido de 2–4 vCPU
-- [ ] T052 [US2] Configurar el hilo consumidor con prioridad elevada (QoS *user-interactive* en macOS, por encima de normal en Windows) en `core/src/capture/transporte.rs`. Sin ello la cola de latencia la pone el planificador, no el código: p999 medido de 2,65 ms a prioridad normal
-- [ ] T053 [US2] Incorporar el banco a `scripts/verificar.sh` con su código de salida, de modo que un fallo aborte la verificación. **Alcance real**: mientras no exista remoto, quien bloquea es el hook `pre-push` local, que se salta con `--no-verify`. La puerta del Principio IV **no queda cerrada del todo** hasta que `ci.yml` corra en un remoto. Una medición que solo informa no es una puerta
+- [X] T052 [US2] Configurar el hilo consumidor con prioridad elevada (QoS *user-interactive* en macOS, por encima de normal en Windows) en `core/src/capture/transporte.rs`. Sin ello la cola de latencia la pone el planificador, no el código: p999 medido de 2,65 ms a prioridad normal
+- [X] T053 [US2] Incorporar el banco a `scripts/verificar.sh` con su código de salida, de modo que un fallo aborte la verificación. **Alcance real**: mientras no exista remoto, quien bloquea es el hook `pre-push` local, que se salta con `--no-verify`. La puerta del Principio IV **no queda cerrada del todo** hasta que `ci.yml` corra en un remoto. Una medición que solo informa no es una puerta
 
 **Checkpoint**: la deuda del Principio IV queda saldada con sus tres condiciones: existe, corre sin teclado y falla.
 
@@ -153,12 +153,12 @@ cobertura queda reducida a la rama de Windows.
 
 **Prueba independiente**: la suite entera pasa en una máquina sin ningún dispositivo MIDI.
 
-- [ ] T054 [US3] Prueba en `core/tests/determinismo_captura_test.rs`: alimentar el emparejador 100 veces con el mismo guion produce 100 resultados idénticos, informe incluido (SC-004)
-- [ ] T055 [US3] Prueba en `core/tests/determinismo_captura_test.rs`: un guion sucio a propósito (sueltas huérfanas, repulsaciones, teclas hundidas al final, mensajes no-nota) también es reproducible bit a bit
-- [ ] T056 [US3] Prueba en `core/tests/carga_test.rs`: una ráfaga de 50 eventos por segundo durante un minuto simulado no pierde ninguna pulsación y deja el contador de descartes en cero (SC-002)
-- [ ] T057 [US3] Prueba en `core/tests/carga_test.rs`: con el consumidor detenido a propósito hasta desbordar, la memoria no crece, nada se bloquea y el contador refleja exactamente cuántas se perdieron (SC-002a)
-- [ ] T058 [US3] Ajustar lo que haga falta en `core/src/capture/` para que las pruebas anteriores pasen sin relajarlas: nada de `HashMap` en rutas que afecten al orden, nada de reloj del sistema fuera del `Clock` inyectado
-- [ ] T059 [US3] Añadir la puerta del Principio III a `scripts/verificar.sh`: `cargo tree -p piano-core` debe dar **exactamente tres líneas** en los tres targets, más un grep negativo contra `coremidi|midir|windows|winapi|core-foundation|objc2|libc|alsa|jack`
+- [X] T054 [US3] Prueba en `core/tests/determinismo_captura_test.rs`: alimentar el emparejador 100 veces con el mismo guion produce 100 resultados idénticos, informe incluido (SC-004)
+- [X] T055 [US3] Prueba en `core/tests/determinismo_captura_test.rs`: un guion sucio a propósito (sueltas huérfanas, repulsaciones, teclas hundidas al final, mensajes no-nota) también es reproducible bit a bit
+- [X] T056 [US3] Prueba en `core/tests/carga_test.rs`: una ráfaga de 50 eventos por segundo durante un minuto simulado no pierde ninguna pulsación y deja el contador de descartes en cero (SC-002)
+- [X] T057 [US3] Prueba en `core/tests/carga_test.rs`: con el consumidor detenido a propósito hasta desbordar, la memoria no crece, nada se bloquea y el contador refleja exactamente cuántas se perdieron (SC-002a)
+- [X] T058 [US3] Ajustar lo que haga falta en `core/src/capture/` para que las pruebas anteriores pasen sin relajarlas: nada de `HashMap` en rutas que afecten al orden, nada de reloj del sistema fuera del `Clock` inyectado
+- [X] T059 [US3] Añadir la puerta del Principio III a `scripts/verificar.sh`: `cargo tree -p piano-core` debe dar **exactamente tres líneas** en los tres targets, más un grep negativo contra `coremidi|midir|windows|winapi|core-foundation|objc2|libc|alsa|jack`
 
 **Checkpoint**: la suite completa pasa en una máquina limpia, sin hardware.
 
@@ -170,17 +170,17 @@ cobertura queda reducida a la rama de Windows.
 
 **Prueba independiente**: `cargo test -p piano-core sesion` en verde, simulando la pérdida.
 
-- [ ] T060 [US4] Prueba en `core/tests/sesion_test.rs`: al declarar la pérdida, las teclas hundidas se cierran con `Cierre::PorPerdidaDeDispositivo`, selladas en el instante del **último evento recibido** —no en el de la detección, que llega más tarde— y marcadas con `duracion_censurada`
-- [ ] T061 [US4] Prueba en `core/tests/sesion_test.rs`: todo lo capturado antes de la pérdida se conserva íntegro (SC-007)
-- [ ] T062 [US4] Implementar la máquina de estados de `SesionDeCaptura` (Inactiva, Abriendo, Capturando, Perdida, Error) en `core/src/capture/sesion.rs`
-- [ ] T063 [US4] Prueba en `core/tests/sesion_test.rs`: la pérdida **nunca** se infiere del silencio; solo la declaran una notificación explícita o una doble ausencia en la enumeración
-- [ ] T064 [US4] Implementar la regla de doble confirmación en `core/src/capture/sesion.rs`
-- [ ] T065 [US4] Implementar el vigía de macOS en `midi-io/src/vigia.rs` con `coremidi::Client::new_with_notifications`. **Debe crearse antes que cualquier otro cliente MIDI del proceso**, en el hilo cuyo `CFRunLoop` corre; en Tauri, el principal. Es una dependencia de orden invisible que no da error si se rompe
-- [ ] T066 [US4] Añadir una aserción de arranque que compruebe que se reciben notificaciones antes de continuar, y el comentario `// NO tocar MIDI antes de esta línea` en `src-tauri/src/lib.rs`
+- [X] T060 [US4] Prueba en `core/tests/sesion_test.rs`: al declarar la pérdida, las teclas hundidas se cierran con `Cierre::PorPerdidaDeDispositivo`, selladas en el instante del **último evento recibido** —no en el de la detección, que llega más tarde— y marcadas con `duracion_censurada`
+- [X] T061 [US4] Prueba en `core/tests/sesion_test.rs`: todo lo capturado antes de la pérdida se conserva íntegro (SC-007)
+- [X] T062 [US4] Implementar la máquina de estados de `SesionDeCaptura` (Inactiva, Abriendo, Capturando, Perdida, Error) en `core/src/capture/sesion.rs`
+- [X] T063 [US4] Prueba en `core/tests/sesion_test.rs`: la pérdida **nunca** se infiere del silencio; solo la declaran una notificación explícita o una doble ausencia en la enumeración
+- [X] T064 [US4] Implementar la regla de doble confirmación en `core/src/capture/sesion.rs`
+- [X] T065 [US4] Implementar el vigía de macOS en `midi-io/src/vigia.rs` con `coremidi::Client::new_with_notifications`. **Debe crearse antes que cualquier otro cliente MIDI del proceso**, en el hilo cuyo `CFRunLoop` corre; en Tauri, el principal. Es una dependencia de orden invisible que no da error si se rompe
+- [X] T066 [US4] Añadir una aserción de arranque que compruebe que se reciben notificaciones antes de continuar, y el comentario `// NO tocar MIDI antes de esta línea` en `src-tauri/src/lib.rs`
 - [ ] T067 [US4] Implementar el vigía de Windows en `midi-io/src/vigia.rs` con `CM_Register_Notification` y `GUID_DEVINTERFACE_MIDI_INPUT`, aplicando lo aprendido en T042
-- [ ] T068 [US4] Implementar el sondeo de respaldo cada 1.000 ms en `midi-io/src/vigia.rs`, que cumple el requisito de 2 segundos con doble confirmación aunque la notificación no llegue
-- [ ] T069 [US4] Implementar la reapertura tras reconexión en `midi-io/src/lib.rs`, con **ventana de cortesía**: si tras reabrir no llega ningún evento, informar al usuario en lugar de fingir que funciona. `microsoft/MIDI` #906 documenta exactamente ese fallo en Windows
-- [ ] T070 [US4] Implementar el reconocimiento del dispositivo reaparecido reutilizando la función de T022 (identificador primero, pareja de reserva después) en `midi-io/src/lib.rs`
+- [X] T068 [US4] Implementar el sondeo de respaldo cada 1.000 ms en `midi-io/src/vigia.rs`, que cumple el requisito de 2 segundos con doble confirmación aunque la notificación no llegue
+- [X] T069 [US4] Implementar la reapertura tras reconexión en `midi-io/src/lib.rs`, con **ventana de cortesía**: si tras reabrir no llega ningún evento, informar al usuario en lugar de fingir que funciona. `microsoft/MIDI` #906 documenta exactamente ese fallo en Windows
+- [X] T070 [US4] Implementar el reconocimiento del dispositivo reaparecido reutilizando la función de T022 (identificador primero, pareja de reserva después) en `midi-io/src/lib.rs`
 - [ ] T071 [US4] Prueba manual con hardware, con el procedimiento anotado en `specs/002-midi-input-capture/quickstart.md`: desconectar el teclado a mitad de captura, comprobar que se comunica en menos de 2 segundos, reconectar y comprobar que la captura se reanuda sin reiniciar
 
 **Checkpoint**: las cuatro historias completas.
@@ -189,12 +189,12 @@ cobertura queda reducida a la rama de Windows.
 
 ## Phase 7: Polish
 
-- [ ] T072 [P] Documentar con rustdoc la API pública de `core/src/capture/` y de `midi-io/src/lib.rs`, conforme a `contracts/capture-api.md`
-- [ ] T073 [P] Verificar `cargo clippy --workspace --all-targets -- -D warnings` limpio, sin `#[allow]` nuevos sin justificar en comentario
-- [ ] T074 [P] Verificar que `midi-io/src/` sigue sin ninguna decisión de dominio: revisar archivo por archivo y mudar a `core/` cualquier lógica que se haya colado
-- [ ] T075 Verificar que la suite completa sigue por debajo de 1 segundo y registrar el dato en `specs/002-midi-input-capture/quickstart.md`
-- [ ] T076 Persistir la elección de teclado en `src-tauri/src/preferencias.rs`: el identificador del sistema **y** la pareja (nombre, posición). Es el único dato de esta feature que toca el disco
-- [ ] T077 Crear el reloj de sesión **una sola vez** en `src-tauri/src/lib.rs` y pasárselo tanto a la captura como a la reproducción (FR-012a). Dos relojes arrancados por separado darían un desfase constante que nadie sabría explicar
+- [X] T072 [P] Documentar con rustdoc la API pública de `core/src/capture/` y de `midi-io/src/lib.rs`, conforme a `contracts/capture-api.md`
+- [X] T073 [P] Verificar `cargo clippy --workspace --all-targets -- -D warnings` limpio, sin `#[allow]` nuevos sin justificar en comentario
+- [X] T074 [P] Verificar que `midi-io/src/` sigue sin ninguna decisión de dominio: revisar archivo por archivo y mudar a `core/` cualquier lógica que se haya colado
+- [X] T075 Verificar que la suite completa sigue por debajo de 1 segundo y registrar el dato en `specs/002-midi-input-capture/quickstart.md`
+- [X] T076 Persistir la elección de teclado en `src-tauri/src/preferencias.rs`: el identificador del sistema **y** la pareja (nombre, posición). Es el único dato de esta feature que toca el disco
+- [X] T077 Crear el reloj de sesión **una sola vez** en `src-tauri/src/lib.rs` y pasárselo tanto a la captura como a la reproducción (FR-012a). Dos relojes arrancados por separado darían un desfase constante que nadie sabría explicar
 - [ ] T078 Actualizar `Complexity Tracking` en `plan.md` con el resultado real del spike de Windows (T042), sustituyendo lo que hoy es lectura de código por lo que se haya medido
 
 ---

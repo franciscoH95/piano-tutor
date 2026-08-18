@@ -7,10 +7,12 @@
 
 mod dispositivo;
 mod emparejador;
+mod sesion;
 mod evento;
 mod fuente;
 mod transporte;
 
+pub use sesion::{EstadoSesion, SesionDeCaptura};
 pub use emparejador::{Cierre, Emparejador, InformeDeCaptura, PulsacionCapturada};
 pub use dispositivo::{catalogar, reconocer, DeviceId, Dispositivo, ErrorDeEntrada, Reconocimiento};
 pub use evento::{EventoCrudo, Observacion, TipoEvento};

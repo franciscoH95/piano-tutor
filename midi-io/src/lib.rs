@@ -23,4 +23,6 @@ pub mod parser;
 #[cfg(target_os = "macos")]
 mod macos;
 #[cfg(target_os = "macos")]
-pub use macos::{abrir, dispositivos, Captura};
+pub mod vigia;
+#[cfg(target_os = "macos")]
+pub use macos::{abrir, dispositivos, reabrir, Captura};

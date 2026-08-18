@@ -200,3 +200,37 @@ fn el_flujo_completo_produce_pulsaciones_emparejadas() {
     assert_eq!(notas[0].closure, Cierre::PorSuelta);
     assert!(notas[0].end > notas[0].onset);
 }
+
+#[test]
+fn reabrir_reconoce_el_dispositivo_y_confirma_actividad() {
+    // T069/T070 — tras reconectar, el reconocimiento por identidad basta; y la ventana de
+    // cortesia distingue "abierto y vivo" de "abierto y mudo".
+    let n = nombre("reapertura");
+    let cliente = Client::new("PianoTutorTestClient").expect("cliente");
+    let vs = cliente.virtual_source(&n).expect("fuente virtual");
+    std::thread::sleep(Duration::from_millis(80));
+    let d = buscar(&n).expect("enumerada");
+
+    let cap = abrir(&d, MonotonicClock::start()).expect("abrir");
+    cap.cerrar(); // como si se hubiese desconectado
+    std::thread::sleep(Duration::from_millis(50));
+
+    let mut cap = piano_midi_io::reabrir(&d, MonotonicClock::start()).expect("reabrir");
+    vs.received(&PacketBuffer::new(0, &[0x90, 60, 100])).expect("enviar");
+    assert!(
+        cap.confirmar_actividad(Duration::from_millis(1_500)),
+        "tras reabrir no llego nada: la captura estaria muerta sin avisar"
+    );
+}
+
+#[test]
+fn confirmar_actividad_devuelve_falso_cuando_no_llega_nada() {
+    let n = nombre("mudo");
+    let cliente = Client::new("PianoTutorTestClient").expect("cliente");
+    let _vs = cliente.virtual_source(&n).expect("fuente virtual");
+    std::thread::sleep(Duration::from_millis(80));
+    let d = buscar(&n).expect("enumerada");
+    let mut cap = abrir(&d, MonotonicClock::start()).expect("abrir");
+    // Nadie envia nada.
+    assert!(!cap.confirmar_actividad(Duration::from_millis(200)));
+}

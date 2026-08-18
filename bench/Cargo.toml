@@ -6,6 +6,7 @@ description = "Banco de latencia de Piano Tutor. Vive fuera de `cargo test` a pr
 
 [dependencies]
 piano-core = { path = "../core" }
+piano-midi-io = { path = "../midi-io" }
 
 [[bin]]
 name = "latencia"
