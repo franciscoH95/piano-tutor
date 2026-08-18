@@ -67,6 +67,9 @@ dada.
    salta ninguna.
 5. **Given** una canción sin notas, **When** se reproduce, **Then** el sistema no anuncia nada
    y termina limpiamente.
+6. **Given** una canción con un cambio de tempo, **When** una nota posterior al cambio entra en
+   la ventana de antelación, **Then** el aviso se emite a la misma distancia musical de la nota
+   que antes del cambio, aunque el margen real en segundos sea distinto.
 
 ---
 
@@ -138,17 +141,19 @@ avances de tiempo y comprobando que ambas ejecuciones producen resultados idént
   interrumpir abruptamente el programa y sin entregar una línea temporal parcial.
 - **FR-008**: El sistema MUST producir la misma línea temporal cada vez que se carga la misma
   canción, incluyendo el orden de las notas que comparten instante de inicio.
-- **FR-009**: El sistema MUST seleccionar qué notas se piden al alumno según
-  [NEEDS CLARIFICATION: ¿todas las notas de la canción, solo las de una voz designada, o una
-  selección configurable por el usuario al cargar?]
+- **FR-009**: El sistema MUST considerar material a tocar todas las notas de la línea temporal,
+  sin filtrar ni descartar voces. La selección por mano o por pista queda fuera de alcance en
+  esta entrega y MUST poder construirse después sobre la voz de origen registrada en FR-006,
+  sin rehacer la carga.
 
 **Anticipación (feedforward)**
 
 - **FR-010**: El sistema MUST anunciar cada nota antes de su instante de inicio, con una
   antelación configurable.
-- **FR-011**: El sistema MUST expresar la antelación en [NEEDS CLARIFICATION: ¿tiempo real fijo
-  (por ejemplo, un margen en milisegundos) o tiempo musical (por ejemplo, un número de pulsos),
-  que se estira y encoge con el tempo?]
+- **FR-011**: El sistema MUST expresar la antelación en tiempo musical (pulsos), no en tiempo
+  real. En consecuencia, el margen real del aviso MUST estirarse al practicar a tempo lento y
+  encogerse a tempo rápido, y un cambio de tempo MUST alterar el instante real del aviso sin
+  alterar su distancia musical a la nota anunciada.
 - **FR-012**: El sistema MUST anunciar cada nota exactamente una vez por reproducción.
 - **FR-013**: El sistema MUST anunciar juntas las notas que comparten instante de inicio,
   preservando su orden dentro del grupo.
@@ -223,6 +228,8 @@ avances de tiempo y comprobando que ambas ejecuciones producen resultados idént
 - **Cambios de compás y armadura**: se leen si están presentes pero no afectan al
   comportamiento de esta entrega; se conservan para funcionalidades posteriores.
 - **Pedales y controladores**: fuera de alcance en esta entrega.
+- **Antelación por defecto**: a falta de configuración se asume una negra de antelación, un
+  margen razonable para un principiante a tempo de estudio.
 - **Alcance deliberadamente parcial**: esta entrega cubre solo el camino de ida (qué tocar y
   cuándo). La captura de lo que toca el alumno, la comparación y la puntuación son
   funcionalidades posteriores, pero la estructura de datos definida aquí debe poder alimentarlas
