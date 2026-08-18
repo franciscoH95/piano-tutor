@@ -10,12 +10,13 @@
 implementación va precedida por la de su prueba. Una tarea de prueba no está completa si la prueba
 pasa nada más escribirla.
 
-**La excepción, declarada a propósito.** Las tareas de `midi-io/` **no tienen prueba automática
-delante**: ningún runner de integración continua tiene un piano enchufado. Es la deuda que el plan
-registró en `Complexity Tracking`, y la mitigación es estructural: esa capa no toma ni una decisión
-de dominio, así que lo que queda sin cubrir es trivial. **Si alguna tarea de `midi-io/` empieza a
-necesitar lógica, es señal de que esa lógica está en el archivo equivocado y debe mudarse a
-`core/`.**
+**La excepción, declarada a propósito y estrechada.** Parte de `midi-io/` no tiene prueba
+automática delante: ningún runner de integración continua tiene un piano enchufado. Pero la
+excepción es **más pequeña de lo que parecía**: `coremidi` permite crear teclados virtuales, así
+que el adaptador de macOS sí se ejerce sin hardware (T036a–T036f). Lo que queda realmente
+descubierto es la rama de Windows. La mitigación del resto es estructural: esa capa no toma ni una
+decisión de dominio. **Si alguna tarea de `midi-io/` empieza a necesitar lógica, es señal de que
+esa lógica está en el archivo equivocado y debe mudarse a `core/`.**
 
 ---
 
@@ -27,6 +28,9 @@ necesitar lógica, es señal de que esa lógica está en el archivo equivocado y
 - [ ] T004 [P] Declarar las dependencias por plataforma en `midi-io/Cargo.toml`: `[target.'cfg(target_os = "macos")'.dependencies] coremidi = "0.9.2"` y `[target.'cfg(windows)'.dependencies] windows = { version = "...", features = [...] }`
 - [ ] T005 [P] Replicar los lints del núcleo en `midi-io/src/lib.rs`: `#![forbid(unsafe_code)]`, `#![deny(clippy::float_arithmetic)]`, `#![deny(clippy::unwrap_used, clippy::expect_used, clippy::panic, clippy::indexing_slicing)]`. **`indexing_slicing` es el que hace imposible el fallo que descalificó a `midir`**
 - [ ] T006 Añadir a `.gitignore` lo que genere el banco, si genera algo, y verificar que `cargo check --workspace` sigue en verde
+- [ ] T006a Crear `scripts/verificar.sh` que ejecute en orden, abortando al primer fallo: `cargo test --workspace`, `cargo clippy --workspace --all-targets -- -D warnings`, la puerta del Principio III y el banco de latencia. Un solo comando, un solo código de salida
+- [ ] T006b [P] Crear `scripts/instalar-hooks.sh` que enlace `scripts/verificar.sh` como hook `pre-push`, y documentarlo en `README.md`. `.git/hooks/` no se versiona, así que sin este script la puerta no existe en una clonación nueva
+- [ ] T006c [P] Escribir `.github/workflows/ci.yml` que ejecute `scripts/verificar.sh` en `macos-latest` y `windows-latest`. Queda inerte hasta que haya remoto; se versiona ya para que el día que lo haya no haya que inventarlo
 
 **Checkpoint**: `cargo tree -p piano-core` muestra exactamente dos líneas (`piano-core` y `rtrb`).
 
@@ -47,6 +51,8 @@ ninguna prueba de las demás.
 - [ ] T014 Ajustar `core/src/capture/transporte.rs` hasta que la prueba de cero asignaciones pase: reservar de una vez al crear el canal, nunca dentro de `emitir`
 - [ ] T015 Prueba en `core/tests/transporte_test.rs`: el consumidor duerme y lo despierta el productor; si el `unpark` llega antes del `park`, el `park` retorna igualmente y **no se pierde el aviso**
 - [ ] T016 Implementar el despertar con `park`/`unpark` y el testigo `quiere_despertar` en `core/src/capture/transporte.rs`
+- [ ] T016a Prueba en `core/tests/transporte_test.rs`: si el reloj devolviese un instante anterior al último sellado, el evento se sella con el último (clamp no decreciente) y se cuenta; los instantes entregados nunca decrecen (FR-013)
+- [ ] T016b Implementar el clamp de monotonía y su contador en `core/src/capture/transporte.rs`, con `debug_assert!` de que en condiciones normales nunca dispara
 - [ ] T017 [P] Prueba en `core/tests/fuente_test.rs`: `FuenteGuionizada` entrega los eventos del guion en orden y con los instantes exactos del guion; `agotada()` pasa a `true` al terminar
 - [ ] T018 Implementar el trait `FuenteDeEventos` (genérico, nunca `dyn`) y `FuenteGuionizada` en `core/src/capture/fuente.rs`
 
@@ -66,6 +72,8 @@ ninguna prueba de las demás.
 - [ ] T020 [US1] Prueba en `core/tests/dispositivo_test.rs`: si no casa ninguno de los dos criterios, el resultado es "pedir al usuario que elija", **nunca** el dispositivo más parecido (FR-004c)
 - [ ] T021 [US1] Prueba en `core/tests/dispositivo_test.rs`: dos dispositivos con el mismo nombre se distinguen por su posición; un nombre vacío recibe una etiqueta generada y sigue siendo elegible
 - [ ] T022 [US1] Implementar `Dispositivo`, `DeviceId` y la función de reconocimiento en `core/src/capture/dispositivo.rs`
+- [ ] T022a [US1] Prueba en `core/tests/dispositivo_test.rs`: los tres modos de fallo —no hay ningún teclado, el elegido no se pudo abrir, el dispositivo está en uso por otra aplicación— producen variantes distintas de `ErrorDeEntrada`, todas comunicables sin interrumpir la aplicación (FR-005)
+- [ ] T022b [US1] Implementar `ErrorDeEntrada` con esas variantes en `core/src/capture/dispositivo.rs` y mapear los códigos de la plataforma en `midi-io/src/macos.rs`
 
 ### Análisis de mensajes
 
@@ -89,8 +97,16 @@ ninguna prueba de las demás.
 
 ### Adaptador de macOS
 
-**Sin prueba automática delante: es la capa declarada en `Complexity Tracking`.**
+**Sí lleva pruebas delante.** `coremidi::Client::virtual_source()` permite crear un teclado
+sintético en el propio sistema, así que este adaptador se ejerce sin hardware. La excepción de
+cobertura queda reducida a la rama de Windows.
 
+- [ ] T036a [US1] Prueba en `midi-io/tests/macos_virtual_test.rs` (`#![cfg(target_os = "macos")]`): crear una fuente virtual con `coremidi::Client::virtual_source()` y comprobar que aparece en la enumeración con su nombre y su `unique_id`
+- [ ] T036b [US1] Prueba en `midi-io/tests/macos_virtual_test.rs`: abrir la fuente virtual, enviarle un note-on y un note-off, y comprobar que el adaptador entrega exactamente esos dos eventos, con altura e intensidad correctas
+- [ ] T036c [US1] Prueba en `midi-io/tests/macos_virtual_test.rs`: enviar un acorde de tres notas **en un solo paquete** y comprobar que las tres reciben **el mismo instante**. Es la propiedad que se gana al controlar el bucle de paquetes (research.md, Decisión 3), y la que `midir` impedía
+- [ ] T036d [US1] Prueba en `midi-io/tests/macos_virtual_test.rs`: enviar por la fuente virtual los paquetes truncados de T024 y comprobar que **el proceso sobrevive**. Es la regresión que protege contra el fallo exacto que descalificó a `midir`
+- [ ] T036e [US1] Prueba en `midi-io/tests/macos_virtual_test.rs`: tras cerrar la captura, enviar 500 mensajes por la fuente virtual y exigir **cero** entregas al consumidor (FR-006)
+- [ ] T036f [US1] Prueba en `midi-io/tests/macos_virtual_test.rs`: desde la llamada de apertura hasta que el primer evento es entregable transcurre menos de 1 segundo (SC-006)
 - [ ] T037 [US1] Implementar la enumeración de dispositivos en `midi-io/src/macos.rs` con `coremidi`, leyendo `display_name()` y `unique_id()` de cada fuente
 - [ ] T038 [US1] Implementar la apertura del puerto y el bucle de paquetes en `midi-io/src/macos.rs`. **Leer el reloj UNA sola vez por paquete** y asignar ese instante a todas las notas del paquete: es lo que da a un acorde un instante único (research.md, Decisión 3)
 - [ ] T039 [US1] Implementar el cierre que libera el dispositivo para otras aplicaciones (FR-006) en `midi-io/src/macos.rs`
@@ -119,9 +135,10 @@ ninguna prueba de las demás.
 - [ ] T048 [US2] Implementar en `bench/src/bin/latencia.rs` el informe que se imprime **en cada ejecución**: la tabla de tramos no medidos y la frase de alcance. **El banco cubre en torno al 0,11 % del recorrido que percibe el alumno**, y sin esa advertencia el número se lee como lo que no es
 - [ ] T049 [US2] Implementar el campo `DELTA_SO_USB` en el informe de `bench/src/bin/latencia.rs`, que imprime `SIN CALIBRAR` mientras no exista una medición con hardware real. Decirlo es más honesto que estimarlo
 - [ ] T050 [US2] Implementar el modo `--con-hardware` en `bench/src/bin/latencia.rs`, que mide desde el sello del propio sistema operativo. Su diferencia con el número de CI es exactamente el tramo no cubierto
+- [ ] T050a [US2] Implementar el modo `--sostenido` en `bench/src/bin/latencia.rs`: diez minutos de eventos a ritmo realista, comparando el p95 del último minuto con el del primero; falla si la degradación supera el 10 % (SC-008). **No entra en `scripts/verificar.sh`** por duración: se ejecuta a mano o en una tarea nocturna
 - [ ] T051 [US2] **Calibrar el umbral en el runner real**: ejecutar el banco 20 veces en el entorno de integración continua y fijar la puerta de capa **con el dato en la mano**, nunca por corazonada. Documentar el valor y su fecha en `bench/README.md`. Los números de referencia se midieron en un M1 Max de 10 núcleos, no en un runner compartido de 2–4 vCPU
 - [ ] T052 [US2] Configurar el hilo consumidor con prioridad elevada (QoS *user-interactive* en macOS, por encima de normal en Windows) en `core/src/capture/transporte.rs`. Sin ello la cola de latencia la pone el planificador, no el código: p999 medido de 2,65 ms a prioridad normal
-- [ ] T053 [US2] Registrar el banco como comprobación obligatoria de la rama, de modo que un fallo **bloquee la incorporación del cambio**. Una medición que solo informa no es una puerta y deja la deuda abierta con mejor aspecto
+- [ ] T053 [US2] Incorporar el banco a `scripts/verificar.sh` con su código de salida, de modo que un fallo aborte la verificación. **Alcance real**: mientras no exista remoto, quien bloquea es el hook `pre-push` local, que se salta con `--no-verify`. La puerta del Principio IV **no queda cerrada del todo** hasta que `ci.yml` corra en un remoto. Una medición que solo informa no es una puerta
 
 **Checkpoint**: la deuda del Principio IV queda saldada con sus tres condiciones: existe, corre sin teclado y falla.
 
@@ -138,7 +155,7 @@ ninguna prueba de las demás.
 - [ ] T056 [US3] Prueba en `core/tests/carga_test.rs`: una ráfaga de 50 eventos por segundo durante un minuto simulado no pierde ninguna pulsación y deja el contador de descartes en cero (SC-002)
 - [ ] T057 [US3] Prueba en `core/tests/carga_test.rs`: con el consumidor detenido a propósito hasta desbordar, la memoria no crece, nada se bloquea y el contador refleja exactamente cuántas se perdieron (SC-002a)
 - [ ] T058 [US3] Ajustar lo que haga falta en `core/src/capture/` para que las pruebas anteriores pasen sin relajarlas: nada de `HashMap` en rutas que afecten al orden, nada de reloj del sistema fuera del `Clock` inyectado
-- [ ] T059 [US3] Añadir a la integración continua la puerta del Principio III: `cargo tree -p piano-core` debe dar **exactamente dos líneas** en los tres targets, más un grep negativo contra `coremidi|midir|windows|winapi|core-foundation|objc2|libc|alsa|jack`
+- [ ] T059 [US3] Añadir la puerta del Principio III a `scripts/verificar.sh`: `cargo tree -p piano-core` debe dar **exactamente dos líneas** en los tres targets, más un grep negativo contra `coremidi|midir|windows|winapi|core-foundation|objc2|libc|alsa|jack`
 
 **Checkpoint**: la suite completa pasa en una máquina limpia, sin hardware.
 
@@ -195,6 +212,8 @@ Phase 1 (Setup) ──► Phase 2 (Foundational) ──► Phase 3 (US1) ──�
   analizador y el emparejador.
 - **US3 depende de US1**: verifica el determinismo de lo que US1 construye.
 - **US4 depende de US1**: no se puede perder un dispositivo que no se ha abierto.
+- **T006a–T006c (verificación) bloquean T053 y T059**: no se puede incorporar una puerta a un
+  script que no existe.
 - **T042 (spike de Windows) bloquea T043 y T067.** No se escribe el backend de Windows antes de
   haber validado sus supuestos en una máquina real.
 
@@ -203,14 +222,15 @@ Phase 1 (Setup) ──► Phase 2 (Foundational) ──► Phase 3 (US1) ──�
 Marcadas con `[P]`. Son pocas a propósito: el TDD estricto serializa casi todo, porque cada
 implementación depende de que su prueba exista y falle antes.
 
-- **Phase 1**: T002, T004 y T005 tocan archivos distintos.
-- **Phase 3**: la rama de macOS (T037–T041) y la de Windows (T042–T044) son independientes entre
+- **Phase 1**: T002, T004, T005, T006b y T006c tocan archivos distintos.
+- **Phase 3**: la rama de macOS (T036a–T041) y la de Windows (T042–T044) son independientes entre
   sí una vez existe el analizador (T026).
 - **Phase 7**: T072, T073 y T074 no dependen entre sí.
 
 ## Estrategia de entrega
 
-- **MVP = Phase 1 + Phase 2 + Phase 3**. En ese punto una pulsación real llega al núcleo como
+- **MVP = Phase 1 + Phase 2 + Phase 3**. Incluye ya T036a–T036f, así que el MVP llega con el
+  adaptador de macOS **verificado**, no solo escrito. En ese punto una pulsación real llega al núcleo como
   pulsación capturada, con su principio y su final.
 - **Phase 4 es la que salda la deuda constitucional**, y por eso va inmediatamente después.
 - Phase 5 y 6 endurecen; Phase 7 cierra los cabos con la aplicación.
@@ -219,14 +239,16 @@ implementación depende de que su prueba exista y falle antes.
 
 | Fase | Tareas | De ellas, pruebas |
 | --- | --- | --- |
-| 1. Setup | T001–T006 (6) | 0 |
-| 2. Foundational | T007–T018 (12) | 6 |
-| 3. US1 (P1) | T019–T044 (26) | 12 |
-| 4. US2 (P1) | T045–T053 (9) | 0 (el banco **es** la verificación) |
+| 1. Setup | T001–T006c (9) | 0 |
+| 2. Foundational | T007–T018 (14) | 7 |
+| 3. US1 (P1) | T019–T044 (34) | 20 |
+| 4. US2 (P1) | T045–T053 (10) | 0 (el banco **es** la verificación) |
 | 5. US3 (P2) | T054–T059 (6) | 4 |
 | 6. US4 (P3) | T060–T071 (12) | 4 |
 | 7. Polish | T072–T078 (7) | 0 |
-| **Total** | **78** | **26** |
+| **Total** | **92** | **35** |
 
-**Sin cobertura automática, y declarado**: T037–T044 (adaptadores de plataforma), T065, T067–T070
-(vigías) y T071 (prueba manual). Son la capa que el plan aisló a propósito.
+**Sin cobertura automática, y declarado**: T042–T044 (backend de Windows), T067 (vigía de Windows),
+T069–T070 (reconexión) y T071 (prueba manual). El adaptador de macOS **sí queda cubierto** por
+T036a–T036f contra fuentes virtuales, así que la excepción se reduce a la rama de Windows, que ya
+está declarada como pendiente de validar en máquina real (T042).
