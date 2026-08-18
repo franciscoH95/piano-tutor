@@ -1,0 +1,51 @@
+# Vectores de paridad entre el nucleo (Rust) y la pantalla (TypeScript).
+#
+# Las dos implementaciones de la posicion tienen que ser LA MISMA FUNCION. El nucleo emite
+# un ancla y la pantalla interpola desde ella; si divergen aunque sea en el redondeo, el
+# cursor se pinta donde el nucleo no cree que esta, y esa divergencia no la nota ninguna
+# prueba de un solo lado.
+#
+# Los esperados estan calculados a mano, no volcados de ninguna de las dos: si se generasen
+# desde una, un fallo de esa se copiaria al fichero y la otra lo heredaria sin chistar.
+#
+# posicion_us,instante_us,num,den,tope_us,ahora_us,esperado   (tope "-" es sin tope)
+
+# --- a tempo, sin nada raro
+0,0,1,1,600000000,0,0
+0,0,1,1,600000000,1,1
+0,0,1,1,600000000,5000000,5000000
+
+# --- el tope recorta, y recorta igual en los dos lados
+0,0,1,1,600000000,600000001,600000000
+0,0,2,1,600000000,300000001,600000000
+
+# --- truncamiento: aqui es donde dos implementaciones se separan
+0,0,1,3,600000000,1000000,333333
+0,0,1,3,600000000,16667,5555
+0,0,1,3,600000000,166670000,55556666
+0,0,1,7,600000000,1000000,142857
+
+# --- ancla ya rebasada a mitad de cancion
+10000000,10000000,1,2,600000000,10000000,10000000
+10000000,10000000,1,2,600000000,11000000,10500000
+10000000,10000000,1,2,600000000,11000001,10500000
+
+# --- pausa: num 0, den 1. NUNCA den 0
+4000000,1000000,0,1,600000000,999999999,4000000
+
+# --- el reloj por detras del ancla no puede dar negativo ni entrar en panico
+5000000,10000000,1,1,-,9000000,5000000
+5000000,10000000,1,1,-,10000000,5000000
+
+# --- acelerar
+0,0,2,1,600000000,7,14
+0,0,3,2,600000000,999999,1499998
+
+# --- casos elegidos para que dividir ANTES de multiplicar de un numero distinto.
+# Sin ellos, el sabotaje mas plausible de esta funcion solo lo cazaba un vector de
+# dieciocho, y eso es demasiado poco margen para una prueba que existe justo para eso.
+0,0,2,3,600000000,5,3
+0,0,5,3,600000000,7,11
+0,0,3,4,600000000,1000003,750002
+0,0,7,5,600000000,999999,1399998
+0,0,3,2,600000000,333333333,499999999

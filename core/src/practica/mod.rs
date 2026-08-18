@@ -4,12 +4,14 @@
 //! ninguna decision propia (Constitucion, Principio III, y la excepcion acotada del
 //! Principio II en la v1.1.0).
 
+mod cursor;
 mod manos;
 mod preparacion;
 mod nombres;
 mod vista;
 
 pub use manos::{repartir, Mano, Reparto, RepartoDeManos};
+pub use cursor::{posicion_en, Ancla, Cursor, Paso, Velocidad};
 pub use preparacion::{NotaDetallada, Preparacion};
 pub use nombres::{Alteracion, Base, MapaDeArmaduras, NombreDeNota};
 pub use vista::{vista, EstadoNota, NotaVisible, Vista};
