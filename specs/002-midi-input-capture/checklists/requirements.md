@@ -38,3 +38,9 @@
   - FR-014 → solo notas. El pedal se descarta, en simetría con la feature 001, para que lo
     tocado y lo esperado sigan siendo comparables.
 - Todos los criterios pasan. Spec lista para `/speckit-plan`.
+- Iteración 3 (`/speckit-clarify`, 2026-08-17): 5 preguntas asignadas y respondidas. Ningún
+  criterio del checklist cambió de estado; seguían todos pasando. Lo que cambió es la **precisión**
+  de los requisitos: se eliminaron cuatro adjetivos sin cuantificar ("identificador estable",
+  "disponible para su consumidor", "de forma definida", "mismo sistema de tiempo") y se cubrió un
+  hueco que no tenía requisito ninguno (qué hacer al desbordar el almacén de pulsaciones).
+  De 28 requisitos funcionales a 34, y de 8 criterios de éxito a 9.
