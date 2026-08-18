@@ -11,6 +11,22 @@ use piano_core::clock::MonotonicClock;
 use piano_midi_io::{abrir, dispositivos};
 use std::time::{Duration, Instant};
 
+/// Estas pruebas no manipulan un objeto nuestro: manipulan el **grafo MIDI del sistema**,
+/// que es un recurso global y compartido con el resto de la maquina. Ejecutarlas en
+/// paralelo hacia que CoreMIDI rechazase la creacion de clientes con el codigo -304, y las
+/// nueve fallaban de golpe en 0,03 s. No era una carrera de tiempos: era un limite de
+/// recursos del sistema.
+///
+/// Serializarlas es la unica forma honesta de probarlas. `cargo test` paraleliza dentro de
+/// cada binario, asi que hace falta este cerrojo explicito.
+fn en_serie() -> std::sync::MutexGuard<'static, ()> {
+    static SERIE: std::sync::Mutex<()> = std::sync::Mutex::new(());
+    // Si una prueba anterior entro en panico, el cerrojo queda envenenado. Seguir es lo
+    // correcto: ese fallo ya lo reporta su propia prueba, y bloquear las demas solo
+    // esconderia informacion.
+    SERIE.lock().unwrap_or_else(|e| e.into_inner())
+}
+
 /// Nombre unico por prueba: dos fuentes virtuales homonimas se estorbarian entre si.
 fn nombre(sufijo: &str) -> String {
     format!("PianoTutorTest-{sufijo}")
@@ -36,6 +52,7 @@ fn buscar(nombre: &str) -> Option<piano_core::capture::Dispositivo> {
 
 #[test]
 fn una_fuente_virtual_aparece_en_la_enumeracion_con_su_nombre_y_su_identificador() {
+    let _serie = en_serie();
     let n = nombre("enumeracion");
     let cliente = Client::new("PianoTutorTestClient").expect("cliente");
     let _vs = cliente.virtual_source(&n).expect("fuente virtual");
@@ -48,6 +65,7 @@ fn una_fuente_virtual_aparece_en_la_enumeracion_con_su_nombre_y_su_identificador
 
 #[test]
 fn una_nota_enviada_por_la_fuente_virtual_llega_al_nucleo() {
+    let _serie = en_serie();
     let n = nombre("nota");
     let cliente = Client::new("PianoTutorTestClient").expect("cliente");
     let vs = cliente.virtual_source(&n).expect("fuente virtual");
@@ -68,6 +86,7 @@ fn una_nota_enviada_por_la_fuente_virtual_llega_al_nucleo() {
 
 #[test]
 fn un_acorde_en_un_solo_paquete_recibe_un_instante_unico() {
+    let _serie = en_serie();
     // T036c — la propiedad que se gana al controlar el bucle de paquetes, y que `midir`
     // impedia: alli el reloj se leia una vez por MENSAJE, no por paquete.
     let n = nombre("acorde");
@@ -91,6 +110,7 @@ fn un_acorde_en_un_solo_paquete_recibe_un_instante_unico() {
 
 #[test]
 fn los_paquetes_malformados_no_matan_el_proceso() {
+    let _serie = en_serie();
     // T036d — LA regresion. Estos son los paquetes que hacen abortar a `midir 0.11.0`.
     // Que esta prueba termine, y que despues siga llegando una nota valida, es la prueba
     // de que el proceso sobrevivio.
@@ -131,6 +151,7 @@ fn los_paquetes_malformados_no_matan_el_proceso() {
 
 #[test]
 fn tras_cerrar_no_llega_ni_un_mensaje_mas() {
+    let _serie = en_serie();
     // T036e / FR-006: el dispositivo queda libre para otras aplicaciones.
     let n = nombre("cierre");
     let cliente = Client::new("PianoTutorTestClient").expect("cliente");
@@ -155,6 +176,7 @@ fn tras_cerrar_no_llega_ni_un_mensaje_mas() {
 
 #[test]
 fn abrir_tarda_menos_de_un_segundo() {
+    let _serie = en_serie();
     // T036f / SC-006.
     let n = nombre("apertura");
     let cliente = Client::new("PianoTutorTestClient").expect("cliente");
@@ -184,6 +206,7 @@ fn abrir_tarda_menos_de_un_segundo() {
 
 #[test]
 fn el_flujo_completo_produce_pulsaciones_emparejadas() {
+    let _serie = en_serie();
     let n = nombre("flujo");
     let cliente = Client::new("PianoTutorTestClient").expect("cliente");
     let vs = cliente.virtual_source(&n).expect("fuente virtual");
@@ -213,6 +236,7 @@ fn el_flujo_completo_produce_pulsaciones_emparejadas() {
 
 #[test]
 fn reabrir_reconoce_el_dispositivo_y_confirma_actividad() {
+    let _serie = en_serie();
     // T069/T070 — tras reconectar, el reconocimiento por identidad basta; y la ventana de
     // cortesia distingue "abierto y vivo" de "abierto y mudo".
     let n = nombre("reapertura");
@@ -235,6 +259,7 @@ fn reabrir_reconoce_el_dispositivo_y_confirma_actividad() {
 
 #[test]
 fn confirmar_actividad_devuelve_falso_cuando_no_llega_nada() {
+    let _serie = en_serie();
     let n = nombre("mudo");
     let cliente = Client::new("PianoTutorTestClient").expect("cliente");
     let _vs = cliente.virtual_source(&n).expect("fuente virtual");

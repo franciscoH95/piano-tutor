@@ -1,13 +1,20 @@
 # Ejecuta las mismas puertas que el hook local, en las dos plataformas objetivo.
 #
-# Este fichero esta INERTE hasta que el repositorio tenga un remoto. Se versiona ya para
-# que el dia que lo tenga no haya que inventarlo, y para que la puerta del Principio IV
-# quede cerrada del todo con una sola accion: activar el remoto.
+# ACTIVA desde el 2026-08-18 en github.com/franciscoH95/piano-tutor.
+#
+# Ejecuta exactamente el mismo `scripts/verificar.sh` que el hook local. Que sea el mismo
+# script no es casualidad: si la CI hiciera otra cosa, verde en local dejaria de significar
+# verde en CI.
+#
+# LIMITACION CONOCIDA: en un repositorio privado con cuenta gratuita, GitHub no permite
+# exigir estas comprobaciones como obligatorias para fusionar. La CI INFORMA pero no
+# IMPIDE. Quien bloquea de verdad hoy es el hook pre-push local, evitable con --no-verify.
 name: CI
 on:
   push:
     branches: [main]
   pull_request:
+  workflow_dispatch:
 
 jobs:
   verificar:
@@ -17,7 +24,7 @@ jobs:
         os: [macos-latest, windows-latest]
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: clippy

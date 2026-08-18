@@ -140,6 +140,17 @@ cobertura queda reducida a la rama de Windows.
 - [X] T050 [US2] Implementar el modo `--con-hardware` en `bench/src/bin/latencia.rs`, que mide desde el sello del propio sistema operativo. Su diferencia con el número de CI es exactamente el tramo no cubierto
 - [X] T050a [US2] Implementar el modo `--sostenido` en `bench/src/bin/latencia.rs`: diez minutos de eventos a ritmo realista, comparando el p95 del último minuto con el del primero; falla si la degradación supera el 10 % (SC-008). **No entra en `scripts/verificar.sh`** por duración: se ejecuta a mano o en una tarea nocturna. **Ejecutado el 2026-08-18**: diez minutos completos, p95 por minuto entre 39 y 62 µs, primero 52 µs y último 44 µs sobre un límite de 57 µs. Código de salida 0. La medición se hizo **sin** la elevación de prioridad de T052, así que el criterio se cumple incluso sin ese seguro
 - [ ] T051 [US2] **Calibrar el umbral en el runner real**: ejecutar el banco 20 veces en el entorno de integración continua y fijar la puerta de capa **con el dato en la mano**, nunca por corazonada. Documentar el valor y su fecha en `bench/README.md`. Los números de referencia se midieron en un M1 Max de 10 núcleos, no en un runner compartido de 2–4 vCPU
+      **Datos de la primera ejecución real (2026-08-18, run 32104163724)**: en `macos-latest`
+      p95 = 73 µs (p50 32, p99 121, **máx 996**); en `windows-latest` p95 = 22 µs (p50 18, p99 39,
+      máx 103). El runner de macOS es tres veces peor que el portátil de desarrollo y tiene una
+      cola mucho más larga. Con el umbral actual de 1.000 µs quedan 13,7× de margen sobre el peor
+      p95 observado, que es **demasiado holgado para detectar una regresión**: algo diez veces más
+      lento seguiría pasando. Propuesta: bajarlo a 300 µs (≈4× el peor p95 medido, y aun así 100×
+      por debajo de la puerta constitucional). **Sigue abierta** porque la tarea pide veinte
+      ejecuciones y hay una por plataforma: fijar un umbral con dos muestras es exactamente el
+      "por corazonada" que la tarea prohíbe. Nótese que el máximo de macOS llegó a 996 µs: medir
+      p95 y no máximo resultó ser la decisión correcta, con máximo la puerta sería intermitente
+      desde el primer día.
 - [X] T052 [US2] Elevar la prioridad del hilo consumidor en `midi-io/src/prioridad.rs`, invocada por quien crea ese hilo. Sin ello la cola de latencia la pone el planificador, no el código: p999 medido de 2,65 ms a prioridad normal. **Corrección respecto al enunciado original**, que situaba esto en `core/src/capture/transporte.rs`: cambiar la prioridad de un hilo es una llamada al sistema y la crate que la envuelve arrastra `libc` y `log`, dos de las dependencias que la puerta del Principio III prohíbe expresamente en el núcleo. Ponerlo allí habría roto esa puerta en cuanto se ejecutase
 - [X] T053 [US2] Incorporar el banco a `scripts/verificar.sh` con su código de salida, de modo que un fallo aborte la verificación. **Alcance real**: mientras no exista remoto, quien bloquea es el hook `pre-push` local, que se salta con `--no-verify`. La puerta del Principio IV **no queda cerrada del todo** hasta que `ci.yml` corra en un remoto. Una medición que solo informa no es una puerta
 
