@@ -1,0 +1,5 @@
+# pnpm 11 lee la configuracion del proyecto desde aqui (el campo "pnpm" de
+# package.json ya no se usa). esbuild, que Vite arrastra, necesita permiso
+# explicito para ejecutar su script de instalacion y colocar su binario.
+allowBuilds:
+  esbuild: true
