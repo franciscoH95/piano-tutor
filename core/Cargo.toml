@@ -1,0 +1,19 @@
+[package]
+name = "piano-core"
+version.workspace = true
+edition.workspace = true
+description = "Nucleo de dominio de Piano Tutor: linea temporal musical y feedforward. Headless."
+
+[lib]
+# El directorio es `core/` (asi lo nombra el plan), pero el crate NO puede llamarse
+# `core`: colisiona con el crate `core` de la biblioteca estandar, que ya expone un
+# modulo `time`, y los `use core::time::...` de las pruebas quedarian ambiguos.
+name = "piano_core"
+path = "src/lib.rs"
+
+[dependencies]
+# Unico parseador de Standard MIDI Files. MIT, cero dependencias transitivas, cero unsafe.
+# Elegido sobre midly tras verificacion adversarial: midly entra en panico ante entrada
+# malformada (overflow al negar -128i8 en el campo division), violando FR-007.
+# Ver specs/001-midi-feedforward-harness/research.md, Decision 1.
+midi_file = "0.2.0"

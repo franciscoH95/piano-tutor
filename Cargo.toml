@@ -1,11 +1,11 @@
 [workspace]
 resolver = "2"
-members = ["src-tauri"]
+members = ["core", "src-tauri"]
 
 [workspace.package]
 version = "0.1.0"
 edition = "2021"
 
-# El crate `core` (dominio headless: reloj, linea temporal, feedforward) se anade
-# como miembro durante la implementacion del harness, siguiendo TDD estricto
-# (Constitucion, Principio II).
+# `core` es el dominio headless (reloj, linea temporal, feedforward). No depende de
+# Tauri ni de la interfaz: esa separacion es el Principio III de la Constitucion y se
+# verifica con `cargo tree -p core`.

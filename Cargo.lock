@@ -2034,6 +2034,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "midi_file"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "dac23d2ed2efd94e0ec5e7aeeff3d3be77fe00a0cd8661f3d475a0833d69da08"
+
+[[package]]
 name = "mime"
 version = "0.3.17"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2487,6 +2493,13 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e57fef6bc5981e38c2ce2d63bfa546861309f875b8a75f092d1d54ae2d64f266"
 dependencies = [
  "siphasher",
+]
+
+[[package]]
+name = "piano-core"
+version = "0.1.0"
+dependencies = [
+ "midi_file",
 ]
 
 [[package]]
