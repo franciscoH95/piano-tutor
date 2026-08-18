@@ -25,12 +25,12 @@ renderizador de componentes (T004a).
 
 ## Phase 1: Setup
 
-- [ ] T001 Crear el módulo `core/src/practica/mod.rs` con sus submódulos vacíos y reexportarlo desde `core/src/lib.rs`
-- [ ] T002 [P] Crear `core/src/digitacion/mod.rs` y reexportarlo desde `core/src/lib.rs`
-- [ ] T003 [P] Añadir el binario `bench/src/bin/fotogramas.rs` al manifiesto de `bench/Cargo.toml`
-- [ ] T004 Verificar que `cargo tree -p piano-core` sigue dando exactamente tres líneas. **Esta feature no añade ninguna dependencia de Rust**; si aparece una cuarta, algo se ha colado
-- [ ] T004a Añadir Vitest, `@testing-library/react` y `happy-dom` como dependencias **de desarrollo** en `package.json`, con el script `test`. Son de desarrollo: no entran en el binario que se distribuye
-- [ ] T004b Añadir `pnpm test` a `scripts/verificar.sh` como quinta puerta, antes del banco. Sin esto las pruebas de interfaz existirían pero no bloquearían nada
+- [X] T001 Crear el módulo `core/src/practica/mod.rs` con sus submódulos vacíos y reexportarlo desde `core/src/lib.rs`
+- [X] T002 [P] Crear `core/src/digitacion/mod.rs` y reexportarlo desde `core/src/lib.rs`
+- [X] T003 [P] Añadir el binario `bench/src/bin/fotogramas.rs` al manifiesto de `bench/Cargo.toml`
+- [X] T004 Verificar que `cargo tree -p piano-core` sigue dando exactamente tres líneas. **Esta feature no añade ninguna dependencia de Rust**; si aparece una cuarta, algo se ha colado
+- [X] T004a Añadir Vitest, `@testing-library/react` y `happy-dom` como dependencias **de desarrollo** en `package.json`, con el script `test`. Son de desarrollo: no entran en el binario que se distribuye
+- [X] T004b Añadir `pnpm test` a `scripts/verificar.sh` como quinta puerta, antes del banco. Sin esto las pruebas de interfaz existirían pero no bloquearían nada
 
 **Checkpoint**: `./scripts/verificar.sh` en verde con los módulos vacíos.
 

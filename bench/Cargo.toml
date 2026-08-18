@@ -11,3 +11,7 @@ piano-midi-io = { path = "../midi-io" }
 [[bin]]
 name = "latencia"
 path = "src/bin/latencia.rs"
+
+[[bin]]
+name = "fotogramas"
+path = "src/bin/fotogramas.rs"

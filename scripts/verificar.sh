@@ -8,13 +8,13 @@ cd "$(dirname "$0")/.."
 
 paso() { printf '\n\033[1m=== %s ===\033[0m\n' "$1"; }
 
-paso "1/4  Suite de pruebas"
+paso "1/5  Suite de pruebas de Rust"
 cargo test --workspace
 
-paso "2/4  Lints"
+paso "2/5  Lints"
 cargo clippy --workspace --all-targets -- -D warnings
 
-paso "3/4  Principio III: el nucleo no toca el sistema"
+paso "3/5  Principio III: el nucleo no toca el sistema"
 # El nucleo puede depender EXACTAMENTE de esto y de nada mas. Anadir un crate aqui
 # rompe la verificacion a proposito: obliga a justificarlo en el PR.
 ESPERADO="midi_file piano-core rtrb"
@@ -35,7 +35,12 @@ for t in aarch64-apple-darwin x86_64-apple-darwin x86_64-pc-windows-msvc; do
   echo "  ok  $t"
 done
 
-paso "4/4  Banco de latencia"
+paso "4/5  Pruebas de la interfaz"
+# Los componentes de React toman decisiones, asi que se prueban. El unico archivo
+# exento es src/practica/Lienzo.tsx, que solo pinta.
+pnpm test
+
+paso "5/5  Banco de latencia"
 cargo run -p piano-bench --release --bin latencia
 
 printf '\n\033[1;32mTodas las puertas en verde.\033[0m\n'

@@ -22,8 +22,10 @@
 
 pub mod capture;
 pub mod clock;
+pub mod digitacion;
 pub mod error;
 pub mod feedforward;
+pub mod practica;
 mod midi;
 pub mod tempo;
 pub mod time;
