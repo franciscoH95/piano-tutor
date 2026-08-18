@@ -58,3 +58,28 @@ export async function vistaActual(
 ): Promise<NotaVisiblePlana[]> {
   return invoke<NotaVisiblePlana[]>("vista_actual", { desdeUs, hastaUs });
 }
+
+/** Pone la canción en marcha desde donde esté. */
+export async function marcha(): Promise<void> {
+  return invoke<void>("transporte_marcha");
+}
+
+/** Detiene el avance sin perder la posición. */
+export async function pausa(): Promise<void> {
+  return invoke<void>("transporte_pausa");
+}
+
+/** Lleva el cursor a una posición concreta, en microsegundos. */
+export async function saltarA(posicionUs: number): Promise<void> {
+  return invoke<void>("transporte_saltar", { posicionUs });
+}
+
+/**
+ * Cambia la velocidad. Se envía como **racional**, no como decimal.
+ *
+ * Es lo que hace que reducir a la mitad y volver a normal deje la posición exactamente
+ * donde estaba; un decimal por el puente rompería esa garantía en el primer redondeo.
+ */
+export async function cambiarVelocidad(v: { num: number; den: number }): Promise<void> {
+  return invoke<void>("transporte_velocidad", { num: v.num, den: v.den });
+}

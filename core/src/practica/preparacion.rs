@@ -89,9 +89,16 @@ impl Preparacion {
     }
 
     /// Coloca la posición de reproducción en un instante concreto.
+    ///
+    /// Hacia delante no hace falta recolocar nada: el cursor de la vista avanza solo, y es
+    /// justo lo que hace que el coste por fotograma no dependa del tamaño de la canción.
+    /// **Solo un salto hacia atrás** obliga a rehacer la búsqueda, que es `O(n)`.
     pub fn avanzar_a(&mut self, us: u64) {
+        let atras = us < self.posicion.0;
         self.posicion = Micros(us);
-        self.vista.reposicionar(&self.cancion, self.posicion);
+        if atras {
+            self.vista.reposicionar(&self.cancion, self.posicion);
+        }
     }
 
     /// Vuelca en `out` las notas que caen en la ventana, ya cruzadas con su anotación.

@@ -17,7 +17,8 @@ export const VENTANA_US = 4_000_000;
 
 const ANCHO = 1200;
 const ALTO = 600;
-const ALTO_TECLADO = 90;
+/** Alto de la franja del teclado, en unidades de escena. */
+export const ALTO_TECLADO = 90;
 
 const COLOR = {
   fondo: "#111",
@@ -91,8 +92,18 @@ function colorDeNota(n: NotaVisiblePlana): string {
   return n.derecha ? COLOR.derecha : COLOR.izquierda;
 }
 
-/** Convierte las notas visibles en rectángulos y etiquetas. */
-export function construirEscena(notas: NotaVisiblePlana[]): Escena {
+/**
+ * Convierte las notas visibles en rectángulos y etiquetas.
+ *
+ * `posicionUs` es dónde está la práctica: las notas se sitúan **relativas a ella**, de modo
+ * que la canción cae hacia el teclado y la que suena ahora queda al ras de las teclas. El
+ * tamaño de cada nota no depende de la posición, solo su sitio: si se encogiera al
+ * acercarse, el alumno leería mal su duración.
+ */
+export function construirEscena(
+  notas: NotaVisiblePlana[],
+  posicionUs = 0,
+): Escena {
   const rects: Rect[] = [];
   const etiquetas: Etiqueta[] = [];
   const alturaUtil = ALTO - ALTO_TECLADO;
@@ -106,7 +117,8 @@ export function construirEscena(notas: NotaVisiblePlana[]): Escena {
     const duracion = Math.max(0, n.endUs - n.onsetUs);
     const alto = (duracion / VENTANA_US) * alturaUtil;
     // Cuanto más lejos queda el ataque, más arriba se dibuja: la nota cae hacia el teclado.
-    const y = alturaUtil - (n.onsetUs / VENTANA_US) * alturaUtil - alto;
+    const restante = n.onsetUs - posicionUs;
+    const y = alturaUtil - (restante / VENTANA_US) * alturaUtil - alto;
 
     rects.push({ x, y, ancho, alto, color: colorDeNota(n) });
     etiquetas.push({

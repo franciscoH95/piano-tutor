@@ -6,6 +6,7 @@
 
 import { describe, expect, it } from "vitest";
 import {
+  ALTO_TECLADO,
   construirEscena,
   esNegra,
   nombreDeNota,
@@ -124,5 +125,56 @@ describe("las etiquetas", () => {
     // Pedir la canción entera haría crecer el coste del fotograma con su longitud.
     expect(VENTANA_US).toBeGreaterThan(0);
     expect(VENTANA_US).toBeLessThanOrEqual(10_000_000);
+  });
+});
+
+describe("la escena se desplaza con la posición", () => {
+  it("una nota se acerca al teclado a medida que avanza la canción", () => {
+    // Es lo que hace que la canción "caiga" hacia las teclas. Sin esto la vista sería fija
+    // y el alumno no vería llegar nada.
+    const n = nota({ onsetUs: 2_000_000, endUs: 2_500_000 });
+    const lejos = construirEscena([n], 0);
+    const cerca = construirEscena([n], 1_000_000);
+    expect(cerca.notas[0].y).toBeGreaterThan(lejos.notas[0].y);
+  });
+
+  it("una nota que suena justo ahora toca el teclado", () => {
+    const e = construirEscena([nota({ onsetUs: 1_000_000, endUs: 1_500_000 })], 1_000_000);
+    // Su borde inferior queda al ras de la línea del teclado.
+    const borde = e.notas[0].y + e.notas[0].alto;
+    expect(borde).toBeCloseTo(e.alto - ALTO_TECLADO, 5);
+  });
+
+  it("la posición no altera el tamaño de la nota, solo su sitio", () => {
+    // Si el alto cambiase con la posición, la nota se encogería al acercarse y el alumno
+    // leería mal su duración.
+    const n = nota({ onsetUs: 2_000_000, endUs: 3_000_000 });
+    const a = construirEscena([n], 0).notas[0];
+    const b = construirEscena([n], 1_500_000).notas[0];
+    expect(b.alto).toBeCloseTo(a.alto, 5);
+    expect(b.x).toBeCloseTo(a.x, 5);
+    expect(b.ancho).toBeCloseTo(a.ancho, 5);
+  });
+
+  it("el teclado no se mueve con la posición", () => {
+    const quieto = construirEscena([], 0);
+    const avanzado = construirEscena([], 5_000_000);
+    expect(avanzado.teclas).toEqual(quieto.teclas);
+  });
+
+  it("la etiqueta viaja con su nota", () => {
+    const n = nota({ onsetUs: 2_000_000, endUs: 2_500_000 });
+    const a = construirEscena([n], 0);
+    const b = construirEscena([n], 1_000_000);
+    expect(b.etiquetas[0].y - a.etiquetas[0].y).toBeCloseTo(
+      b.notas[0].y - a.notas[0].y,
+      5,
+    );
+  });
+
+  it("sin posición se comporta como al principio de la canción", () => {
+    // La llamada de una sola argumento se sigue usando mientras no hay reproducción.
+    const n = nota({ onsetUs: 1_000_000, endUs: 1_500_000 });
+    expect(construirEscena([n])).toEqual(construirEscena([n], 0));
   });
 });

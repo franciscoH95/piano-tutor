@@ -17,6 +17,10 @@ const RESUMEN = {
 beforeEach(() => {
   vi.mocked(puente.vistaActual).mockResolvedValue([]);
   vi.mocked(puente.ajustarCorte).mockResolvedValue();
+  vi.mocked(puente.marcha).mockResolvedValue();
+  vi.mocked(puente.pausa).mockResolvedValue();
+  vi.mocked(puente.saltarA).mockResolvedValue();
+  vi.mocked(puente.cambiarVelocidad).mockResolvedValue();
 });
 
 afterEach(() => {

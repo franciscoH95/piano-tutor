@@ -10,18 +10,26 @@ import { construirEscena, VENTANA_US } from "./practica/escena";
 import {
   abrirCancion,
   ajustarCorte,
+  cambiarVelocidad,
   elegirArchivo,
+  marcha,
+  pausa,
+  saltarA,
   vistaActual,
   type NotaVisiblePlana,
   type ResumenCancion,
 } from "./practica/puente";
+import type { Velocidad } from "./practica/controles";
 
 const CORTE_POR_DEFECTO = 60;
+const VELOCIDAD_NORMAL: Velocidad = { num: 1, den: 1 };
 
 export default function App() {
   const [resumen, setResumen] = useState<ResumenCancion | null>(null);
   const [notas, setNotas] = useState<NotaVisiblePlana[]>([]);
   const [corte, setCorte] = useState(CORTE_POR_DEFECTO);
+  const [enMarcha, setEnMarcha] = useState(false);
+  const [velocidad, setVelocidad] = useState<Velocidad>(VELOCIDAD_NORMAL);
   const [error, setError] = useState<string | null>(null);
 
   const refrescar = useCallback(async () => {
@@ -36,6 +44,10 @@ export default function App() {
       const nuevo = await abrirCancion(ruta);
       setResumen(nuevo);
       setCorte(nuevo.corte);
+      // Una canción nueva empieza parada y a tempo: no hereda el transporte de la
+      // anterior (FR-005).
+      setEnMarcha(false);
+      setVelocidad(VELOCIDAD_NORMAL);
       // El aviso viejo se retira: no se acumulan errores de intentos anteriores.
       setError(null);
       await refrescar();
@@ -55,6 +67,26 @@ export default function App() {
     },
     [refrescar],
   );
+
+  const poner = useCallback(async () => {
+    await marcha();
+    setEnMarcha(true);
+  }, []);
+
+  const parar = useCallback(async () => {
+    await pausa();
+    setEnMarcha(false);
+  }, []);
+
+  const alPrincipio = useCallback(async () => {
+    await saltarA(0);
+    await refrescar();
+  }, [refrescar]);
+
+  const ponerVelocidad = useCallback(async (v: Velocidad) => {
+    await cambiarVelocidad(v);
+    setVelocidad(v);
+  }, []);
 
   return (
     <main className="practica">
@@ -86,6 +118,12 @@ export default function App() {
         corte={corte}
         vocesDelArchivo={resumen?.vocesDelArchivo ?? false}
         onCorte={moverCorte}
+        enMarcha={enMarcha}
+        velocidad={velocidad}
+        onMarcha={poner}
+        onPausa={parar}
+        onVolverAlPrincipio={alPrincipio}
+        onVelocidad={ponerVelocidad}
       />
     </main>
   );
