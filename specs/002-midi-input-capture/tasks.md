@@ -44,10 +44,12 @@ ninguna prueba de las demás.
 - [ ] T007 Prueba en `core/tests/capture_evento_test.rs`: `size_of::<EventoCrudo>() == 16` y `align == 8`; construir y comparar eventos; `Copy` sin `Drop`
 - [ ] T008 Implementar `EventoCrudo` (`#[repr(C)]`, campos `at`, `seq`, `key`, `velocity`, `kind`, `channel`) y `TipoEvento` en `core/src/capture/evento.rs`
 - [ ] T009 Prueba en `core/tests/transporte_test.rs`: un evento emitido se recoge idéntico; el orden se conserva; recoger de una cola vacía devuelve cero
+- [ ] T009a Prueba en `core/tests/transporte_test.rs`: dos eventos que comparten instante salen en un orden **definido y estable** —el de llegada, desempatado por `seq`— y ese orden es el mismo en 100 ejecuciones. Es el caso real de un acorde que llega en un solo paquete (FR-010, SC-003)
 - [ ] T010 Implementar `canal(capacidad)`, `Emisor::emitir` y `Receptor::recoger` sobre `rtrb::RingBuffer` en `core/src/capture/transporte.rs`
 - [ ] T011 Prueba en `core/tests/transporte_test.rs`: al llenar la cola se descarta **lo entrante** (lo ya almacenado sigue intacto y en orden), el contador de descartes cuadra exactamente, y el `seq` deja un hueco que localiza dónde se perdió (FR-011b, FR-011c)
 - [ ] T012 Implementar la política de desbordamiento y el contador en `core/src/capture/transporte.rs`
 - [ ] T013 Prueba en `core/tests/transporte_test.rs`: emitir **no asigna memoria**, verificado con un asignador instrumentado que cuenta llamadas, ni siquiera en el primer evento
+- [ ] T013a Prueba en `core/tests/transporte_test.rs`: con la cola **llena**, `emitir` retorna sin bloquearse —se mide que la llamada termina en un orden de magnitud muy por debajo de cualquier espera— y no toma ningún cerrojo. FR-020 prohíbe esperas bloqueantes, no solo asignaciones
 - [ ] T014 Ajustar `core/src/capture/transporte.rs` hasta que la prueba de cero asignaciones pase: reservar de una vez al crear el canal, nunca dentro de `emitir`
 - [ ] T015 Prueba en `core/tests/transporte_test.rs`: el consumidor duerme y lo despierta el productor; si el `unpark` llega antes del `park`, el `park` retorna igualmente y **no se pierde el aviso**
 - [ ] T016 Implementar el despertar con `park`/`unpark` y el testigo `quiere_despertar` en `core/src/capture/transporte.rs`
@@ -71,6 +73,7 @@ ninguna prueba de las demás.
 - [ ] T019 [US1] Prueba en `core/tests/dispositivo_test.rs`: el reconocimiento prueba primero el identificador del sistema y solo después la pareja (nombre, posición) (FR-004b)
 - [ ] T020 [US1] Prueba en `core/tests/dispositivo_test.rs`: si no casa ninguno de los dos criterios, el resultado es "pedir al usuario que elija", **nunca** el dispositivo más parecido (FR-004c)
 - [ ] T021 [US1] Prueba en `core/tests/dispositivo_test.rs`: dos dispositivos con el mismo nombre se distinguen por su posición; un nombre vacío recibe una etiqueta generada y sigue siendo elegible
+- [ ] T021a [US1] Prueba en `core/tests/dispositivo_test.rs`: con dos dispositivos presentes y uno elegido, **solo llegan eventos del elegido**. Ninguno se autoselecciona y los flujos no se fusionan (FR-004)
 - [ ] T022 [US1] Implementar `Dispositivo`, `DeviceId` y la función de reconocimiento en `core/src/capture/dispositivo.rs`
 - [ ] T022a [US1] Prueba en `core/tests/dispositivo_test.rs`: los tres modos de fallo —no hay ningún teclado, el elegido no se pudo abrir, el dispositivo está en uso por otra aplicación— producen variantes distintas de `ErrorDeEntrada`, todas comunicables sin interrumpir la aplicación (FR-005)
 - [ ] T022b [US1] Implementar `ErrorDeEntrada` con esas variantes en `core/src/capture/dispositivo.rs` y mapear los códigos de la plataforma en `midi-io/src/macos.rs`
@@ -115,7 +118,7 @@ cobertura queda reducida a la rama de Windows.
 
 ### Adaptador de Windows
 
-- [ ] T042 [US1] **Spike de validación en máquina Windows real.** Es el **primer** trabajo del lado Windows y bloquea a los demás. Validar en este orden: enumeración y apertura; `CM_Register_Notification`; cierre tras retirada del dispositivo **sin cuelgue** (Microsoft KB4460006 documenta uno irrecuperable); y una cifra de latencia. Registrar los hallazgos en `specs/002-midi-input-capture/research.md` bajo las incertidumbres U2 y U4
+- [ ] T042 [US1] **Spike de validación en máquina Windows real. BLOQUEADO: no hay máquina Windows disponible hoy.** La rama de Windows (T042–T044, T067) queda **suspendida**, no en curso: no se empieza y no cuenta como pendiente de trabajo, sino como pendiente de hardware. El resto de fases avanza sin ella. Es el **primer** trabajo del lado Windows y bloquea a los demás. Validar en este orden: enumeración y apertura; `CM_Register_Notification`; cierre tras retirada del dispositivo **sin cuelgue** (Microsoft KB4460006 documenta uno irrecuperable); y una cifra de latencia. Registrar los hallazgos en `specs/002-midi-input-capture/research.md` bajo las incertidumbres U2 y U4
 - [ ] T043 [US1] Implementar enumeración, apertura, bucle de mensajes y cierre en `midi-io/src/windows.rs` con WinMM, aplicando lo aprendido en T042
 - [ ] T044 [US1] Verificar que `cargo check --target x86_64-pc-windows-msvc` pasa y que `midi-io/src/lib.rs` selecciona el backend correcto por `cfg`
 
@@ -214,8 +217,10 @@ Phase 1 (Setup) ──► Phase 2 (Foundational) ──► Phase 3 (US1) ──�
 - **US4 depende de US1**: no se puede perder un dispositivo que no se ha abierto.
 - **T006a–T006c (verificación) bloquean T053 y T059**: no se puede incorporar una puerta a un
   script que no existe.
-- **T042 (spike de Windows) bloquea T043 y T067.** No se escribe el backend de Windows antes de
-  haber validado sus supuestos en una máquina real.
+- **T042 (spike de Windows) bloquea T043 y T067, y hoy está bloqueado él mismo**: no hay máquina
+  Windows disponible. Esa rama queda **suspendida**, no en curso. El resto del plan avanza sin
+  ella, y `cargo check --target x86_64-pc-windows-msvc` (T044) sigue verificando que al menos
+  compila.
 
 ## Oportunidades de paralelismo
 
@@ -240,13 +245,13 @@ implementación depende de que su prueba exista y falle antes.
 | Fase | Tareas | De ellas, pruebas |
 | --- | --- | --- |
 | 1. Setup | T001–T006c (9) | 0 |
-| 2. Foundational | T007–T018 (14) | 7 |
-| 3. US1 (P1) | T019–T044 (34) | 20 |
+| 2. Foundational | T007–T018 (16) | 9 |
+| 3. US1 (P1) | T019–T044 (35) | 21 |
 | 4. US2 (P1) | T045–T053 (10) | 0 (el banco **es** la verificación) |
 | 5. US3 (P2) | T054–T059 (6) | 4 |
 | 6. US4 (P3) | T060–T071 (12) | 4 |
 | 7. Polish | T072–T078 (7) | 0 |
-| **Total** | **92** | **35** |
+| **Total** | **95** | **38** |
 
 **Sin cobertura automática, y declarado**: T042–T044 (backend de Windows), T067 (vigía de Windows),
 T069–T070 (reconexión) y T071 (prueba manual). El adaptador de macOS **sí queda cubierto** por

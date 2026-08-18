@@ -221,9 +221,9 @@ comprobando que el sistema lo comunica y conserva lo capturado hasta ese momento
   eventos ya almacenados: descartar un ataque y conservar su suelta dejaría notas huérfanas.
 - **FR-011c**: Un descarte por desbordamiento MUST ser observable por quien consume la captura, de
   modo que la pérdida se detecte en una prueba en lugar de manifestarse como notas fantasma.
-- **FR-012**: El sistema MUST expresar los instantes de captura en el mismo sistema de tiempo que
-  usa la reproducción de canciones, de modo que una feature posterior pueda compararlos sin
-  conversiones.
+- **FR-012**: Los instantes de captura y los de la reproducción MUST ser directamente comparables,
+  sin ninguna conversión ni corrección de por medio. *Éste es el resultado exigido; FR-012a fija el
+  mecanismo que lo garantiza.*
 - **FR-012a**: La captura y la reproducción MUST recibir **el mismo** reloj de sesión, creado una
   sola vez. MUST NOT arrancar cada una el suyo: dos relojes que empiezan en cero en instantes
   distintos producirían un desfase constante, y la evaluación futura concluiría que el alumno
@@ -292,8 +292,10 @@ comprobando que el sistema lo comunica y conserva lo capturado hasta ese momento
   secuencia controlada para pruebas.
 - **Reloj de sesión**: el origen de tiempo único, creado al arrancar la sesión y compartido por la
   captura y la reproducción. Sustituible por uno controlado en las pruebas.
-- **Informe de captura**: contadores de eventos anómalos tolerados durante la sesión: sueltas sin
-  pulsación previa, notas cerradas al detener y pulsaciones descartadas por desbordamiento.
+- **Informe de captura**: contadores de eventos anómalos tolerados durante la sesión: pulsaciones
+  descartadas por desbordamiento, sueltas sin pulsación previa, notas cerradas al detener la
+  captura, notas cerradas al perderse el dispositivo, teclas repulsadas sin haberse soltado, notas
+  fuera de las 88 teclas de un piano y mensajes descartados por no ser notas.
 - **Medición de retraso**: el resultado de la comprobación automática de latencia, con su
   percentil 95 y su veredicto frente al presupuesto.
 

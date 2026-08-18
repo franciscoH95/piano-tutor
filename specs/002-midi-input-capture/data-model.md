@@ -78,6 +78,10 @@ pruebas asserten sobre ello.
 
 ## Transporte
 
+> **Glosario**: lo que la especificación llama *almacén intermedio* es este `Transporte`. Se
+> conservan los dos nombres a propósito: la spec habla para quien decide y este documento para
+> quien implementa. Son la misma cosa.
+
 ### `Transporte` — la cola acotada
 
 | Propiedad | Valor | Por qué |
