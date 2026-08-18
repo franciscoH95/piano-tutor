@@ -22,15 +22,15 @@ esa lógica está en el archivo equivocado y debe mudarse a `core/`.**
 
 ## Phase 1: Setup
 
-- [ ] T001 Crear el crate `midi-io` con `cargo new --lib midi-io` (paquete `piano-midi-io`, biblioteca `piano_midi_io`) y añadirlo a `members` en `Cargo.toml` (raíz)
-- [ ] T002 [P] Crear el crate `bench` con `cargo new bench` (paquete `piano-bench`) y añadirlo a `members` en `Cargo.toml` (raíz)
-- [ ] T003 Declarar `rtrb = "0.3.4"` en `core/Cargo.toml`, única dependencia nueva del núcleo
-- [ ] T004 [P] Declarar las dependencias por plataforma en `midi-io/Cargo.toml`: `[target.'cfg(target_os = "macos")'.dependencies] coremidi = "0.9.2"` y `[target.'cfg(windows)'.dependencies] windows = { version = "...", features = [...] }`
-- [ ] T005 [P] Replicar los lints del núcleo en `midi-io/src/lib.rs`: `#![forbid(unsafe_code)]`, `#![deny(clippy::float_arithmetic)]`, `#![deny(clippy::unwrap_used, clippy::expect_used, clippy::panic, clippy::indexing_slicing)]`. **`indexing_slicing` es el que hace imposible el fallo que descalificó a `midir`**
-- [ ] T006 Añadir a `.gitignore` lo que genere el banco, si genera algo, y verificar que `cargo check --workspace` sigue en verde
-- [ ] T006a Crear `scripts/verificar.sh` que ejecute en orden, abortando al primer fallo: `cargo test --workspace`, `cargo clippy --workspace --all-targets -- -D warnings`, la puerta del Principio III y el banco de latencia. Un solo comando, un solo código de salida
-- [ ] T006b [P] Crear `scripts/instalar-hooks.sh` que enlace `scripts/verificar.sh` como hook `pre-push`, y documentarlo en `README.md`. `.git/hooks/` no se versiona, así que sin este script la puerta no existe en una clonación nueva
-- [ ] T006c [P] Escribir `.github/workflows/ci.yml` que ejecute `scripts/verificar.sh` en `macos-latest` y `windows-latest`. Queda inerte hasta que haya remoto; se versiona ya para que el día que lo haya no haya que inventarlo
+- [X] T001 Crear el crate `midi-io` con `cargo new --lib midi-io` (paquete `piano-midi-io`, biblioteca `piano_midi_io`) y añadirlo a `members` en `Cargo.toml` (raíz)
+- [X] T002 [P] Crear el crate `bench` con `cargo new bench` (paquete `piano-bench`) y añadirlo a `members` en `Cargo.toml` (raíz)
+- [X] T003 Declarar `rtrb = "0.3.4"` en `core/Cargo.toml`, única dependencia nueva del núcleo
+- [X] T004 [P] Declarar las dependencias por plataforma en `midi-io/Cargo.toml`: `[target.'cfg(target_os = "macos")'.dependencies] coremidi = "0.9.2"` y `[target.'cfg(windows)'.dependencies] windows = { version = "...", features = [...] }`
+- [X] T005 [P] Replicar los lints del núcleo en `midi-io/src/lib.rs`: `#![forbid(unsafe_code)]`, `#![deny(clippy::float_arithmetic)]`, `#![deny(clippy::unwrap_used, clippy::expect_used, clippy::panic, clippy::indexing_slicing)]`. **`indexing_slicing` es el que hace imposible el fallo que descalificó a `midir`**
+- [X] T006 Añadir a `.gitignore` lo que genere el banco, si genera algo, y verificar que `cargo check --workspace` sigue en verde
+- [X] T006a Crear `scripts/verificar.sh` que ejecute en orden, abortando al primer fallo: `cargo test --workspace`, `cargo clippy --workspace --all-targets -- -D warnings`, la puerta del Principio III y el banco de latencia. Un solo comando, un solo código de salida
+- [X] T006b [P] Crear `scripts/instalar-hooks.sh` que enlace `scripts/verificar.sh` como hook `pre-push`, y documentarlo en `README.md`. `.git/hooks/` no se versiona, así que sin este script la puerta no existe en una clonación nueva
+- [X] T006c [P] Escribir `.github/workflows/ci.yml` que ejecute `scripts/verificar.sh` en `macos-latest` y `windows-latest`. Queda inerte hasta que haya remoto; se versiona ya para que el día que lo haya no haya que inventarlo
 
 **Checkpoint**: `cargo tree -p piano-core` muestra exactamente tres líneas (`piano-core`, `midi_file` y `rtrb`).
 
@@ -41,22 +41,22 @@ esa lógica está en el archivo equivocado y debe mudarse a `core/`.**
 **Bloquea todas las historias.** Sin el transporte ni la fuente controlada no se puede escribir
 ninguna prueba de las demás.
 
-- [ ] T007 Prueba en `core/tests/capture_evento_test.rs`: `size_of::<EventoCrudo>() == 16` y `align == 8`; construir y comparar eventos; `Copy` sin `Drop`
-- [ ] T008 Implementar `EventoCrudo` (`#[repr(C)]`, campos `at`, `seq`, `key`, `velocity`, `kind`, `channel`) y `TipoEvento` en `core/src/capture/evento.rs`
-- [ ] T009 Prueba en `core/tests/transporte_test.rs`: un evento emitido se recoge idéntico; el orden se conserva; recoger de una cola vacía devuelve cero
-- [ ] T009a Prueba en `core/tests/transporte_test.rs`: dos eventos que comparten instante salen en un orden **definido y estable** —el de llegada, desempatado por `seq`— y ese orden es el mismo en 100 ejecuciones. Es el caso real de un acorde que llega en un solo paquete (FR-010, SC-003)
-- [ ] T010 Implementar `canal(capacidad)`, `Emisor::emitir` y `Receptor::recoger` sobre `rtrb::RingBuffer` en `core/src/capture/transporte.rs`
-- [ ] T011 Prueba en `core/tests/transporte_test.rs`: al llenar la cola se descarta **lo entrante** (lo ya almacenado sigue intacto y en orden), el contador de descartes cuadra exactamente, y el `seq` deja un hueco que localiza dónde se perdió (FR-011b, FR-011c)
-- [ ] T012 Implementar la política de desbordamiento y el contador en `core/src/capture/transporte.rs`
-- [ ] T013 Prueba en `core/tests/transporte_test.rs`: emitir **no asigna memoria**, verificado con un asignador instrumentado que cuenta llamadas, ni siquiera en el primer evento
-- [ ] T013a Prueba en `core/tests/transporte_test.rs`: con la cola **llena**, `emitir` retorna sin bloquearse —se mide que la llamada termina en un orden de magnitud muy por debajo de cualquier espera— y no toma ningún cerrojo. FR-020 prohíbe esperas bloqueantes, no solo asignaciones
-- [ ] T014 Ajustar `core/src/capture/transporte.rs` hasta que la prueba de cero asignaciones pase: reservar de una vez al crear el canal, nunca dentro de `emitir`
-- [ ] T015 Prueba en `core/tests/transporte_test.rs`: el consumidor duerme y lo despierta el productor; si el `unpark` llega antes del `park`, el `park` retorna igualmente y **no se pierde el aviso**
-- [ ] T016 Implementar el despertar con `park`/`unpark` y el testigo `quiere_despertar` en `core/src/capture/transporte.rs`
-- [ ] T016a Prueba en `core/tests/transporte_test.rs`: si el reloj devolviese un instante anterior al último sellado, el evento se sella con el último (clamp no decreciente) y se cuenta; los instantes entregados nunca decrecen (FR-013)
-- [ ] T016b Implementar el clamp de monotonía y su contador en `core/src/capture/transporte.rs`, con `debug_assert!` de que en condiciones normales nunca dispara
-- [ ] T017 [P] Prueba en `core/tests/fuente_test.rs`: `FuenteGuionizada` entrega los eventos del guion en orden y con los instantes exactos del guion; `agotada()` pasa a `true` al terminar
-- [ ] T018 Implementar el trait `FuenteDeEventos` (genérico, nunca `dyn`) y `FuenteGuionizada` en `core/src/capture/fuente.rs`
+- [X] T007 Prueba en `core/tests/capture_evento_test.rs`: `size_of::<EventoCrudo>() == 16` y `align == 8`; construir y comparar eventos; `Copy` sin `Drop`
+- [X] T008 Implementar `EventoCrudo` (`#[repr(C)]`, campos `at`, `seq`, `key`, `velocity`, `kind`, `channel`) y `TipoEvento` en `core/src/capture/evento.rs`
+- [X] T009 Prueba en `core/tests/transporte_test.rs`: un evento emitido se recoge idéntico; el orden se conserva; recoger de una cola vacía devuelve cero
+- [X] T009a Prueba en `core/tests/transporte_test.rs`: dos eventos que comparten instante salen en un orden **definido y estable** —el de llegada, desempatado por `seq`— y ese orden es el mismo en 100 ejecuciones. Es el caso real de un acorde que llega en un solo paquete (FR-010, SC-003)
+- [X] T010 Implementar `canal(capacidad)`, `Emisor::emitir` y `Receptor::recoger` sobre `rtrb::RingBuffer` en `core/src/capture/transporte.rs`
+- [X] T011 Prueba en `core/tests/transporte_test.rs`: al llenar la cola se descarta **lo entrante** (lo ya almacenado sigue intacto y en orden), el contador de descartes cuadra exactamente, y el `seq` deja un hueco que localiza dónde se perdió (FR-011b, FR-011c)
+- [X] T012 Implementar la política de desbordamiento y el contador en `core/src/capture/transporte.rs`
+- [X] T013 Prueba en `core/tests/transporte_test.rs`: emitir **no asigna memoria**, verificado con un asignador instrumentado que cuenta llamadas, ni siquiera en el primer evento
+- [X] T013a Prueba en `core/tests/transporte_test.rs`: con la cola **llena**, `emitir` retorna sin bloquearse —se mide que la llamada termina en un orden de magnitud muy por debajo de cualquier espera— y no toma ningún cerrojo. FR-020 prohíbe esperas bloqueantes, no solo asignaciones
+- [X] T014 Ajustar `core/src/capture/transporte.rs` hasta que la prueba de cero asignaciones pase: reservar de una vez al crear el canal, nunca dentro de `emitir`
+- [X] T015 Prueba en `core/tests/transporte_test.rs`: el consumidor duerme y lo despierta el productor; si el `unpark` llega antes del `park`, el `park` retorna igualmente y **no se pierde el aviso**
+- [X] T016 Implementar el despertar con `park`/`unpark` y el testigo `quiere_despertar` en `core/src/capture/transporte.rs`
+- [X] T016a Prueba en `core/tests/transporte_test.rs`: si el reloj devolviese un instante anterior al último sellado, el evento se sella con el último (clamp no decreciente) y se cuenta; los instantes entregados nunca decrecen (FR-013)
+- [X] T016b Implementar el clamp de monotonía y su contador en `core/src/capture/transporte.rs`, con `debug_assert!` de que en condiciones normales nunca dispara
+- [X] T017 [P] Prueba en `core/tests/fuente_test.rs`: `FuenteGuionizada` entrega los eventos del guion en orden y con los instantes exactos del guion; `agotada()` pasa a `true` al terminar
+- [X] T018 Implementar el trait `FuenteDeEventos` (genérico, nunca `dyn`) y `FuenteGuionizada` en `core/src/capture/fuente.rs`
 
 **Checkpoint**: `cargo test -p piano-core` en verde; el transporte funciona sin hardware.
 

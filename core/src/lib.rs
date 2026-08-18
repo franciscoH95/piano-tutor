@@ -20,6 +20,7 @@
 #![deny(clippy::indexing_slicing)]
 #![warn(missing_docs)]
 
+pub mod capture;
 pub mod clock;
 pub mod error;
 pub mod feedforward;
