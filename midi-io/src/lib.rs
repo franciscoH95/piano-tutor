@@ -19,3 +19,8 @@
 #![warn(missing_docs)]
 
 pub mod parser;
+
+#[cfg(target_os = "macos")]
+mod macos;
+#[cfg(target_os = "macos")]
+pub use macos::{abrir, dispositivos, Captura};

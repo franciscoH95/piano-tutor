@@ -5,10 +5,14 @@
 //! Lo que habla con el hardware vive fuera, en `piano-midi-io`, y no toma ninguna
 //! decision (Constitucion v1.1.0, Principio II, excepcion acotada).
 
+mod dispositivo;
+mod emparejador;
 mod evento;
 mod fuente;
 mod transporte;
 
+pub use emparejador::{Cierre, Emparejador, InformeDeCaptura, PulsacionCapturada};
+pub use dispositivo::{catalogar, reconocer, DeviceId, Dispositivo, ErrorDeEntrada, Reconocimiento};
 pub use evento::{EventoCrudo, Observacion, TipoEvento};
 pub use fuente::{FuenteDeEventos, FuenteGuionizada};
 pub use transporte::{canal, Emisor, Receptor};

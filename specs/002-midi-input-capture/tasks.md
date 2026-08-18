@@ -70,33 +70,33 @@ ninguna prueba de las demás.
 
 ### Identidad del dispositivo
 
-- [ ] T019 [US1] Prueba en `core/tests/dispositivo_test.rs`: el reconocimiento prueba primero el identificador del sistema y solo después la pareja (nombre, posición) (FR-004b)
-- [ ] T020 [US1] Prueba en `core/tests/dispositivo_test.rs`: si no casa ninguno de los dos criterios, el resultado es "pedir al usuario que elija", **nunca** el dispositivo más parecido (FR-004c)
-- [ ] T021 [US1] Prueba en `core/tests/dispositivo_test.rs`: dos dispositivos con el mismo nombre se distinguen por su posición; un nombre vacío recibe una etiqueta generada y sigue siendo elegible
-- [ ] T021a [US1] Prueba en `core/tests/dispositivo_test.rs`: con dos dispositivos presentes y uno elegido, **solo llegan eventos del elegido**. Ninguno se autoselecciona y los flujos no se fusionan (FR-004)
-- [ ] T022 [US1] Implementar `Dispositivo`, `DeviceId` y la función de reconocimiento en `core/src/capture/dispositivo.rs`
-- [ ] T022a [US1] Prueba en `core/tests/dispositivo_test.rs`: los tres modos de fallo —no hay ningún teclado, el elegido no se pudo abrir, el dispositivo está en uso por otra aplicación— producen variantes distintas de `ErrorDeEntrada`, todas comunicables sin interrumpir la aplicación (FR-005)
-- [ ] T022b [US1] Implementar `ErrorDeEntrada` con esas variantes en `core/src/capture/dispositivo.rs` y mapear los códigos de la plataforma en `midi-io/src/macos.rs`
+- [X] T019 [US1] Prueba en `core/tests/dispositivo_test.rs`: el reconocimiento prueba primero el identificador del sistema y solo después la pareja (nombre, posición) (FR-004b)
+- [X] T020 [US1] Prueba en `core/tests/dispositivo_test.rs`: si no casa ninguno de los dos criterios, el resultado es "pedir al usuario que elija", **nunca** el dispositivo más parecido (FR-004c)
+- [X] T021 [US1] Prueba en `core/tests/dispositivo_test.rs`: dos dispositivos con el mismo nombre se distinguen por su posición; un nombre vacío recibe una etiqueta generada y sigue siendo elegible
+- [X] T021a [US1] Prueba en `core/tests/dispositivo_test.rs`: con dos dispositivos presentes y uno elegido, **solo llegan eventos del elegido**. Ninguno se autoselecciona y los flujos no se fusionan (FR-004)
+- [X] T022 [US1] Implementar `Dispositivo`, `DeviceId` y la función de reconocimiento en `core/src/capture/dispositivo.rs`
+- [X] T022a [US1] Prueba en `core/tests/dispositivo_test.rs`: los tres modos de fallo —no hay ningún teclado, el elegido no se pudo abrir, el dispositivo está en uso por otra aplicación— producen variantes distintas de `ErrorDeEntrada`, todas comunicables sin interrumpir la aplicación (FR-005)
+- [X] T022b [US1] Implementar `ErrorDeEntrada` con esas variantes en `core/src/capture/dispositivo.rs` y mapear los códigos de la plataforma en `midi-io/src/macos.rs`
 
 ### Análisis de mensajes
 
-- [ ] T023 [US1] Prueba en `midi-io/tests/parser_test.rs`: un note-on de tres bytes produce un ataque; un note-off produce una suelta; un note-on con velocity cero produce una **suelta** (FR-009)
-- [ ] T024 [US1] Prueba en `midi-io/tests/parser_test.rs`: **el caso que descalificó a `midir`**. Los paquetes truncados `[0x90]`, `[0x90,0x3C]`, `[0x80,0x3C]`, `[0xB0]`, `[0xC0]`, `[0xE0,0x00]` y `[0x90,0x3C,0x64,0x90]` (nota válida seguida de byte de estado suelto) **no entran en pánico**: se ignoran o se reportan
-- [ ] T025 [US1] Prueba en `midi-io/tests/parser_test.rs`: pedal (CC64), aftertouch, cambio de instrumento y reloj se descartan sin interrumpir las notas que llegan entremezcladas (FR-014); el estado en carrera (*running status*) se interpreta correctamente
-- [ ] T026 [US1] Implementar el analizador en `midi-io/src/parser.rs`, sin indexar ni un solo slice sin comprobar: bajo `deny(clippy::indexing_slicing)` el compilador lo impide
+- [X] T023 [US1] Prueba en `midi-io/tests/parser_test.rs`: un note-on de tres bytes produce un ataque; un note-off produce una suelta; un note-on con velocity cero produce una **suelta** (FR-009)
+- [X] T024 [US1] Prueba en `midi-io/tests/parser_test.rs`: **el caso que descalificó a `midir`**. Los paquetes truncados `[0x90]`, `[0x90,0x3C]`, `[0x80,0x3C]`, `[0xB0]`, `[0xC0]`, `[0xE0,0x00]` y `[0x90,0x3C,0x64,0x90]` (nota válida seguida de byte de estado suelto) **no entran en pánico**: se ignoran o se reportan
+- [X] T025 [US1] Prueba en `midi-io/tests/parser_test.rs`: pedal (CC64), aftertouch, cambio de instrumento y reloj se descartan sin interrumpir las notas que llegan entremezcladas (FR-014); el estado en carrera (*running status*) se interpreta correctamente
+- [X] T026 [US1] Implementar el analizador en `midi-io/src/parser.rs`, sin indexar ni un solo slice sin comprobar: bajo `deny(clippy::indexing_slicing)` el compilador lo impide
 
 ### Emparejamiento y cierres
 
-- [ ] T027 [US1] Prueba en `core/tests/emparejador_test.rs`: un ataque seguido de su suelta produce una `PulsacionCapturada` con `Cierre::PorSuelta` y los instantes correctos
-- [ ] T028 [US1] Prueba en `core/tests/emparejador_test.rs`: el caso canónico `on(60)@0, on(60)@10, off(60)@20, off(60)@30` empareja **FIFO**, la misma política que la feature 001
-- [ ] T029 [US1] Implementar el emparejador con tabla plana de 2.048 ranuras indexada por (canal, altura) en `core/src/capture/emparejador.rs`, sin asignar y con coste constante
-- [ ] T030 [US1] Prueba en `core/tests/emparejador_test.rs`: la misma tecla pulsada dos veces sin soltarse cierra la primera con `Cierre::PorRepulsacion`
-- [ ] T031 [US1] Prueba en `core/tests/emparejador_test.rs`: una suelta sin ataque previo se ignora y suma en `sueltas_sin_pulsacion` (FR-016)
-- [ ] T032 [US1] Prueba en `core/tests/emparejador_test.rs`: `cerrar(at, PorParada)` cierra las teclas hundidas en el instante de la parada y las etiqueta; ninguna se descarta ni recibe duración inventada (FR-015)
-- [ ] T033 [US1] Implementar `Cierre`, `cerrar` y los contadores en `core/src/capture/emparejador.rs`
-- [ ] T034 [US1] Prueba en `core/tests/emparejador_test.rs`: la misma altura en canales distintos son notas independientes y no se cierran entre sí
-- [ ] T035 [US1] Prueba en `core/tests/informe_test.rs`: notas fuera de las 88 teclas y mensajes descartados se cuentan; una sesión limpia deja el informe entero a cero
-- [ ] T036 [US1] Implementar `InformeDeCaptura` y `PulsacionCapturada` en `core/src/capture/informe.rs` y `core/src/capture/evento.rs`
+- [X] T027 [US1] Prueba en `core/tests/emparejador_test.rs`: un ataque seguido de su suelta produce una `PulsacionCapturada` con `Cierre::PorSuelta` y los instantes correctos
+- [X] T028 [US1] Prueba en `core/tests/emparejador_test.rs`: el caso canónico `on(60)@0, on(60)@10, off(60)@20, off(60)@30` empareja **FIFO**, la misma política que la feature 001
+- [X] T029 [US1] Implementar el emparejador con tabla plana de 2.048 ranuras indexada por (canal, altura) en `core/src/capture/emparejador.rs`, sin asignar y con coste constante
+- [X] T030 [US1] Prueba en `core/tests/emparejador_test.rs`: la misma tecla pulsada dos veces sin soltarse cierra la primera con `Cierre::PorRepulsacion`
+- [X] T031 [US1] Prueba en `core/tests/emparejador_test.rs`: una suelta sin ataque previo se ignora y suma en `sueltas_sin_pulsacion` (FR-016)
+- [X] T032 [US1] Prueba en `core/tests/emparejador_test.rs`: `cerrar(at, PorParada)` cierra las teclas hundidas en el instante de la parada y las etiqueta; ninguna se descarta ni recibe duración inventada (FR-015)
+- [X] T033 [US1] Implementar `Cierre`, `cerrar` y los contadores en `core/src/capture/emparejador.rs`
+- [X] T034 [US1] Prueba en `core/tests/emparejador_test.rs`: la misma altura en canales distintos son notas independientes y no se cierran entre sí
+- [X] T035 [US1] Prueba en `core/tests/informe_test.rs`: notas fuera de las 88 teclas y mensajes descartados se cuentan; una sesión limpia deja el informe entero a cero
+- [X] T036 [US1] Implementar `InformeDeCaptura` y `PulsacionCapturada` en `core/src/capture/informe.rs` y `core/src/capture/evento.rs`
 
 ### Adaptador de macOS
 
@@ -104,17 +104,17 @@ ninguna prueba de las demás.
 sintético en el propio sistema, así que este adaptador se ejerce sin hardware. La excepción de
 cobertura queda reducida a la rama de Windows.
 
-- [ ] T036a [US1] Prueba en `midi-io/tests/macos_virtual_test.rs` (`#![cfg(target_os = "macos")]`): crear una fuente virtual con `coremidi::Client::virtual_source()` y comprobar que aparece en la enumeración con su nombre y su `unique_id`
-- [ ] T036b [US1] Prueba en `midi-io/tests/macos_virtual_test.rs`: abrir la fuente virtual, enviarle un note-on y un note-off, y comprobar que el adaptador entrega exactamente esos dos eventos, con altura e intensidad correctas
-- [ ] T036c [US1] Prueba en `midi-io/tests/macos_virtual_test.rs`: enviar un acorde de tres notas **en un solo paquete** y comprobar que las tres reciben **el mismo instante**. Es la propiedad que se gana al controlar el bucle de paquetes (research.md, Decisión 3), y la que `midir` impedía
-- [ ] T036d [US1] Prueba en `midi-io/tests/macos_virtual_test.rs`: enviar por la fuente virtual los paquetes truncados de T024 y comprobar que **el proceso sobrevive**. Es la regresión que protege contra el fallo exacto que descalificó a `midir`
-- [ ] T036e [US1] Prueba en `midi-io/tests/macos_virtual_test.rs`: tras cerrar la captura, enviar 500 mensajes por la fuente virtual y exigir **cero** entregas al consumidor (FR-006)
-- [ ] T036f [US1] Prueba en `midi-io/tests/macos_virtual_test.rs`: desde la llamada de apertura hasta que el primer evento es entregable transcurre menos de 1 segundo (SC-006)
-- [ ] T037 [US1] Implementar la enumeración de dispositivos en `midi-io/src/macos.rs` con `coremidi`, leyendo `display_name()` y `unique_id()` de cada fuente
-- [ ] T038 [US1] Implementar la apertura del puerto y el bucle de paquetes en `midi-io/src/macos.rs`. **Leer el reloj UNA sola vez por paquete** y asignar ese instante a todas las notas del paquete: es lo que da a un acorde un instante único (research.md, Decisión 3)
-- [ ] T039 [US1] Implementar el cierre que libera el dispositivo para otras aplicaciones (FR-006) en `midi-io/src/macos.rs`
-- [ ] T040 [US1] Implementar `MidiIoSource<C: Clock>`, que implementa `FuenteDeEventos`, en `midi-io/src/lib.rs`
-- [ ] T041 [US1] Escribir el ejemplo manual `midi-io/examples/escuchar.rs`: enumera, abre el elegido y muestra por consola lo que se toca. Es la única forma de ejercer esta capa
+- [X] T036a [US1] Prueba en `midi-io/tests/macos_virtual_test.rs` (`#![cfg(target_os = "macos")]`): crear una fuente virtual con `coremidi::Client::virtual_source()` y comprobar que aparece en la enumeración con su nombre y su `unique_id`
+- [X] T036b [US1] Prueba en `midi-io/tests/macos_virtual_test.rs`: abrir la fuente virtual, enviarle un note-on y un note-off, y comprobar que el adaptador entrega exactamente esos dos eventos, con altura e intensidad correctas
+- [X] T036c [US1] Prueba en `midi-io/tests/macos_virtual_test.rs`: enviar un acorde de tres notas **en un solo paquete** y comprobar que las tres reciben **el mismo instante**. Es la propiedad que se gana al controlar el bucle de paquetes (research.md, Decisión 3), y la que `midir` impedía
+- [X] T036d [US1] Prueba en `midi-io/tests/macos_virtual_test.rs`: enviar por la fuente virtual los paquetes truncados de T024 y comprobar que **el proceso sobrevive**. Es la regresión que protege contra el fallo exacto que descalificó a `midir`
+- [X] T036e [US1] Prueba en `midi-io/tests/macos_virtual_test.rs`: tras cerrar la captura, enviar 500 mensajes por la fuente virtual y exigir **cero** entregas al consumidor (FR-006)
+- [X] T036f [US1] Prueba en `midi-io/tests/macos_virtual_test.rs`: desde la llamada de apertura hasta que el primer evento es entregable transcurre menos de 1 segundo (SC-006)
+- [X] T037 [US1] Implementar la enumeración de dispositivos en `midi-io/src/macos.rs` con `coremidi`, leyendo `display_name()` y `unique_id()` de cada fuente
+- [X] T038 [US1] Implementar la apertura del puerto y el bucle de paquetes en `midi-io/src/macos.rs`. **Leer el reloj UNA sola vez por paquete** y asignar ese instante a todas las notas del paquete: es lo que da a un acorde un instante único (research.md, Decisión 3)
+- [X] T039 [US1] Implementar el cierre que libera el dispositivo para otras aplicaciones (FR-006) en `midi-io/src/macos.rs`
+- [X] T040 [US1] Implementar `MidiIoSource<C: Clock>`, que implementa `FuenteDeEventos`, en `midi-io/src/lib.rs`
+- [X] T041 [US1] Escribir el ejemplo manual `midi-io/examples/escuchar.rs`: enumera, abre el elegido y muestra por consola lo que se toca. Es la única forma de ejercer esta capa
 
 ### Adaptador de Windows
 

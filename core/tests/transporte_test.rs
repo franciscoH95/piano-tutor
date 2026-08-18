@@ -4,18 +4,29 @@
 use piano_core::capture::{canal, EventoCrudo, Observacion, TipoEvento};
 use piano_core::time::Micros;
 use std::alloc::{GlobalAlloc, Layout, System};
-use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
+use std::cell::Cell;
 
-// --- asignador instrumentado: cuenta asignaciones cuando se le pide ---
+// --- asignador instrumentado ---
+//
+// El contador es POR HILO, no global. `#[global_allocator]` es unico para todo el
+// binario de pruebas y `cargo test` ejecuta las pruebas en paralelo: con un contador
+// global, esta prueba contaba las asignaciones de las demas y fallaba de forma
+// intermitente. Contar solo lo que asigna este hilo la vuelve fiable.
 struct Contador;
-static VIGILANDO: AtomicBool = AtomicBool::new(false);
-static ASIGNACIONES: AtomicUsize = AtomicUsize::new(0);
+thread_local! {
+    static VIGILANDO: Cell<bool> = const { Cell::new(false) };
+    static ASIGNACIONES: Cell<usize> = const { Cell::new(0) };
+}
 
 unsafe impl GlobalAlloc for Contador {
     unsafe fn alloc(&self, l: Layout) -> *mut u8 {
-        if VIGILANDO.load(Ordering::Relaxed) {
-            ASIGNACIONES.fetch_add(1, Ordering::Relaxed);
-        }
+        // `try_with` porque durante la destruccion del hilo el local ya no existe, y
+        // acceder a el volveria a asignar: recursion infinita.
+        let _ = VIGILANDO.try_with(|v| {
+            if v.get() {
+                let _ = ASIGNACIONES.try_with(|a| a.set(a.get() + 1));
+            }
+        });
         unsafe { System.alloc(l) }
     }
     unsafe fn dealloc(&self, p: *mut u8, l: Layout) {
@@ -117,13 +128,14 @@ fn el_hueco_en_la_secuencia_localiza_donde_se_perdio() {
 fn emitir_no_asigna_memoria_ni_en_el_primer_evento() {
     let (mut tx, mut rx) = canal(256);
     let mut v = Vec::with_capacity(512); // reservado fuera de la medicion
-    ASIGNACIONES.store(0, Ordering::Relaxed);
-    VIGILANDO.store(true, Ordering::Relaxed);
+    ASIGNACIONES.with(|a| a.set(0));
+    VIGILANDO.with(|x| x.set(true));
     for i in 0..200u64 {
         tx.emitir(obs(i, 60));
     }
-    VIGILANDO.store(false, Ordering::Relaxed);
-    assert_eq!(ASIGNACIONES.load(Ordering::Relaxed), 0, "emitir asigno memoria");
+    VIGILANDO.with(|x| x.set(false));
+    let n = ASIGNACIONES.with(Cell::get);
+    assert_eq!(n, 0, "emitir asigno memoria {n} veces");
     rx.recoger(&mut v);
 }
 
