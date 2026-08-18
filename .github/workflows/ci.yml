@@ -6,9 +6,13 @@
 # script no es casualidad: si la CI hiciera otra cosa, verde en local dejaria de significar
 # verde en CI.
 #
-# LIMITACION CONOCIDA: en un repositorio privado con cuenta gratuita, GitHub no permite
-# exigir estas comprobaciones como obligatorias para fusionar. La CI INFORMA pero no
-# IMPIDE. Quien bloquea de verdad hoy es el hook pre-push local, evitable con --no-verify.
+# Estas dos comprobaciones son OBLIGATORIAS en `main` desde el 2026-08-18: la rama esta
+# protegida y no se puede incorporar nada que no las pase. Force-push y borrado de rama,
+# deshabilitados.
+#
+# Matiz: `enforce_admins` esta en false, asi que quien administra el repositorio puede
+# saltarselas a sabiendas. La puerta protege de los descuidos, no de las decisiones
+# deliberadas; eso es todo lo que una puerta puede hacer.
 name: CI
 on:
   push:
