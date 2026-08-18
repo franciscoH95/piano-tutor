@@ -105,11 +105,14 @@ renderizador de componentes (T004a).
 
 ### Abrir y ver
 
+- [ ] T039a [US1] Prueba en `core/tests/vista_test.rs`: cargar una canción nueva **no arrastra nada** de la anterior — ni cursor, ni teclas hundidas, ni puertas, ni digitación, ni corte de manos (FR-005). Se comprueba cargando una pieza, avanzando por ella con teclas pulsadas, y cargando otra: el estado resultante debe ser idéntico al de una sesión recién creada
 - [ ] T040 [US1] Implementar `abrir_cancion(ruta)` en `src-tauri/src/comandos.rs`: lee el archivo del disco y llama a `load_smf`. **Es la capa de aplicación quien lee del disco**, no el núcleo, que sigue recibiendo `&[u8]`
 - [ ] T040a [US1] Prueba en `src/App.test.tsx`: elegir un archivo invoca el comando de abrir con la ruta elegida; cancelar el diálogo no invoca nada
 - [ ] T041 [US1] Implementar el selector de archivos y el estado de carga en `src/App.tsx`
 - [ ] T042 [US1] Implementar el dibujo del teclado de 88 teclas y de las notas con sus etiquetas en `src/practica/Lienzo.tsx`
 - [ ] T042a [US1] Prueba en `src/practica/controles.test.tsx`: el control del corte está **siempre visible**, muestra «usar las voces del archivo» cuando se detectan, y moverlo emite el ajuste con el valor correcto
+- [ ] T042b [US1] Prueba en `src/practica/controles.test.tsx`: existe una indicación visible de que la digitación es una **sugerencia** y no una obligación (FR-006c). Vive **fuera del lienzo** a propósito: dentro sería parte de la capa sin pruebas, y precisamente por eso se coloca donde sí se puede afirmar que está
+- [ ] T042c [US1] Implementar esa indicación en `src/practica/controles.tsx`
 - [ ] T043 [US1] Implementar el control del punto de corte de manos en `src/practica/controles.tsx`, **siempre visible**, con «usar las voces del archivo» por defecto cuando se detecten
 - [ ] T044 [US1] Prueba en `core/tests/manos_test.rs`: mover el corte recalcula manos **y digitación** (FR-003c), no solo el color
 - [ ] T045 [US1] Implementar el recálculo encadenado en `core/src/practica/manos.rs`
@@ -217,6 +220,8 @@ renderizador de componentes (T004a).
 - [ ] T090 Implementar en `bench/src/bin/fotogramas.rs` la detección de suspensiones del sistema (intervalos > 200 ms), su exclusión del cálculo y su **declaración en el informe**. Sin esto el informe publica un número inventado: en la primera medición se perdieron 430 de 600 segundos por esta causa
 - [ ] T090a Implementar en `bench/src/bin/fotogramas.rs` la medición de extremo a extremo de SC-004: desde que el evento de tecla existe en Rust hasta que el píxel cambia, con al menos 1.000 eventos a ritmo realista, reportando p50, p95 y p99. **Es el criterio para el que existe todo el diseño del puente** —canal, hilo reenviador, anclas— y hasta ahora solo se había medido en una maqueta, no en el producto
 - [ ] T091 Ejecutar el banco de fotogramas con una pieza densa y registrar las cinco cifras en `specs/003-practicar-una-cancion/quickstart.md`, con fecha y máquina
+- [ ] T091b Comprobación manual de SC-001, con el procedimiento anotado en `specs/003-practicar-una-cancion/quickstart.md`: desde abrir la aplicación hasta ver una canción propia en pantalla, medir que pasan menos de 30 segundos y no más de tres acciones. Cronómetro en mano, con un archivo que no se haya abierto antes
+- [ ] T091c Comprobación manual de SC-006, anotada en el mismo sitio: alguien que **no sepa tocar la pieza** consigue llegar a su final en modo espera. No se puede automatizar —es el criterio más importante de la feature y depende de una persona—, pero sin estar planificado nadie lo comprueba
 - [ ] T092 [P] Documentar con rustdoc la API pública de `core/src/practica/` y `core/src/digitacion/`
 - [ ] T093 [P] Verificar `cargo clippy --workspace --all-targets -- -D warnings` limpio y `pnpm build` sin avisos
 - [ ] T094 [P] Revisar `src/practica/Lienzo.tsx` archivo a archivo y mudar a `piano-core` cualquier decisión que se haya colado. Es la condición que sostiene su excepción constitucional
@@ -266,15 +271,16 @@ Marcadas con `[P]`. Pocas, porque el TDD estricto serializa casi todo.
 | --- | --- | --- |
 | 1. Setup | T001–T004b (6) | 0 |
 | 2. Foundational | T005–T016 (12) | 4 |
-| 3. US1 (P1) | T017–T046 (33) | 19 |
+| 3. US1 (P1) | T017–T046 (36) | 21 |
 | 4. US2 (P1) | T047–T059 (15) | 8 |
 | 5. US3 (P1) | T060–T070 (12) | 5 |
 | 6. US4 (P2) | T071–T084 (15) | 7 |
 | 7. US5 (P3) | T085–T088 (5) | 1 |
-| 8. Polish | T089–T096 (9) | 0 |
-| **Total** | **107** | **44** |
+| 8. Polish | T089–T096 (11) | 0 |
+| **Total** | **112** | **46** |
 
 **Sin cobertura automática, y declarado**: `src/practica/Lienzo.tsx` (T014, T042, T059, T066, T084)
-y el banco de fotogramas (T089–T091a), que necesita pantalla. **Nada más**: los tres componentes de
+el banco de fotogramas (T089–T091a), que necesita pantalla, y las dos comprobaciones manuales
+T091b y T091c, que dependen de un cronómetro y de una persona. **Nada más**: los tres componentes de
 React que toman decisiones —`App.tsx`, `controles.tsx`, `Selector.tsx`— sí se prueban, en T040a,
 T042a, T045a, T057a, T068a, T082a y T085a.
