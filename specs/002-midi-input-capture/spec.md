@@ -10,6 +10,14 @@
 
 ## Clarifications
 
+### Session 2026-08-18
+
+- Q: La investigación encontró que sí existe un identificador de dispositivo estable y accesible en
+  ambas plataformas. ¿Se refina FR-004a? → A: Sí. El identificador del sistema pasa a ser la clave
+  primaria y la pareja (nombre, posición entre homónimos) queda como reserva. La regla anterior no
+  se deroga: sigue siendo el respaldo cuando el identificador no case. El motivo del cambio es que
+  la opción se había descartado por "no portable", y esa descripción era incompleta.
+
 ### Session 2026-08-17
 
 - Q: ¿Cómo se alinean los instantes de la captura con los de la reproducción? → A: Un único reloj
@@ -142,6 +150,8 @@ comprobando que el sistema lo comunica y conserva lo capturado hasta ese momento
   legible generada por el sistema para que el usuario pueda elegirlo igualmente.
 - **El teclado recordado ya no está**: el conjunto de aparatos cambió desde la última sesión. Se
   pide elegir de nuevo, nunca se abre otro en su lugar.
+- **El teclado cambió de conector USB entre sesiones**: el identificador del sistema lo reconoce
+  igualmente; es precisamente el caso donde la pareja (nombre, posición) fallaría.
 - **El dispositivo ya está en uso por otra aplicación**: se comunica sin bloquear la aplicación.
 - **Tecla soltada sin haber sido pulsada**: puede ocurrir al empezar a capturar con una tecla ya
   hundida. Se ignora y se cuenta, igual que en la carga de canciones.
@@ -176,12 +186,16 @@ comprobando que el sistema lo comunica y conserva lo capturado hasta ese momento
   el usuario elija de forma explícita. MUST NOT elegir uno por su cuenta ni fusionar varios
   dispositivos en un mismo flujo: un controlador de pads o un sintetizador que emite reloj
   contaminarían lo que el alumno realmente toca.
-- **FR-004a**: El sistema MUST recordar el último teclado elegido como la pareja (nombre del
-  puerto, posición entre los homónimos) y MUST volver a proponerlo la próxima vez, para que elegir
-  sea un trámite de una sola vez y no de cada sesión.
-- **FR-004b**: Si al arrancar no existe ningún dispositivo que case con la pareja recordada, el
-  sistema MUST pedir al usuario que elija de nuevo. MUST NOT abrir un dispositivo distinto en su
-  lugar: capturar del aparato equivocado sin avisar es peor que no capturar.
+- **FR-004a**: El sistema MUST recordar el último teclado elegido y MUST volver a proponerlo la
+  próxima vez, para que elegir sea un trámite de una sola vez y no de cada sesión. Lo recordado
+  MUST incluir el identificador que el sistema operativo asigna al dispositivo **y** la pareja
+  (nombre del puerto, posición entre los homónimos).
+- **FR-004b**: Al reconocer el teclado recordado, el sistema MUST intentar primero el identificador
+  del sistema operativo, que sobrevive a renumeraciones y a cambiar el teclado de conector, y MUST
+  recurrir a la pareja (nombre, posición) solo si aquél no casa.
+- **FR-004c**: Si ninguno de los dos criterios encuentra el dispositivo, el sistema MUST pedir al
+  usuario que elija de nuevo. MUST NOT abrir un dispositivo distinto en su lugar: capturar del
+  aparato equivocado sin avisar es peor que no capturar.
 - **FR-005**: El sistema MUST comunicar de forma explícita, y sin interrumpir la aplicación, que no
   hay ningún teclado disponible o que el elegido no se pudo abrir.
 - **FR-006**: El sistema MUST liberar el dispositivo al detener la captura, de modo que otra
@@ -217,7 +231,8 @@ comprobando que el sistema lo comunica y conserva lo capturado hasta ese momento
 - **FR-012b**: El reloj de sesión MUST ser sustituible por uno controlado, igual que en la
   reproducción, para que la captura se pueda ejercer con instantes fijos y reproducibles.
 - **FR-013**: Los instantes capturados MUST ser no decrecientes, y MUST NOT verse afectados por
-  cambios en la hora del sistema.
+  cambios en la hora del sistema. **No se exige que sean estrictamente crecientes**: varias notas
+  de un mismo acorde comparten instante de forma legítima, y el desempate es su orden de llegada.
 - **FR-014**: El sistema MUST capturar únicamente pulsaciones y sueltas de tecla. El pedal de
   resonancia, la rueda de modulación, la presión posterior y los cambios de instrumento MUST
   descartarse, igual que hace la carga de canciones. La simetría es deliberada: si un lado
@@ -264,10 +279,10 @@ comprobando que el sistema lo comunica y conserva lo capturado hasta ese momento
 
 ### Key Entities
 
-- **Dispositivo de entrada**: un teclado disponible. Atributos: nombre legible del puerto y
-  posición entre los dispositivos que anuncian ese mismo nombre. Esa pareja es su identidad y es
-  lo que se recuerda entre sesiones; no se usa el índice de puerto, que se renumera al conectar o
-  desconectar cualquier otro aparato.
+- **Dispositivo de entrada**: un teclado disponible. Atributos: identificador asignado por el
+  sistema operativo (identidad primaria), nombre legible del puerto y posición entre los
+  dispositivos que anuncian ese mismo nombre (identidad de reserva). No se usa el índice de puerto,
+  que se renumera al conectar o desconectar cualquier otro aparato.
 - **Sesión de captura**: el periodo entre iniciar y detener la captura sobre un dispositivo.
   Conoce qué se ha capturado y en qué estado está el dispositivo.
 - **Pulsación capturada**: lo que el alumno tocó. Atributos: altura, intensidad, instante de
