@@ -348,7 +348,7 @@ elegir uno inicia la captura sobre ése, y que al volver a abrir la aplicación 
   automática sin ningún dispositivo conectado.
 - **SC-008**: Reducir la velocidad a la mitad duplica exactamente la duración de la reproducción.
 - **SC-008a**: Saltar a cualquier punto de una canción de 10 minutos deja la práctica lista en ese
-  punto sin retraso perceptible por el alumno.
+  punto en menos de 100 milisegundos.
 - **SC-009**: El 100 % de las notas de cualquier canción cargable recibe un dedo propuesto.
 - **SC-010**: La misma canción produce la misma digitación propuesta en 100 ejecuciones seguidas.
 - **SC-011**: En una escala sencilla de una octava, la digitación propuesta coincide con la que
