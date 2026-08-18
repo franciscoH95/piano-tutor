@@ -108,7 +108,8 @@ pub(crate) fn build(
     for ev in &parsed.events {
         let voz = |key: u8| VoiceKey { track: ev.track, channel: ev.channel, key };
         match ev.kind {
-            RawKind::Tempo { .. } => {}
+            // El tempo y la armadura no producen notas: los consume `load_smf`.
+            RawKind::Tempo { .. } | RawKind::Armadura { .. } => {}
             RawKind::NoteOn { key, velocity } => {
                 abiertas.entry(voz(key)).or_default().push_back(OpenNote {
                     onset_tick: ev.tick,

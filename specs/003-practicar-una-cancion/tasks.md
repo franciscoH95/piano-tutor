@@ -73,51 +73,51 @@ renderizador de componentes (T004a).
 
 ### Nombres de nota
 
-- [ ] T017 [US1] Prueba en `core/tests/nombres_test.rs`: con armadura de sostenidos la tecla 61 es Do♯; con armadura de bemoles es Re♭; sin armadura declarada, sostenidos
-- [ ] T018 [US1] Prueba en `core/tests/nombres_test.rs`: el mapa de armaduras por tick toma la última con tick ≤ t, igual que hace el mapa de tempo; varias en el mismo tick, gana la última
-- [ ] T019 [US1] Implementar el mapa de armaduras y `NombreDeNota { base, alteracion }` en `core/src/practica/nombres.rs`. **Valor simbólico, nunca una cadena**: el formateo pertenece a quien pinta
-- [ ] T020 [US1] Prueba en `core/tests/nombres_test.rs`: una tecla blanca nunca lleva alteración (no hay Mi♯ ni Do♭), que es la simplificación declarada
+- [X] T017 [US1] Prueba en `core/tests/nombres_test.rs`: con armadura de sostenidos la tecla 61 es Do♯; con armadura de bemoles es Re♭; sin armadura declarada, sostenidos
+- [X] T018 [US1] Prueba en `core/tests/nombres_test.rs`: el mapa de armaduras por tick toma la última con tick ≤ t, igual que hace el mapa de tempo; varias en el mismo tick, gana la última
+- [X] T019 [US1] Implementar el mapa de armaduras y `NombreDeNota { base, alteracion }` en `core/src/practica/nombres.rs`. **Valor simbólico, nunca una cadena**: el formateo pertenece a quien pinta
+- [X] T020 [US1] Prueba en `core/tests/nombres_test.rs`: una tecla blanca nunca lleva alteración (no hay Mi♯ ni Do♭), que es la simplificación declarada
 
 ### Reparto de manos
 
-- [ ] T021 [US1] Prueba en `core/tests/manos_test.rs`: las tres guardas. Un archivo con dos voces del mismo instrumento, cada una con ≥5 % de las notas y medianas separadas ≥3 semitonos, se considera con manos separadas; si falla **cualquiera** de las tres, no
-- [ ] T022 [US1] Prueba en `core/tests/manos_test.rs`: con manos separadas, la derecha es la voz de **mediana de altura más alta**, nunca la de índice de pista menor. Incluye un archivo donde la pista 0 es la mano izquierda
-- [ ] T023 [US1] Implementar `Voz`, las tres guardas y la asignación por mediana en `core/src/practica/manos.rs`
-- [ ] T024 [US1] Prueba en `core/tests/manos_test.rs`: sin manos separadas se reparte por altura con umbral 60, y mover el umbral reasigna las notas afectadas y **solo** ésas
-- [ ] T025 [US1] Implementar el corte por altura ajustable en `core/src/practica/manos.rs`
-- [ ] T026 [US1] Prueba en `core/tests/manos_test.rs`: el reparto es determinista en 100 ejecuciones, incluido el desempate por `(track, channel)`
+- [X] T021 [US1] Prueba en `core/tests/manos_test.rs`: las tres guardas. Un archivo con dos voces del mismo instrumento, cada una con ≥5 % de las notas y medianas separadas ≥3 semitonos, se considera con manos separadas; si falla **cualquiera** de las tres, no
+- [X] T022 [US1] Prueba en `core/tests/manos_test.rs`: con manos separadas, la derecha es la voz de **mediana de altura más alta**, nunca la de índice de pista menor. Incluye un archivo donde la pista 0 es la mano izquierda
+- [X] T023 [US1] Implementar `Voz`, las tres guardas y la asignación por mediana en `core/src/practica/manos.rs`
+- [X] T024 [US1] Prueba en `core/tests/manos_test.rs`: sin manos separadas se reparte por altura con umbral 60, y mover el umbral reasigna las notas afectadas y **solo** ésas
+- [X] T025 [US1] Implementar el corte por altura ajustable en `core/src/practica/manos.rs`
+- [X] T026 [US1] Prueba en `core/tests/manos_test.rs`: el reparto es determinista en 100 ejecuciones, incluido el desempate por `(track, channel)`
 
 ### Digitación
 
-- [ ] T027 [US1] Prueba en `core/tests/digitacion_test.rs`: **el vano canónico se mide del dedo menor al mayor**. Para el par (3,1) con intervalo ascendente de +3 semitonos el vano es −3. Sin esto el paso del pulgar no se detecta jamás, así que es la primera prueba que hay que escribir
-- [ ] T028 [US1] Implementar la tabla de vanos de Parncutt como datos en `core/src/digitacion/tablas.rs`, con `#[rustfmt::skip]`
-- [ ] T029 [US1] Prueba en `core/tests/digitacion_test.rs`: la mano izquierda es la derecha reflejada (`h(p) = −p`), pero el color de la tecla se consulta sobre la altura MIDI **real**, que no se refleja
-- [ ] T030 [US1] Implementar la reflexión de mano y la consulta de color de tecla en `core/src/digitacion/mod.rs`
-- [ ] T031 [US1] Prueba en `core/tests/digitacion_test.rs`: las doce reglas de coste, una por una, con los pares que cada una penaliza y con los que no
-- [ ] T032 [US1] Implementar la función de coste con las doce reglas en `core/src/digitacion/coste.rs`, en aritmética `i32` exclusivamente
-- [ ] T033 [US1] Prueba en `core/tests/digitacion_test.rs`: **la escala de Do mayor de una octava**, ascendente y descendente, para las dos manos, debe dar la digitación canónica que enseña cualquier método (SC-011)
-- [ ] T034 [US1] Implementar la programación dinámica exacta de segundo orden en `core/src/digitacion/mod.rs`
-- [ ] T035 [US1] Prueba en `core/tests/digitacion_test.rs`: los acordes reparten dedos de una misma mano sin repetir ninguno
-- [ ] T036 [US1] Implementar la digitación de acordes en `core/src/digitacion/mod.rs`
-- [ ] T037 [US1] Prueba en `core/tests/digitacion_test.rs`: **toda** nota de cualquier canción cargable recibe dedo (SC-009); cuando no hay buena solución se propone la menos mala, nunca ninguna
-- [ ] T038 [US1] Prueba en `core/tests/digitacion_test.rs`: la misma canción produce la misma digitación en 100 ejecuciones (SC-010)
-- [ ] T039 [US1] Prueba de rendimiento en `core/tests/digitacion_test.rs`: 5.000 notas se digitan con holgura dentro del presupuesto de 2 s de SC-002
+- [X] T027 [US1] Prueba en `core/tests/digitacion_test.rs`: **el vano canónico se mide del dedo menor al mayor**. Para el par (3,1) con intervalo ascendente de +3 semitonos el vano es −3. Sin esto el paso del pulgar no se detecta jamás, así que es la primera prueba que hay que escribir
+- [X] T028 [US1] Implementar la tabla de vanos de Parncutt como datos en `core/src/digitacion/tablas.rs`, con `#[rustfmt::skip]`
+- [X] T029 [US1] Prueba en `core/tests/digitacion_test.rs`: la mano izquierda es la derecha reflejada (`h(p) = −p`), pero el color de la tecla se consulta sobre la altura MIDI **real**, que no se refleja
+- [X] T030 [US1] Implementar la reflexión de mano y la consulta de color de tecla en `core/src/digitacion/mod.rs`
+- [X] T031 [US1] Prueba en `core/tests/digitacion_test.rs`: las doce reglas de coste, una por una, con los pares que cada una penaliza y con los que no
+- [X] T032 [US1] Implementar la función de coste con las doce reglas en `core/src/digitacion/coste.rs`, en aritmética `i32` exclusivamente
+- [X] T033 [US1] Prueba en `core/tests/digitacion_test.rs`: **la escala de Do mayor de una octava**, ascendente y descendente, para las dos manos, debe dar la digitación canónica que enseña cualquier método (SC-011)
+- [X] T034 [US1] Implementar la programación dinámica exacta de segundo orden en `core/src/digitacion/mod.rs`
+- [X] T035 [US1] Prueba en `core/tests/digitacion_test.rs`: los acordes reparten dedos de una misma mano sin repetir ninguno
+- [X] T036 [US1] Implementar la digitación de acordes en `core/src/digitacion/mod.rs`
+- [X] T037 [US1] Prueba en `core/tests/digitacion_test.rs`: **toda** nota de cualquier canción cargable recibe dedo (SC-009); cuando no hay buena solución se propone la menos mala, nunca ninguna
+- [X] T038 [US1] Prueba en `core/tests/digitacion_test.rs`: la misma canción produce la misma digitación en 100 ejecuciones (SC-010)
+- [X] T039 [US1] Prueba de rendimiento en `core/tests/digitacion_test.rs`: 5.000 notas se digitan con holgura dentro del presupuesto de 2 s de SC-002
 
 ### Abrir y ver
 
-- [ ] T039a [US1] Prueba en `core/tests/vista_test.rs`: cargar una canción nueva **no arrastra nada** de la anterior — ni cursor, ni teclas hundidas, ni puertas, ni digitación, ni corte de manos (FR-005). Se comprueba cargando una pieza, avanzando por ella con teclas pulsadas, y cargando otra: el estado resultante debe ser idéntico al de una sesión recién creada
-- [ ] T040 [US1] Implementar `abrir_cancion(ruta)` en `src-tauri/src/comandos.rs`: lee el archivo del disco y llama a `load_smf`. **Es la capa de aplicación quien lee del disco**, no el núcleo, que sigue recibiendo `&[u8]`
-- [ ] T040a [US1] Prueba en `src/App.test.tsx`: elegir un archivo invoca el comando de abrir con la ruta elegida; cancelar el diálogo no invoca nada
-- [ ] T041 [US1] Implementar el selector de archivos y el estado de carga en `src/App.tsx`
-- [ ] T042 [US1] Implementar el dibujo del teclado de 88 teclas y de las notas con sus etiquetas en `src/practica/Lienzo.tsx`
-- [ ] T042a [US1] Prueba en `src/practica/controles.test.tsx`: el control del corte está **siempre visible**, muestra «usar las voces del archivo» cuando se detectan, y moverlo emite el ajuste con el valor correcto
-- [ ] T042b [US1] Prueba en `src/practica/controles.test.tsx`: existe una indicación visible de que la digitación es una **sugerencia** y no una obligación (FR-006c). Vive **fuera del lienzo** a propósito: dentro sería parte de la capa sin pruebas, y precisamente por eso se coloca donde sí se puede afirmar que está
-- [ ] T042c [US1] Implementar esa indicación en `src/practica/controles.tsx`
-- [ ] T043 [US1] Implementar el control del punto de corte de manos en `src/practica/controles.tsx`, **siempre visible**, con «usar las voces del archivo» por defecto cuando se detecten
-- [ ] T044 [US1] Prueba en `core/tests/manos_test.rs`: mover el corte recalcula manos **y digitación** (FR-003c), no solo el color
-- [ ] T045 [US1] Implementar el recálculo encadenado en `core/src/practica/manos.rs`
-- [ ] T045a [US1] Prueba en `src/App.test.tsx`: un archivo ilegible muestra el motivo que devuelve el núcleo, y la aplicación **sigue utilizable** —no queda en blanco ni en un estado a medias— (FR-004)
-- [ ] T046 [US1] Implementar el aviso de archivo ilegible en `src/App.tsx`, mostrando el motivo que devuelve `LoadError` sin dejar la aplicación en un estado a medias
+- [X] T039a [US1] Prueba en `core/tests/vista_test.rs`: cargar una canción nueva **no arrastra nada** de la anterior — ni cursor, ni teclas hundidas, ni puertas, ni digitación, ni corte de manos (FR-005). Se comprueba cargando una pieza, avanzando por ella con teclas pulsadas, y cargando otra: el estado resultante debe ser idéntico al de una sesión recién creada
+- [X] T040 [US1] Implementar `abrir_cancion(ruta)` en `src-tauri/src/comandos.rs`: lee el archivo del disco y llama a `load_smf`. **Es la capa de aplicación quien lee del disco**, no el núcleo, que sigue recibiendo `&[u8]`
+- [X] T040a [US1] Prueba en `src/App.test.tsx`: elegir un archivo invoca el comando de abrir con la ruta elegida; cancelar el diálogo no invoca nada
+- [X] T041 [US1] Implementar el selector de archivos y el estado de carga en `src/App.tsx`
+- [X] T042 [US1] Implementar el dibujo del teclado de 88 teclas y de las notas con sus etiquetas en `src/practica/Lienzo.tsx`
+- [X] T042a [US1] Prueba en `src/practica/controles.test.tsx`: el control del corte está **siempre visible**, muestra «usar las voces del archivo» cuando se detectan, y moverlo emite el ajuste con el valor correcto
+- [X] T042b [US1] Prueba en `src/practica/controles.test.tsx`: existe una indicación visible de que la digitación es una **sugerencia** y no una obligación (FR-006c). Vive **fuera del lienzo** a propósito: dentro sería parte de la capa sin pruebas, y precisamente por eso se coloca donde sí se puede afirmar que está
+- [X] T042c [US1] Implementar esa indicación en `src/practica/controles.tsx`
+- [X] T043 [US1] Implementar el control del punto de corte de manos en `src/practica/controles.tsx`, **siempre visible**, con «usar las voces del archivo» por defecto cuando se detecten
+- [X] T044 [US1] Prueba en `core/tests/manos_test.rs`: mover el corte recalcula manos **y digitación** (FR-003c), no solo el color
+- [X] T045 [US1] Implementar el recálculo encadenado en `core/src/practica/manos.rs`
+- [X] T045a [US1] Prueba en `src/App.test.tsx`: un archivo ilegible muestra el motivo que devuelve el núcleo, y la aplicación **sigue utilizable** —no queda en blanco ni en un estado a medias— (FR-004)
+- [X] T046 [US1] Implementar el aviso de archivo ilegible en `src/App.tsx`, mostrando el motivo que devuelve `LoadError` sin dejar la aplicación en un estado a medias
 
 **Checkpoint**: US1 completa. Se abre un `.mid` y se ve, con nombres y dedos. Es el MVP.
 

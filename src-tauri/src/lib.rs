@@ -34,7 +34,14 @@ pub fn run() {
         .manage(reloj)
         .manage(std::sync::Arc::new(comandos::Estado::default()))
         .plugin(tauri_plugin_opener::init())
-        .invoke_handler(tauri::generate_handler![greet, comandos::registrar_canal])
+        .plugin(tauri_plugin_dialog::init())
+        .invoke_handler(tauri::generate_handler![
+            greet,
+            comandos::registrar_canal,
+            comandos::abrir_cancion,
+            comandos::ajustar_corte,
+            comandos::vista_actual
+        ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

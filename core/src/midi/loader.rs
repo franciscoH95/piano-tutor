@@ -31,6 +31,11 @@ pub(crate) enum RawKind {
     NoteOn { key: u8, velocity: u8 },
     NoteOff { key: u8 },
     Tempo { us_per_qn: u32 },
+    /// Armadura de la pieza: `sf` de -7 (siete bemoles) a 7 (siete sostenidos).
+    ///
+    /// La feature 001 la descartaba porque nada la necesitaba. La 003 la usa para decidir
+    /// si una tecla negra se llama sostenido o bemol.
+    Armadura { sf: i8 },
 }
 
 /// Un evento con su posicion absoluta y su procedencia.
@@ -137,6 +142,9 @@ pub(crate) fn parse(raw: &[u8]) -> Result<ParsedSmf, LoadError> {
                         return Err(LoadError::InvalidTempo { tick, us_per_qn });
                     }
                     Some((0, RawKind::Tempo { us_per_qn }))
+                }
+                Event::Meta(MetaEvent::KeySignature(k)) => {
+                    Some((0, RawKind::Armadura { sf: k.accidentals().get() }))
                 }
                 Event::Meta(MetaEvent::EndOfTrack) => {
                     fin = Some(tick);
