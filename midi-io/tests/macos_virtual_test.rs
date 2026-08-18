@@ -162,13 +162,23 @@ fn abrir_tarda_menos_de_un_segundo() {
     std::thread::sleep(Duration::from_millis(80));
     let d = buscar(&n).expect("enumerada");
 
+    // SC-006 mide cuanto tarda la captura en estar ACTIVA, no cuanto tarda en llegar una
+    // nota enviada a ciegas. CoreMIDI puede descartar lo que se envie antes de que la
+    // conexion este establecida —es su comportamiento normal, no un fallo nuestro—, asi
+    // que se insiste hasta que el canal responde y se mide ese instante. Medirlo con un
+    // solo envio hacia que la prueba fallase una de cada cinco veces.
     let inicio = Instant::now();
     let mut cap = abrir(&d, MonotonicClock::start()).expect("abrir");
-    vs.received(&PacketBuffer::new(0, &[0x90, 60, 100])).expect("enviar");
-    let v = recoger_hasta(&mut cap, 1, 3_000);
+    let limite = inicio + Duration::from_secs(3);
+    let mut v = Vec::new();
+    while v.is_empty() && Instant::now() < limite {
+        let _ = vs.received(&PacketBuffer::new(0, &[0x90, 60, 100]));
+        std::thread::sleep(Duration::from_millis(5));
+        cap.receptor().recoger(&mut v);
+    }
     let transcurrido = inicio.elapsed();
 
-    assert_eq!(v.len(), 1, "la captura no llego a estar activa");
+    assert!(!v.is_empty(), "la captura no llego a estar activa en 3 s");
     assert!(transcurrido < Duration::from_secs(1), "tardo {transcurrido:?} en estar activa");
 }
 
