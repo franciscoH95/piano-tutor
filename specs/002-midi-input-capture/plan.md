@@ -162,7 +162,7 @@ Cargo.toml                         # members += ["midi-io", "bench"]
 
 **Structure Decision**: la frontera entre `core/` y `midi-io/` es la que hace cumplible el
 Principio III, y se verifica de forma mecánica: `cargo tree -p piano-core` debe dar **exactamente
-dos líneas** (`piano-core` y `rtrb`) en los tres targets, con un grep negativo contra
+tres líneas** (`piano-core`, `midi_file` y `rtrb`) en los tres targets, con un grep negativo contra
 `coremidi|midir|windows|winapi|core-foundation|objc2|libc|alsa|jack`. Si alguien añade una
 dependencia de sistema al núcleo, la integración continua se rompe y hay que justificarlo en el PR.
 
@@ -176,7 +176,7 @@ ninguna decisión de dominio. Es deliberadamente aburrido, porque es lo que no p
 | --- | --- | --- |
 | **I. Precisión Musical** | PASA, reforzado | Al controlar el bucle de paquetes se lee el reloj **una vez por paquete**: un acorde tiene un instante único por construcción. Con `midir` habrían salido tres instantes distintos, con dispersión medida de hasta 53,8 µs. |
 | **II. TDD estricto** | PASA | Toda la lógica vive tras `FuenteDeEventos` y se ejerce con `FuenteGuionizada`. Lo no cubierto es `midi-io/`, y el diseño lo mantiene sin decisiones propias precisamente por eso. |
-| **III. Núcleo desacoplado** | PASA, verificable mecánicamente | La puerta de `cargo tree` con dos líneas exactas y grep negativo, en tres targets. |
+| **III. Núcleo desacoplado** | PASA, verificable mecánicamente | La puerta de `cargo tree` con tres líneas exactas y grep negativo, en tres targets. |
 | **IV. Tiempo real** | **PASA — deuda saldada** | Banco entregado, con las tres condiciones: existe, corre sin teclado, y **falla** bloqueando la fusión. Además el diseño evita los dos bloqueos que traía `midir`: el mutex en el callback de tiempo real y las asignaciones. |
 | **V. Local primero** | PASA | Sin red. El único dato en disco es qué teclado se eligió. |
 

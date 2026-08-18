@@ -108,8 +108,8 @@ Reparto exacto:
   puerto, recorrer el paquete, filtrar a notas, sellar con el reloj y empujar al anillo. **Sin
   ninguna decisión de dominio.**
 
-**Puerta mecánica del Principio III**: `cargo tree -p piano-core` debe mostrar **exactamente dos
-líneas** (`piano-core` y `rtrb`), en los tres targets, más un grep negativo contra
+**Puerta mecánica del Principio III**: `cargo tree -p piano-core` debe mostrar **exactamente tres
+líneas** (`piano-core`, `midi_file` y `rtrb`), en los tres targets, más un grep negativo contra
 `coremidi|midir|windows|winapi|core-foundation|objc2|libc|alsa|jack`. Añadir cualquier crate al
 núcleo rompe la integración continua y obliga a discutirlo en el PR.
 
@@ -127,7 +127,7 @@ principio en algo **verificable**, no confiado.
 
 **Riesgos y mitigación**:
 
-- **`rtrb` en el núcleo debilita la puerta** de "una línea" a "dos líneas con lista blanca". Se
+- **`rtrb` en el núcleo debilita la puerta** de "una línea" a "tres líneas con lista blanca". Se
   acepta con la puerta reforzada descrita arriba. Si se prefiere conservar la puerta de una sola
   línea, la alternativa es un quinto crate `piano-transport` sin dependencias de sistema.
 

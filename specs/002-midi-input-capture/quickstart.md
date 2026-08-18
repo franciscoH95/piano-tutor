@@ -26,7 +26,7 @@ las nuevas) por debajo de **1 segundo**.
 cargo tree -p piano-core
 ```
 
-**Resultado esperado**: exactamente dos líneas, `piano-core` y `rtrb`. Si aparece `coremidi`,
+**Resultado esperado**: exactamente tres líneas: `piano-core`, `midi_file` (de la feature 001) y `rtrb`. Si aparece `coremidi`,
 `windows`, `midir` o cualquier cosa de sistema, el Principio III está roto y hay que detener la
 fusión, aunque las pruebas pasen.
 

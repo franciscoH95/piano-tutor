@@ -1,0 +1,12 @@
+[package]
+name = "piano-bench"
+version.workspace = true
+edition.workspace = true
+description = "Banco de latencia de Piano Tutor. Vive fuera de `cargo test` a proposito."
+
+[dependencies]
+piano-core = { path = "../core" }
+
+[[bin]]
+name = "latencia"
+path = "src/bin/latencia.rs"

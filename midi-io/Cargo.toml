@@ -1,0 +1,25 @@
+[package]
+name = "piano-midi-io"
+version.workspace = true
+edition.workspace = true
+description = "Adaptador de entrada MIDI de Piano Tutor. La unica capa que habla con el sistema operativo."
+
+[lib]
+name = "piano_midi_io"
+path = "src/lib.rs"
+
+[dependencies]
+piano-core = { path = "../core" }
+
+# macOS: CoreMIDI directamente. NO se usa midir: aborta el proceso ante un paquete
+# truncado en la ruta exacta de note-on (issue #160). Ver research.md, Decision 1.
+[target.'cfg(target_os = "macos")'.dependencies]
+coremidi = "0.9.2"
+
+# Windows: WinMM para la captura y cfgmgr32 para las notificaciones de conexion.
+[target.'cfg(windows)'.dependencies]
+windows = { version = "0.62", features = [
+  "Win32_Foundation",
+  "Win32_Media_Multimedia",
+  "Win32_Devices_DeviceAndDriverInstallation",
+] }

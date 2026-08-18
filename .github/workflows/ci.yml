@@ -1,0 +1,26 @@
+# Ejecuta las mismas puertas que el hook local, en las dos plataformas objetivo.
+#
+# Este fichero esta INERTE hasta que el repositorio tenga un remoto. Se versiona ya para
+# que el dia que lo tenga no haya que inventarlo, y para que la puerta del Principio IV
+# quede cerrada del todo con una sola accion: activar el remoto.
+name: CI
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  verificar:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+      - name: Puertas del proyecto
+        shell: bash
+        run: ./scripts/verificar.sh

@@ -10,7 +10,7 @@ habla con el sistema operativo vive en `piano-midi-io` y no toma ninguna decisi�
 La comprobación no es de confianza, es mecánica:
 
 ```sh
-cargo tree -p piano-core   # exactamente 2 líneas: piano-core y rtrb
+cargo tree -p piano-core   # exactamente 3 líneas: piano-core, midi_file y rtrb
 ```
 
 ## Núcleo: `piano_core::capture`

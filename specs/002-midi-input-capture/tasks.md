@@ -32,7 +32,7 @@ esa lógica está en el archivo equivocado y debe mudarse a `core/`.**
 - [ ] T006b [P] Crear `scripts/instalar-hooks.sh` que enlace `scripts/verificar.sh` como hook `pre-push`, y documentarlo en `README.md`. `.git/hooks/` no se versiona, así que sin este script la puerta no existe en una clonación nueva
 - [ ] T006c [P] Escribir `.github/workflows/ci.yml` que ejecute `scripts/verificar.sh` en `macos-latest` y `windows-latest`. Queda inerte hasta que haya remoto; se versiona ya para que el día que lo haya no haya que inventarlo
 
-**Checkpoint**: `cargo tree -p piano-core` muestra exactamente dos líneas (`piano-core` y `rtrb`).
+**Checkpoint**: `cargo tree -p piano-core` muestra exactamente tres líneas (`piano-core`, `midi_file` y `rtrb`).
 
 ---
 
@@ -158,7 +158,7 @@ cobertura queda reducida a la rama de Windows.
 - [ ] T056 [US3] Prueba en `core/tests/carga_test.rs`: una ráfaga de 50 eventos por segundo durante un minuto simulado no pierde ninguna pulsación y deja el contador de descartes en cero (SC-002)
 - [ ] T057 [US3] Prueba en `core/tests/carga_test.rs`: con el consumidor detenido a propósito hasta desbordar, la memoria no crece, nada se bloquea y el contador refleja exactamente cuántas se perdieron (SC-002a)
 - [ ] T058 [US3] Ajustar lo que haga falta en `core/src/capture/` para que las pruebas anteriores pasen sin relajarlas: nada de `HashMap` en rutas que afecten al orden, nada de reloj del sistema fuera del `Clock` inyectado
-- [ ] T059 [US3] Añadir la puerta del Principio III a `scripts/verificar.sh`: `cargo tree -p piano-core` debe dar **exactamente dos líneas** en los tres targets, más un grep negativo contra `coremidi|midir|windows|winapi|core-foundation|objc2|libc|alsa|jack`
+- [ ] T059 [US3] Añadir la puerta del Principio III a `scripts/verificar.sh`: `cargo tree -p piano-core` debe dar **exactamente tres líneas** en los tres targets, más un grep negativo contra `coremidi|midir|windows|winapi|core-foundation|objc2|libc|alsa|jack`
 
 **Checkpoint**: la suite completa pasa en una máquina limpia, sin hardware.
 
