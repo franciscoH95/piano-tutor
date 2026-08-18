@@ -11,6 +11,37 @@ use piano_core::capture::{
 };
 use piano_core::clock::Clock;
 
+/// Codigos de error de CoreMIDI que sabemos interpretar.
+///
+/// Valores del `MIDIServices.h` de macOS. Se declaran aqui, y no se importa
+/// `coremidi-sys`, para no anadir una dependencia directa por tres constantes de un ABI
+/// que lleva estable desde Mac OS X 10.0.
+mod estado {
+    /// El sistema no autoriza el acceso a MIDI. Necesita consentimiento del usuario.
+    pub const NO_PERMITIDO: i32 = -10844;
+    /// El extremo no existe.
+    pub const EXTREMO_DESCONOCIDO: i32 = -10834;
+    /// El objeto no se encuentra.
+    pub const OBJETO_NO_ENCONTRADO: i32 = -10842;
+}
+
+/// Traduce un codigo de CoreMIDI al error que el usuario va a leer.
+///
+/// Importa distinguirlos: mandar a alguien a revisar el cable cuando lo que falta es un
+/// permiso del sistema es hacerle perder la tarde. Se deja como funcion pura y aparte
+/// justamente para poder probarla sin hardware.
+pub fn traducir(codigo: i32, nombre: &str) -> ErrorDeEntrada {
+    match codigo {
+        estado::NO_PERMITIDO => ErrorDeEntrada::PermisoDenegado,
+        estado::EXTREMO_DESCONOCIDO | estado::OBJETO_NO_ENCONTRADO => {
+            ErrorDeEntrada::DesaparecioAlAbrir { nombre: nombre.to_string() }
+        }
+        // CoreMIDI no tiene un codigo de "en uso por otra aplicacion" porque **reparte**
+        // la misma fuente entre todos los clientes. Esa variante es de Windows.
+        _ => ErrorDeEntrada::NoSePudoAbrir { nombre: nombre.to_string() },
+    }
+}
+
 /// Capacidad del anillo: 4.096 eventos de 16 bytes = 64 KiB.
 ///
 /// Dos ordenes de magnitud por encima de la rafaga humana mas densa (~50 eventos/s):
@@ -117,8 +148,8 @@ where
     }
     .ok_or_else(|| ErrorDeEntrada::NoSePudoAbrir { nombre: dispositivo.nombre.clone() })?;
 
-    let cliente = Client::new("Piano Tutor")
-        .map_err(|_| ErrorDeEntrada::NoSePudoAbrir { nombre: dispositivo.nombre.clone() })?;
+    let cliente =
+        Client::new("Piano Tutor").map_err(|c| traducir(c, &dispositivo.nombre))?;
 
     let (mut emisor, receptor) = canal(CAPACIDAD);
     let mut parser = Parser::nuevo();
@@ -132,11 +163,12 @@ where
                 parser.consumir(at, paquete.data(), |o| emisor.emitir(o));
             }
         })
-        .map_err(|_| ErrorDeEntrada::NoSePudoAbrir { nombre: dispositivo.nombre.clone() })?;
+        .map_err(|c| traducir(c, &dispositivo.nombre))?;
 
-    puerto.connect_source(&fuente).map_err(|_| ErrorDeEntrada::EnUsoPorOtraAplicacion {
-        nombre: dispositivo.nombre.clone(),
-    })?;
+    // NO se traduce esto a «en uso por otra aplicacion»: CoreMIDI comparte las fuentes
+    // entre clientes, asi que ese fallo no existe aqui. Decir lo contrario mandaria al
+    // usuario a cerrar aplicaciones que no estorban.
+    puerto.connect_source(&fuente).map_err(|c| traducir(c, &dispositivo.nombre))?;
 
     Ok(Captura { _puerto: puerto, _cliente: cliente, receptor })
 }

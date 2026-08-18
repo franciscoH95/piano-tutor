@@ -153,6 +153,11 @@ comprobando que el sistema lo comunica y conserva lo capturado hasta ese momento
 - **El teclado cambió de conector USB entre sesiones**: el identificador del sistema lo reconoce
   igualmente; es precisamente el caso donde la pareja (nombre, posición) fallaría.
 - **El dispositivo ya está en uso por otra aplicación**: se comunica sin bloquear la aplicación.
+  Solo se da en plataformas con acceso exclusivo; en macOS las fuentes se comparten.
+- **El sistema no autoriza el acceso a MIDI**: se comunica como lo que es —un permiso que falta—,
+  no como un fallo de apertura, y se indica dónde concederlo.
+- **El teclado desaparece entre listarlo y abrirlo**: la carrera existe y se comunica como tal, no
+  como un fallo genérico.
 - **Tecla soltada sin haber sido pulsada**: puede ocurrir al empezar a capturar con una tecla ya
   hundida. Se ignora y se cuenta, igual que en la carga de canciones.
 - **Tecla que se queda hundida al detener la captura**: la nota se cierra en el instante de la
@@ -196,8 +201,17 @@ comprobando que el sistema lo comunica y conserva lo capturado hasta ese momento
 - **FR-004c**: Si ninguno de los dos criterios encuentra el dispositivo, el sistema MUST pedir al
   usuario que elija de nuevo. MUST NOT abrir un dispositivo distinto en su lugar: capturar del
   aparato equivocado sin avisar es peor que no capturar.
-- **FR-005**: El sistema MUST comunicar de forma explícita, y sin interrumpir la aplicación, que no
-  hay ningún teclado disponible o que el elegido no se pudo abrir.
+- **FR-005**: El sistema MUST comunicar de forma explícita, y sin interrumpir la aplicación, por
+  qué no pudo empezar a capturar, distinguiendo al menos estos casos porque **el remedio de cada
+  uno es distinto**: no hay ningún teclado; el sistema no autoriza el acceso a dispositivos MIDI;
+  el elegido desapareció entre que se listó y se intentó abrir; y cualquier otro fallo de apertura.
+- **FR-005a**: El sistema MUST tratar la falta de autorización del sistema como un caso propio, no
+  como un fallo genérico de apertura. El remedio no es revisar cables ni reintentar: es que el
+  usuario conceda el permiso. Confundirlos le haría perder el tiempo buscando un problema que no
+  existe.
+- **FR-005b**: El caso «otra aplicación lo tiene tomado» MUST tratarse como específico de las
+  plataformas con acceso exclusivo. En macOS **no puede ocurrir**: CoreMIDI reparte la misma
+  fuente entre todos los clientes que se conecten, comprobado ejecutando dos a la vez.
 - **FR-006**: El sistema MUST liberar el dispositivo al detener la captura, de modo que otra
   aplicación pueda usarlo.
 
@@ -300,6 +314,10 @@ comprobando que el sistema lo comunica y conserva lo capturado hasta ese momento
   sistema operativo (identidad primaria), nombre legible del puerto y posición entre los
   dispositivos que anuncian ese mismo nombre (identidad de reserva). No se usa el índice de puerto,
   que se renumera al conectar o desconectar cualquier otro aparato.
+- **Almacén intermedio**: donde esperan las pulsaciones entre que el sistema las entrega y el
+  consumidor las recoge. En el diseño y en el código se le llama *transporte*; son la misma cosa,
+  y se conservan los dos nombres porque este documento habla para quien decide y aquéllos para
+  quien implementa.
 - **Sesión de captura**: el periodo entre iniciar y detener la captura sobre un dispositivo.
   Conoce qué se ha capturado y en qué estado está el dispositivo.
 - **Pulsación capturada**: lo que el alumno tocó. Atributos: altura, intensidad, instante de

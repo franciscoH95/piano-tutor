@@ -26,4 +26,4 @@ mod macos;
 #[cfg(target_os = "macos")]
 pub mod vigia;
 #[cfg(target_os = "macos")]
-pub use macos::{abrir, dispositivos, reabrir, Captura};
+pub use macos::{abrir, dispositivos, reabrir, traducir, Captura};
