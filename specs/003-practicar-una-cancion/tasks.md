@@ -12,8 +12,14 @@ completa si la prueba pasa nada más escribirla.
 **La excepción, y es una sola.** El único archivo acogido a la excepción del Principio II
 (Constitución v1.1.0) es **`src/practica/Lienzo.tsx`**, y solo la merece mientras cumpla su
 condición: **no decidir nada**. Recibe una escena ya calculada y la pinta. Si empieza a necesitar
-un `if` sobre algo musical, ese `if` va a `piano-core`. Todo lo demás de esta feature —incluido el
-código TypeScript que interpola entre anclas— sí se prueba.
+un `if` sobre algo musical, ese `if` va a `piano-core`.
+
+**Todo lo demás de la interfaz se prueba**, y eso incluye los componentes de React. `App.tsx`,
+`controles.tsx` y `Selector.tsx` **sí toman decisiones** —qué archivo abrir, qué mostrar ante un
+error, qué emite cada control—, así que no pueden acogerse a una excepción cuya primera condición
+es no decidir nada. La enmienda constitucional cierra diciendo *«la excepción no se amplía: se
+estrecha»*, y ampliarla la primera vez que estorba sería vaciarla de contenido. Se prueban con un
+renderizador de componentes (T004a).
 
 ---
 
@@ -22,7 +28,9 @@ código TypeScript que interpola entre anclas— sí se prueba.
 - [ ] T001 Crear el módulo `core/src/practica/mod.rs` con sus submódulos vacíos y reexportarlo desde `core/src/lib.rs`
 - [ ] T002 [P] Crear `core/src/digitacion/mod.rs` y reexportarlo desde `core/src/lib.rs`
 - [ ] T003 [P] Añadir el binario `bench/src/bin/fotogramas.rs` al manifiesto de `bench/Cargo.toml`
-- [ ] T004 Verificar que `cargo tree -p piano-core` sigue dando exactamente tres líneas. **Esta feature no añade ninguna dependencia**; si aparece una cuarta, algo se ha colado
+- [ ] T004 Verificar que `cargo tree -p piano-core` sigue dando exactamente tres líneas. **Esta feature no añade ninguna dependencia de Rust**; si aparece una cuarta, algo se ha colado
+- [ ] T004a Añadir Vitest, `@testing-library/react` y `happy-dom` como dependencias **de desarrollo** en `package.json`, con el script `test`. Son de desarrollo: no entran en el binario que se distribuye
+- [ ] T004b Añadir `pnpm test` a `scripts/verificar.sh` como quinta puerta, antes del banco. Sin esto las pruebas de interfaz existirían pero no bloquearían nada
 
 **Checkpoint**: `./scripts/verificar.sh` en verde con los módulos vacíos.
 
@@ -98,11 +106,14 @@ código TypeScript que interpola entre anclas— sí se prueba.
 ### Abrir y ver
 
 - [ ] T040 [US1] Implementar `abrir_cancion(ruta)` en `src-tauri/src/comandos.rs`: lee el archivo del disco y llama a `load_smf`. **Es la capa de aplicación quien lee del disco**, no el núcleo, que sigue recibiendo `&[u8]`
+- [ ] T040a [US1] Prueba en `src/App.test.tsx`: elegir un archivo invoca el comando de abrir con la ruta elegida; cancelar el diálogo no invoca nada
 - [ ] T041 [US1] Implementar el selector de archivos y el estado de carga en `src/App.tsx`
 - [ ] T042 [US1] Implementar el dibujo del teclado de 88 teclas y de las notas con sus etiquetas en `src/practica/Lienzo.tsx`
+- [ ] T042a [US1] Prueba en `src/practica/controles.test.tsx`: el control del corte está **siempre visible**, muestra «usar las voces del archivo» cuando se detectan, y moverlo emite el ajuste con el valor correcto
 - [ ] T043 [US1] Implementar el control del punto de corte de manos en `src/practica/controles.tsx`, **siempre visible**, con «usar las voces del archivo» por defecto cuando se detecten
 - [ ] T044 [US1] Prueba en `core/tests/manos_test.rs`: mover el corte recalcula manos **y digitación** (FR-003c), no solo el color
 - [ ] T045 [US1] Implementar el recálculo encadenado en `core/src/practica/manos.rs`
+- [ ] T045a [US1] Prueba en `src/App.test.tsx`: un archivo ilegible muestra el motivo que devuelve el núcleo, y la aplicación **sigue utilizable** —no queda en blanco ni en un estado a medias— (FR-004)
 - [ ] T046 [US1] Implementar el aviso de archivo ilegible en `src/App.tsx`, mostrando el motivo que devuelve `LoadError` sin dejar la aplicación en un estado a medias
 
 **Checkpoint**: US1 completa. Se abre un `.mid` y se ve, con nombres y dedos. Es el MVP.
@@ -120,12 +131,14 @@ código TypeScript que interpola entre anclas— sí se prueba.
 - [ ] T049 [US2] Prueba en `core/tests/cursor_test.rs`: en `PorReloj` la posición avanza según reloj y velocidad; pausar la detiene y reanudar continúa sin salto
 - [ ] T050 [US2] Implementar `Cursor` con anclas (`ancla_real`, `ancla_cancion`) y el rebase al cambiar de régimen en `core/src/practica/cursor.rs`
 - [ ] T051 [US2] Prueba en `core/tests/cursor_test.rs`: cambiar de velocidad a mitad de reproducción **no** provoca salto de posición (FR-010)
-- [ ] T052 [US2] Prueba en `core/tests/cursor_test.rs`: `saltar_a` deja el cursor en la posición pedida, sin notas colgando y con el modo intacto (FR-007b)
+- [ ] T051a [US2] Prueba en `core/tests/cursor_test.rs`: reducir la velocidad a la mitad **duplica exactamente** la duración total de la reproducción, sin error de redondeo acumulado (SC-008). Es lo que justifica que la velocidad sea un racional y no un decimal
+- [ ] T052 [US2] Prueba en `core/tests/cursor_test.rs`: `saltar_a` deja el cursor en la posición pedida, sin notas colgando y con el modo intacto (FR-007b), **y tarda menos de 100 ms** en una canción de 10 minutos (SC-008a)
 - [ ] T053 [US2] Implementar `saltar_a` y el reinicio de estado en `core/src/practica/cursor.rs`
 - [ ] T054 [US2] Prueba en `core/tests/cursor_test.rs`: la canción termina y se comunica una sola vez (FR-011)
 - [ ] T055 [US2] Implementar `SesionDePractica<C: Clock, F: FuenteDeEventos>` y `avanzar() -> Paso` en `core/src/practica/sesion.rs`
 - [ ] T056 [US2] Prueba en `core/tests/cursor_test.rs`: el ancla solo se emite al **cambiar de régimen**, no en cada avance. Es lo que mantiene el puente vacío
 - [ ] T057 [US2] Implementar el transporte (`marcha`, `pausa`, `saltar`, `velocidad`) en `src-tauri/src/comandos.rs`
+- [ ] T057a [US2] Prueba en `src/practica/controles.test.tsx`: marcha, pausa y volver al principio emiten la acción correspondiente; el control de velocidad emite el racional esperado y **nunca un decimal**
 - [ ] T058 [US2] Implementar los controles de transporte y velocidad en `src/practica/controles.tsx`
 - [ ] T059 [US2] Implementar el bucle de dibujo con `requestAnimationFrame` en `src/practica/Lienzo.tsx`, derivando la posición **del reloj y nunca del número de fotograma**: es lo que hace que la cadencia de la pantalla afecte a la suavidad pero no a la corrección
 
@@ -141,13 +154,14 @@ código TypeScript que interpola entre anclas— sí se prueba.
 
 - [ ] T060 [US3] Prueba en `core/tests/sonando_test.rs`: una nota está sonando si la posición cae entre su ataque y su final, **sin ninguna ventana de tolerancia** (FR-014b)
 - [ ] T061 [US3] Implementar `ConjuntoSonando` en `core/src/practica/sonando.rs`, con cursor de entrada y cota superior de duración, porque la línea temporal está ordenada por ataque y no por final
-- [ ] T062 [US3] Prueba en `core/tests/sonando_test.rs`: las tres situaciones de FR-014a se distinguen — acierto, nota extra y nota omitida
+- [ ] T062 [US3] Prueba en `core/tests/sonando_test.rs`: las tres situaciones de FR-014a se distinguen — acierto, nota extra y nota omitida. A tempo fijo, barriendo **las 128 teclas** en varios instantes de una pieza, el 100 % de las que suenan se clasifica como acierto y el 100 % de las que no, como extra (SC-005a)
 - [ ] T063 [US3] Implementar la clasificación de las tres situaciones en `core/src/practica/sonando.rs`
 - [ ] T064 [US3] Prueba en `core/tests/sonando_test.rs`: el coste de la consulta no crece con el tamaño de la canción; se cuentan notas examinadas
 - [ ] T065 [US3] Conectar la captura a la sesión en `src-tauri/src/lib.rs`, pasando **el mismo reloj de sesión** que ya se crea una sola vez (FR-012a)
 - [ ] T066 [US3] Implementar el reflejo de teclas pulsadas en `src/practica/Lienzo.tsx`
 - [ ] T067 [US3] Prueba en `src/practica/modelo.test.ts`: el estado de teclas pulsadas que llega por el canal se aplica en orden y una tecla soltada deja de estar marcada
 - [ ] T068 [US3] Implementar el manejo de mensajes del canal en `src/practica/modelo.ts`
+- [ ] T068a [US3] Prueba en `src/App.test.tsx`: sin teclado se muestra el aviso **y la canción sigue viéndose y reproduciéndose** (FR-015); al perderse el dispositivo a mitad de práctica se avisa sin detener la reproducción (FR-016)
 - [ ] T069 [US3] Implementar el aviso de «sin teclado» en `src/App.tsx`, que **no debe bloquear** ver ni reproducir la canción (FR-015)
 - [ ] T070 [US3] Implementar el aviso de dispositivo perdido a mitad de práctica en `src/App.tsx` (FR-016)
 
@@ -173,6 +187,7 @@ código TypeScript que interpola entre anclas— sí se prueba.
 - [ ] T080 [US4] Implementar el cambio de modo en caliente en `core/src/practica/sesion.rs`
 - [ ] T081 [US4] Prueba en `core/tests/espera_test.rs`: si la canción pide una nota que el teclado no tiene, existe una salida y el modo espera no se queda atascado para siempre (FR-020)
 - [ ] T082 [US4] Implementar la salida del atasco en `core/src/practica/cursor.rs` y su control en `src/practica/controles.tsx`
+- [ ] T082a [US4] Prueba en `src/practica/controles.test.tsx`: cambiar de modo y de mano emite el ajuste correcto; la salida del atasco está disponible **solo** en modo espera
 - [ ] T083 [US4] Implementar el selector de modo y de mano en `src/practica/controles.tsx`
 - [ ] T084 [US4] Implementar el indicador visual de nota pendiente en `src/practica/Lienzo.tsx`
 
@@ -187,6 +202,7 @@ código TypeScript que interpola entre anclas— sí se prueba.
 **Prueba independiente**: la lista muestra los dispositivos y la elección sobrevive al reinicio.
 
 - [ ] T085 [US5] Implementar el comando de enumerar dispositivos en `src-tauri/src/comandos.rs`, sobre `piano_midi_io::dispositivos()`, que ya existe y está probado
+- [ ] T085a [US5] Prueba en `src/dispositivos/Selector.test.tsx`: la lista muestra nombre y posición para distinguir homónimos; elegir uno emite la elección; cuando el recordado no está se pide elegir de nuevo y **no** se preselecciona otro (FR-025)
 - [ ] T086 [US5] Implementar el selector en `src/dispositivos/Selector.tsx`, mostrando nombre y posición para poder distinguir homónimos
 - [ ] T087 [US5] Conectar la persistencia con `src-tauri/src/preferencias.rs`, ya construido y probado en la feature 002
 - [ ] T088 [US5] Implementar en `src/dispositivos/Selector.tsx` la propuesta automática del teclado recordado al arrancar, y la petición de elegir de nuevo cuando no case (FR-025). El reconocimiento por identidad ya existe en `core/src/capture/dispositivo.rs`: aquí solo se usa
@@ -199,6 +215,7 @@ código TypeScript que interpola entre anclas— sí se prueba.
 
 - [ ] T089 Implementar el banco de fotogramas en `bench/src/bin/fotogramas.rs`: abre ventana real, mide y publica las **cinco cifras** de SC-003 a SC-003d
 - [ ] T090 Implementar en `bench/src/bin/fotogramas.rs` la detección de suspensiones del sistema (intervalos > 200 ms), su exclusión del cálculo y su **declaración en el informe**. Sin esto el informe publica un número inventado: en la primera medición se perdieron 430 de 600 segundos por esta causa
+- [ ] T090a Implementar en `bench/src/bin/fotogramas.rs` la medición de extremo a extremo de SC-004: desde que el evento de tecla existe en Rust hasta que el píxel cambia, con al menos 1.000 eventos a ritmo realista, reportando p50, p95 y p99. **Es el criterio para el que existe todo el diseño del puente** —canal, hilo reenviador, anclas— y hasta ahora solo se había medido en una maqueta, no en el producto
 - [ ] T091 Ejecutar el banco de fotogramas con una pieza densa y registrar las cinco cifras en `specs/003-practicar-una-cancion/quickstart.md`, con fecha y máquina
 - [ ] T092 [P] Documentar con rustdoc la API pública de `core/src/practica/` y `core/src/digitacion/`
 - [ ] T093 [P] Verificar `cargo clippy --workspace --all-targets -- -D warnings` limpio y `pnpm build` sin avisos
@@ -222,6 +239,8 @@ Phase 1 ──► Phase 2 ──► Phase 3 (US1) ──► Phase 4 (US2) ──
 - **US3 depende de US2**: el reflejo de teclas necesita una posición contra la que compararse.
 - **US4 depende de US3**: el modo espera necesita saber si lo tocado coincide.
 - **US5 es independiente** de US2, US3 y US4; solo necesita que la aplicación exista.
+- **T004a y T004b bloquean todas las pruebas de interfaz**: sin el renderizador de componentes y sin
+  la quinta puerta, esas pruebas no existirían o no bloquearían nada.
 - **T009 (puerta de presupuesto) bloquea la Fase 8**: no se mide fluidez sin haber acotado antes el
   coste del cálculo.
 
@@ -229,7 +248,7 @@ Phase 1 ──► Phase 2 ──► Phase 3 (US1) ──► Phase 4 (US2) ──
 
 Marcadas con `[P]`. Pocas, porque el TDD estricto serializa casi todo.
 
-- **Phase 1**: T002 y T003 tocan archivos distintos.
+- **Phase 1**: T002, T003 y T004a tocan archivos distintos.
 - **Phase 3**: los tres bloques —nombres, manos, digitación— son independientes entre sí hasta T040.
 - **Phase 8**: T092, T093 y T094 no dependen entre sí.
 
@@ -245,15 +264,17 @@ Marcadas con `[P]`. Pocas, porque el TDD estricto serializa casi todo.
 
 | Fase | Tareas | De ellas, pruebas |
 | --- | --- | --- |
-| 1. Setup | T001–T004 (4) | 0 |
-| 2. Foundational | T005–T016 (12) | 5 |
-| 3. US1 (P1) | T017–T046 (30) | 15 |
-| 4. US2 (P1) | T047–T059 (13) | 6 |
-| 5. US3 (P1) | T060–T070 (11) | 5 |
-| 6. US4 (P2) | T071–T084 (14) | 6 |
-| 7. US5 (P3) | T085–T088 (4) | 0 |
-| 8. Polish | T089–T096 (8) | 0 |
-| **Total** | **96** | **37** |
+| 1. Setup | T001–T004b (6) | 0 |
+| 2. Foundational | T005–T016 (12) | 4 |
+| 3. US1 (P1) | T017–T046 (33) | 19 |
+| 4. US2 (P1) | T047–T059 (15) | 8 |
+| 5. US3 (P1) | T060–T070 (12) | 5 |
+| 6. US4 (P2) | T071–T084 (15) | 7 |
+| 7. US5 (P3) | T085–T088 (5) | 1 |
+| 8. Polish | T089–T096 (9) | 0 |
+| **Total** | **107** | **44** |
 
 **Sin cobertura automática, y declarado**: `src/practica/Lienzo.tsx` (T014, T042, T059, T066, T084)
-y el banco de fotogramas (T089–T091), que necesita pantalla. Nada más.
+y el banco de fotogramas (T089–T091a), que necesita pantalla. **Nada más**: los tres componentes de
+React que toman decisiones —`App.tsx`, `controles.tsx`, `Selector.tsx`— sí se prueban, en T040a,
+T042a, T045a, T057a, T068a, T082a y T085a.

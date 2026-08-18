@@ -45,8 +45,10 @@ espacial para el recorte de lo visible, innecesarias por dos órdenes de magnitu
 **Storage**: la preferencia de teclado que ya existe, más —posiblemente— el punto de corte de manos
 por canción. Nada de la interpretación del alumno (FR-029).
 
-**Testing**: `cargo test` para toda la lógica; para la interfaz, ver la sección siguiente, que es
-donde está la tensión de esta feature.
+**Testing**: `cargo test` para toda la lógica de dominio, y **Vitest con un renderizador de
+componentes** para la interfaz. Los componentes de React toman decisiones —qué archivo abrir, qué
+mostrar ante un error, qué emite cada control— así que se prueban como cualquier otra cosa que
+decide. Lo único sin prueba automática es la función que pinta.
 
 **Target Platform**: macOS y Windows. La interfaz corre en la WebView del sistema —WKWebView en
 macOS, WebView2 en Windows—, no en un Chromium empaquetado, lo que importa para el rendimiento.
@@ -125,9 +127,13 @@ core/                              # EXISTE. Suma un módulo; sigue sin dependen
     ├── puertas.rs                 # los topes del modo espera, precalculados
     ├── sonando.rs                 # qué notas suenan en un instante (decisión D9)
     ├── sesion.rs                  # SesionDePractica<C: Clock, F: FuenteDeEventos>
-    ├── digitacion.rs              # programación dinámica sobre costes enteros
     ├── manos.rs                   # voces separadas, o corte por altura ajustable
-    └── nombres.rs                 # Do/Re/Mi, sostenidos y bemoles, octavas
+    └── nombres.rs                 # Do/Re/Mi, sostenidos y bemoles
+
+core/src/digitacion/               # NUEVO: módulo propio, no un archivo suelto
+├── mod.rs                         # la programación dinámica de segundo orden
+├── tablas.rs                      # la tabla de vanos de Parncutt, como datos
+└── coste.rs                       # las doce reglas, en aritmética i32
 
 src-tauri/                         # EXISTE. Deja de ser el andamio
 └── src/

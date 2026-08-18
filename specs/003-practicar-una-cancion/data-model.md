@@ -97,7 +97,8 @@ en silencio:
    tecla, en cambio, se consulta siempre sobre la altura MIDI **real**, que no se refleja.
 
 La tabla de vanos completa está en [research.md](./research.md), Decisión 4, y va al código como
-datos, no como condicionales.
+datos, no como condicionales: vive en `core/src/digitacion/tablas.rs`, separada de las reglas
+(`coste.rs`) y del algoritmo (`mod.rs`).
 
 ## Reparto de manos
 
