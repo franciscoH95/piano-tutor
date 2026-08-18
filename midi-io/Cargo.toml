@@ -11,6 +11,12 @@ path = "src/lib.rs"
 [dependencies]
 piano-core = { path = "../core" }
 
+# Prioridad del hilo consumidor. Vive AQUI y no en el nucleo porque arrastra `libc` y
+# `log`, dos de las dependencias que la puerta del Principio III prohibe expresamente en
+# `piano-core`. Subir la prioridad de un hilo es una llamada al sistema: es cosa de la capa
+# de plataforma aunque no tenga nada que ver con MIDI.
+thread-priority = "3.1.1"
+
 # macOS: CoreMIDI directamente. NO se usa midir: aborta el proceso ante un paquete
 # truncado en la ruta exacta de note-on (issue #160). Ver research.md, Decision 1.
 [target.'cfg(target_os = "macos")'.dependencies]

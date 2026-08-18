@@ -71,8 +71,14 @@ fn tanda(n: usize, intervalo: Duration) -> Vec<u64> {
         }
     });
 
+    // La cola de latencia la pone el planificador, no el transporte: con el consumidor a
+    // prioridad normal el percentil 99,9 se dispara a milisegundos esperando turno. Si el
+    // sistema no lo permite se sigue igual, solo que sin ese seguro.
+    let prioridad = piano_midi_io::prioridad::elevar_hilo_actual();
+
     let mut emparejador = Emparejador::nuevo();
     let mut buffer = Vec::with_capacity(CAPACIDAD);
+    let _ = &prioridad;
     let mut muestras = Vec::with_capacity(n);
     while muestras.len() < n {
         rx.esperar();
@@ -108,6 +114,11 @@ fn informe_de_alcance() {
 }
 
 fn modo_normal() -> i32 {
+    match piano_midi_io::prioridad::elevar_hilo_actual() {
+        Ok(()) => println!("Prioridad del hilo consumidor: elevada"),
+        Err(e) => println!("Prioridad del hilo consumidor: NO elevada ({e}).\n\
+                            Los numeros incluyen la espera del planificador."),
+    }
     println!("Banco de latencia — {REPETICIONES} repeticiones de {MUESTRAS} muestras");
     println!("(se descartan las primeras {CALENTAMIENTO} de cada una)");
 
@@ -148,12 +159,17 @@ fn modo_normal() -> i32 {
 
 /// SC-008: una sesion larga no debe degradar el retraso.
 fn modo_sostenido() -> i32 {
-    const MINUTOS: usize = 10;
+    // Duracion configurable: el modo completo son diez minutos, pero comprobar que el
+    // modo FUNCIONA no deberia costar diez minutos.
+    let minutos: usize = std::env::var("PIANO_BENCH_MINUTOS")
+        .ok()
+        .and_then(|v| v.parse().ok())
+        .unwrap_or(10);
     const POR_MINUTO: usize = 6_000; // 10 ms entre eventos
-    println!("Modo sostenido: {MINUTOS} minutos. Esto tarda de verdad.");
+    println!("Modo sostenido: {minutos} minutos. Esto tarda de verdad.");
     let mut primero = 0;
     let mut ultimo = 0;
-    for minuto in 1..=MINUTOS {
+    for minuto in 1..=minutos {
         let mut m = tanda(POR_MINUTO, Duration::from_millis(10));
         m.sort_unstable();
         let p95 = percentil(&m, 95);

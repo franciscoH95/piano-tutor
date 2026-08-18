@@ -19,6 +19,7 @@
 #![warn(missing_docs)]
 
 pub mod parser;
+pub mod prioridad;
 
 #[cfg(target_os = "macos")]
 mod macos;
