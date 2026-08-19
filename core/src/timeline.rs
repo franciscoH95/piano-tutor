@@ -179,6 +179,17 @@ pub(crate) fn build(
     for (_, n) in &mut notas {
         n.onset_us = tempo_map.tick_to_us(n.onset_tick);
         n.end_us = tempo_map.tick_to_us(n.end_tick);
+        // `end_tick > onset_tick` esta garantizado, pero eso es en TICKS. Con un `ppq` alto
+        // y el tempo en el suelo un tick vale menos de un microsegundo, y la conversion
+        // entera colapsa los dos extremos. Una nota de duracion cero **no suena nunca**
+        // —el criterio de sonar es `ataque <= t < final`—, asi que en modo espera su puerta
+        // no abriria jamas y la practica se quedaria atascada sin explicacion.
+        //
+        // Se le da un microsegundo, que es la unidad mas pequeña que este modelo distingue.
+        // Alargar es preferible a perderla: la nota estaba en el archivo.
+        if n.end_us.0 <= n.onset_us.0 {
+            n.end_us = Micros(n.onset_us.0.saturating_add(1));
+        }
         if n.channel == CANAL_PERCUSION {
             report.percussion_notes = report.percussion_notes.saturating_add(1);
         }

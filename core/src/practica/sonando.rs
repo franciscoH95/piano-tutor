@@ -100,6 +100,8 @@ pub struct ConjuntoSonando {
     max_duracion: u64,
     /// Las teclas que suenan ahora. Se recalcula una vez por avance, no por consulta.
     vigentes: MascaraTeclas,
+    /// Ultima posicion consultada. Sirve para detectar un retroceso.
+    ultima: Micros,
     /// Diagnostico: permite afirmar la garantia de coste **contando**, no cronometrando.
     examinadas: usize,
     /// Por nota: si el alumno la tenia pulsada en algun momento de su duracion.
@@ -132,6 +134,7 @@ impl ConjuntoSonando {
             cursor: 0,
             max_duracion: cota(cancion),
             vigentes: MascaraTeclas::VACIA,
+            ultima: Micros::ZERO,
             examinadas: 0,
             tocada: vec![false; cancion.notes().len()],
             informada: vec![false; cancion.notes().len()],
@@ -145,6 +148,7 @@ impl ConjuntoSonando {
     /// Buscar por el final no es monotono sobre esa ordenacion —un pedal largo termina
     /// despues de notas cortas posteriores— y devolveria un indice cualquiera.
     pub fn recolocar(&mut self, cancion: &Song, posicion: Micros) {
+        self.ultima = posicion;
         let cota = self.max_duracion;
         self.cursor = cancion
             .notes()
@@ -157,6 +161,15 @@ impl ConjuntoSonando {
     /// Hacia atras recoloca; hacia delante el cursor avanza solo, que es lo que hace que el
     /// coste no dependa del tamano de la cancion.
     pub fn avanzar(&mut self, cancion: &Song, posicion: Micros) {
+        // Retroceder se detecta **aqui**, no se deja al cuidado de quien llama. El cursor
+        // solo avanza, asi que con una posicion anterior el conjunto quedaria mirando por
+        // delante de notas que si suenan y devolveria `false` sin que nada fallase: un pie
+        // de banco silencioso, que es la peor clase.
+        if posicion.0 < self.ultima.0 {
+            self.recolocar(cancion, posicion);
+            return;
+        }
+        self.ultima = posicion;
         let notas = cancion.notes();
         // Aqui **se tiene la nota en la mano**, asi que rige su final propio: se deja atras
         // en cuanto ha terminado de verdad. El bucle se para en la primera que aun suena,

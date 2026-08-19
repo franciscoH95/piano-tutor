@@ -382,3 +382,20 @@ fn una_pulsacion_satisface_a_todas_las_notas_de_esa_tecla_que_suenan() {
     c.omitidas(&song, Micros(4_000_000), &mut out);
     assert!(out.is_empty(), "una pulsación vale para las dos; omitidas: {out:?}");
 }
+
+#[test]
+fn retroceder_sin_recolocar_a_mano_sigue_dando_la_respuesta_correcta() {
+    // El cursor solo avanza, así que llamar a `avanzar` con una posición anterior dejaría
+    // el conjunto mirando por delante de notas que sí suenan, y devolvería `false` sin que
+    // nada fallase. Que el llamante «tenga que acordarse» de recolocar es un pie de banco:
+    // se detecta solo.
+    let song = cancion(&[(0, 60, 1_000), (5_000, 64, 1_000)]);
+    let mut c = ConjuntoSonando::nuevo(&song);
+
+    c.avanzar(&song, Micros(5_500_000));
+    assert!(c.suena(64));
+
+    c.avanzar(&song, Micros(500_000)); // hacia atrás, sin recolocar a mano
+    assert!(c.suena(60), "la primera nota vuelve a sonar");
+    assert!(!c.suena(64), "y la segunda todavía no ha empezado");
+}

@@ -123,9 +123,13 @@ export function aplicar(
     case "terminada":
       return { ...estado, terminada: true };
     case "dispositivoPerdido":
-      // Se comunica, no se detiene (FR-016). No se sueltan las teclas ni se toca el ancla:
-      // limpiar el estado daría un salto visible justo cuando el alumno menos lo espera.
-      return { ...estado, dispositivoPerdido: true };
+      // Se comunica, no se detiene (FR-016). El ancla NO se toca: moverla daría un salto
+      // visible justo cuando el alumno menos lo espera.
+      //
+      // Las teclas sí se sueltan. Si el dispositivo desaparece, el mensaje de soltar no
+      // llega nunca: una tecla hundida en ese momento se quedaría encendida para siempre,
+      // sin ninguna forma de apagarla. Y al reconectar se empieza en limpio.
+      return { ...estado, dispositivoPerdido: true, pulsadas: new Set() };
     default:
       // El puente puede estrenar variantes antes de que la interfaz las conozca.
       return estado;

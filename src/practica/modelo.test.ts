@@ -178,9 +178,13 @@ describe("los mensajes del canal", () => {
     expect(e.terminada).toBe(true);
   });
 
-  it("perder el teclado no suelta las teclas ni mueve el ancla", () => {
-    // FR-016: se comunica, no se detiene. Si al perder el dispositivo se limpiara el
-    // estado, la canción daría un salto visible justo cuando el alumno menos lo espera.
+  it("perder el teclado suelta las teclas pero no mueve el ancla", () => {
+    // FR-016: se comunica, no se detiene. El ancla no se toca —mover la posición daría un
+    // salto visible justo cuando el alumno menos lo espera—, pero las teclas SÍ se sueltan.
+    //
+    // Si el dispositivo desaparece, el mensaje de soltar no llega nunca: una tecla que
+    // estuviera hundida en ese momento se quedaría encendida para siempre, sin ninguna
+    // forma de apagarla. Y al reconectar, el teclado empieza en limpio.
     let e = ESTADO_INICIAL;
     e = aplicar(e, { tipo: "tecla", key: 60, pulsada: true }, LLEGADA);
     e = aplicar(
@@ -191,7 +195,7 @@ describe("los mensajes del canal", () => {
     const antes = e.ancla;
     e = aplicar(e, { tipo: "dispositivoPerdido" }, LLEGADA + 5);
     expect(e.ancla).toEqual(antes);
-    expect(e.pulsadas.has(60)).toBe(true);
+    expect(e.pulsadas.size).toBe(0);
   });
 
   it("no muta el estado que recibe", () => {
