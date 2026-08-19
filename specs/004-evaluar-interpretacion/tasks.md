@@ -51,7 +51,7 @@ pura y se prueba entero, sin teclado ni ventana.
 
 - [ ] T006 Prueba en `core/tests/evaluacion_test.rs`: los tres niveles existen y sus ventanas de ataque están **anidadas** — permisivo ⊇ intermedio ⊇ exigente. Es lo que hace que SC-006 se cumpla por aritmética y no por vigilancia
 - [ ] T007 Implementar `Nivel` y `Tolerancias` en `core/src/evaluacion/tolerancias.rs`, con **todos** los umbrales de la feature: ventana de emparejamiento, ventana de ataque por nivel, cercanía del dedo que se escapa en tiempo y en semitonos, y los dos umbrales del desfase sistemático
-- [ ] T008 Prueba en `core/tests/evaluacion_test.rs`: **ningún umbral se lee fuera de `Nivel::tolerancias`**. Se comprueba por ausencia: `grep` de literales numéricos sospechosos en `core/src/evaluacion/` que no estén en `tolerancias.rs`. El Principio I lo exige textualmente y es la clase de regla que se erosiona sola
+- [ ] T008 Prueba en `core/tests/evaluacion_test.rs`: **ningún umbral se lee fuera de `Nivel::tolerancias`**. Criterio comprobable: en `core/src/evaluacion/`, fuera de `tolerancias.rs`, **ningún literal entero mayor que 1.000** (el orden de magnitud de un microsegundo relevante) y **ningún literal con separador de millares**. El Principio I lo exige textualmente y es la clase de regla que se erosiona sola; «literales sospechosos» no era un criterio, y una prueba sin criterio pasa siempre
 
 ### La estadística, en enteros
 
@@ -102,6 +102,13 @@ interpretaciones grabadas y sin nada enchufado.
 - [ ] T029a [US1] Prueba en `core/tests/evaluacion_test.rs`: `Evaluador::observar` **no asigna memoria** por evento. Se cuenta con el contador de asignaciones que la feature 002 ya dejó montado, y con contador por hilo para que no lo ensucien las pruebas en paralelo — el fallo exacto que ya se corrigió una vez ahí
 - [ ] T030 [US1] Implementar `Evaluador::observar` y `Evaluador::avanzar` con el emparejamiento en línea completo y todas las reglas de desempate explícitas, en `core/src/evaluacion/emparejar.rs` y `core/src/evaluacion/mod.rs`
 
+### Las medidas
+
+- [ ] T030a [US1] Prueba en `core/tests/evaluacion_test.rs`: para cada nota emparejada se registran **las tres** medidas — desfase de ataque con su signo (FR-005), diferencia de duración con su signo (FR-006) e intensidad (FR-007). El signo del desfase **es** la información: sin él no se distingue ir adelantado de ir atrasado, que es la mitad de FR-016
+- [ ] T030b [US1] Prueba en `core/tests/evaluacion_test.rs`: la duración y la intensidad **se miden pero no alteran el veredicto** (FR-006). Una nota con el ataque perfecto y soltada enseguida sigue contando como acertada, y su diferencia de duración se comunica aparte
+- [ ] T030c [US1] Prueba en `core/tests/evaluacion_test.rs`: una tecla **todavía hundida** al cerrar deja la diferencia de duración como **desconocida**, que no es cero. Cero significaría que la sostuvo exactamente lo escrito, y eso sería mentir
+- [ ] T030d [US1] Implementar `Medida` y su registro en `core/src/evaluacion/emparejar.rs`
+
 ### El veredicto
 
 - [ ] T031 [US1] Prueba en `core/tests/evaluacion_test.rs`: las seis clases de veredicto se distinguen — acertada, tocada fuera de tiempo, omitida, no intentada, fuera de alcance, y de más
@@ -109,12 +116,16 @@ interpretaciones grabadas y sin nada enchufado.
 - [ ] T031b [US1] Prueba en `core/tests/evaluacion_test.rs`: la cercanía del dedo que se escapa **no se traga notas legítimas**. Si la contigua es una nota que la canción sí pide en ese instante, se empareja con ella y se cuenta como acierto, no como dedo escapado
 - [ ] T031c [US1] Implementar la clasificación del dedo que se escapa en `core/src/evaluacion/mod.rs`, con su tolerancia en tiempo y en semitonos leída de `tolerancias.rs` (FR-010a, FR-011a)
 - [ ] T032 [US1] Prueba en `core/tests/evaluacion_test.rs`: la omisión es un **vencimiento del cursor**, no un temporizador. En modo espera, una nota que el cursor está esperando **no vence** por mucho que pase el reloj real: es la nota que el alumno está a punto de acertar
+- [ ] T031d [US1] Prueba en `core/tests/evaluacion_test.rs`: FR-009a, en **modo espera** las notas se evalúan y **los tiempos no**. La misma interpretación en modo espera y por reloj da los mismos recuentos de acertadas y omitidas, pero en modo espera **no** produce desfase ni medidas de ataque: no se puede llegar tarde a algo que te espera, y publicar ese número sería inventarlo
+- [ ] T031e [US1] Prueba en `core/tests/evaluacion_test.rs`: si el alumno **cambia de modo a mitad** del intento, cada nota se evalúa según el régimen vigente **cuando se selló**, no según un único indicador del intento entero. Es lo que FR-004 obliga: una nota ya juzgada no se recalcula
 - [ ] T032a [US1] Prueba en `core/tests/evaluacion_test.rs`: FR-013, un pasaje saltado con la salida del modo espera queda **no intentado** y **no** cuenta como fallado. Ejercita `Evaluador::saltar`
 - [ ] T032b [US1] Prueba en `core/tests/evaluacion_test.rs`: SC-009, el porcentaje de aciertos se calcula **sobre lo que el alumno intentó**. Las no intentadas y las fuera de alcance quedan fuera del denominador; con 20 notas de las que 5 se saltaron, el 100 % de las 15 restantes da 100 %, no 75 %
 - [ ] T033 [US1] Implementar el vencimiento, la clasificación y `Evaluador::saltar` en `core/src/evaluacion/mod.rs`
 - [ ] T034 [US1] Prueba en `core/tests/evaluacion_test.rs`: SC-001, la interpretación perfecta da 20 acertadas, 0 omitidas y 0 de más **en los tres niveles**
 - [ ] T035 [US1] Prueba en `core/tests/evaluacion_test.rs`: SC-002, cero observaciones se comunica como «no se tocó nada» y **no** como 0 % de aciertos
-- [ ] T036 [US1] Implementar `Resultado` y los recuentos en `core/src/evaluacion/resultado.rs`
+- [ ] T035a [US1] Prueba en `core/tests/evaluacion_test.rs`: FR-014a, **pausar, saltar y llegar al final cierran** la interpretación, y reanudar abre otra. Es la misma frontera que el cursor ya usa para cambiar de régimen, así que se comprueba contra ella y no contra un concepto nuevo
+- [ ] T035b [US1] Prueba en `core/tests/evaluacion_test.rs`: FR-014b, una interpretación que **no llega al final** se evalúa igualmente sobre el tramo recorrido. Exigir un recorrido completo dejaría sin retorno al principiante, que casi nunca termina
+- [ ] T036 [US1] Implementar `Resultado`, los recuentos y los límites de la interpretación en `core/src/evaluacion/resultado.rs`
 
 ### El desfase sistemático
 
@@ -255,7 +266,7 @@ Phase 1 (Setup) ──► Phase 2 (Foundational) ──► Phase 3 (US1) 🎯 MV
 
 ## Implementation Strategy
 
-**MVP = Fases 1 a 3 (56 tareas).** Al terminarlas el alumno toca una pieza y ve cuántas acertó, cuántas se dejó
+**MVP = Fases 1 a 3 (64 tareas).** Al terminarlas el alumno toca una pieza y ve cuántas acertó, cuántas se dejó
 y cuántas tocó de más, con detección de desfase sistemático. Es entregable por sí solo.
 
 Después, por valor decreciente: **US2** (dónde fallo) es lo que más cambia lo que el alumno hace
