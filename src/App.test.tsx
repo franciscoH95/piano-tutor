@@ -1,5 +1,5 @@
 // T040a y T045a — abrir una canción desde la interfaz.
-import { act, cleanup, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import App from "./App";
@@ -305,5 +305,70 @@ describe("elegir teclado al arrancar", () => {
     await userEvent.click(screen.getByRole("button", { name: /abrir una canción/i }));
     await waitFor(() => expect(puente.abrirCancion).toHaveBeenCalled());
     expect(screen.getByRole("button", { name: /reproducir/i })).toBeEnabled();
+  });
+});
+
+describe("cuando el propio diálogo falla", () => {
+  it("lo dice, en vez de no hacer absolutamente nada", async () => {
+    // Encontrado ejecutando la app: faltaba el permiso `dialog:default` en las capacidades
+    // de Tauri, así que el diálogo se denegaba. Pero el fallo de verdad es que
+    // `elegirArchivo()` estaba FUERA del try: el rechazo quedaba sin capturar y al alumno
+    // no le pasaba nada al pulsar «abrir». Ni archivo, ni error, ni pista.
+    //
+    // Un fallo silencioso es peor que uno ruidoso: no hay nada que buscar.
+    vi.mocked(puente.elegirArchivo).mockRejectedValue(
+      new Error("dialog.open not allowed"),
+    );
+
+    render(<App />);
+    await userEvent.click(screen.getByRole("button", { name: /abrir/i }));
+
+    const aviso = await screen.findByRole("alert");
+    expect(aviso).toHaveTextContent(/dialog\.open not allowed/);
+  });
+
+  it("y la aplicación sigue en pie", async () => {
+    vi.mocked(puente.elegirArchivo).mockRejectedValue(new Error("lo que sea"));
+    render(<App />);
+    await userEvent.click(screen.getByRole("button", { name: /abrir/i }));
+    await screen.findByRole("alert");
+    expect(screen.getByRole("button", { name: /abrir/i })).toBeEnabled();
+    expect(screen.getByRole("slider", { name: /corte/i })).toBeInTheDocument();
+  });
+});
+
+describe("ningún mando falla en silencio", () => {
+  // El fallo de «abrir» no era un caso aislado sino una CLASE: ninguna llamada al puente
+  // tenía try. Si el núcleo devuelve un error, el alumno tiene que enterarse; si no, la app
+  // parece rota sin decir de qué.
+  async function abrirUna() {
+    vi.mocked(puente.elegirArchivo).mockResolvedValue("/a.mid");
+    vi.mocked(puente.abrirCancion).mockResolvedValue(RESUMEN);
+    render(<App />);
+    await userEvent.click(screen.getByRole("button", { name: /abrir/i }));
+    await waitFor(() => expect(puente.abrirCancion).toHaveBeenCalled());
+  }
+
+  it("reproducir", async () => {
+    await abrirUna();
+    vi.mocked(puente.marcha).mockRejectedValue(new Error("no se pudo arrancar"));
+    await userEvent.click(screen.getByRole("button", { name: /reproducir/i }));
+    expect(await screen.findByRole("alert")).toHaveTextContent(/no se pudo arrancar/);
+  });
+
+  it("mover el corte", async () => {
+    await abrirUna();
+    vi.mocked(puente.ajustarCorte).mockRejectedValue(new Error("corte inválido"));
+    fireEvent.change(screen.getByRole("slider", { name: /corte/i }), {
+      target: { value: "80" },
+    });
+    expect(await screen.findByRole("alert")).toHaveTextContent(/corte inválido/);
+  });
+
+  it("volver al principio", async () => {
+    await abrirUna();
+    vi.mocked(puente.saltarA).mockRejectedValue(new Error("no se pudo saltar"));
+    await userEvent.click(screen.getByRole("button", { name: /al principio/i }));
+    expect(await screen.findByRole("alert")).toHaveTextContent(/no se pudo saltar/);
   });
 });

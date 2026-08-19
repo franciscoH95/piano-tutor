@@ -111,15 +111,34 @@ export default function App() {
     return () => cancelAnimationFrame(id);
   }, [ancla]);
 
+  /**
+   * Ejecuta una llamada al puente y **muestra el motivo si falla**.
+   *
+   * Existe porque ninguna lo hacía: cada mando era un `await` suelto, así que un error del
+   * núcleo quedaba en un rechazo sin capturar y la aplicación parecía rota sin decir de qué.
+   * Lo descubrí ejecutándola: pulsar «abrir» no hacía absolutamente nada.
+   */
+  const intentar = useCallback(async (accion: () => Promise<void>) => {
+    try {
+      await accion();
+    } catch (motivo) {
+      setError(String(motivo));
+    }
+  }, []);
+
   const refrescar = useCallback(async () => {
     setNotas(await vistaActual(0, VENTANA_US));
   }, []);
 
   const abrir = useCallback(async () => {
-    const ruta = await elegirArchivo();
-    // Cancelar es lo normal, no un error: ni se abre nada ni se avisa de nada.
-    if (ruta === null) return;
+    // El diálogo va DENTRO del try. Estaba fuera, y por eso un fallo suyo —el permiso
+    // `dialog:default` que faltaba en las capacidades de Tauri— dejaba un rechazo sin
+    // capturar: al pulsar «abrir» no pasaba absolutamente nada. Ni archivo, ni error, ni
+    // pista de dónde mirar. Un fallo silencioso es peor que uno ruidoso.
     try {
+      const ruta = await elegirArchivo();
+      // Cancelar es lo normal, no un error: ni se abre nada ni se avisa de nada.
+      if (ruta === null) return;
       const nuevo = await abrirCancion(ruta);
       setResumen(nuevo);
       setCorte(nuevo.corte);
@@ -136,9 +155,9 @@ export default function App() {
       setError(null);
       await refrescar();
     } catch (motivo) {
-      // FR-004. Se muestra el motivo **tal cual lo da el núcleo**, sin sustituirlo por un
-      // mensaje genérico: el núcleo sabe mejor qué ha pasado. Y no se toca nada más, así
-      // que la aplicación sigue en pie con lo que ya tuviera.
+      // FR-004. Se muestra el motivo **tal cual**, sin sustituirlo por un mensaje genérico:
+      // quien falló sabe mejor qué pasó. Y no se toca nada más, así que la aplicación sigue
+      // en pie con lo que ya tuviera.
       setError(String(motivo));
     }
   }, [refrescar]);
@@ -146,63 +165,85 @@ export default function App() {
   const moverCorte = useCallback(
     async (nuevo: number) => {
       setCorte(nuevo);
-      await ajustarCorte(nuevo);
-      await refrescar();
+      await intentar(async () => {
+        await ajustarCorte(nuevo);
+        await refrescar();
+      });
     },
-    [refrescar],
+    [intentar, refrescar],
   );
 
   const poner = useCallback(async () => {
-    recibirAncla(await marcha());
-    setEnMarcha(true);
-    // Empezar de nuevo retira el resumen anterior: es de otra interpretación.
-    setResultado(null);
-    setComparacion(undefined);
-  }, [recibirAncla]);
+    await intentar(async () => {
+      recibirAncla(await marcha());
+      setEnMarcha(true);
+      // Empezar de nuevo retira el resumen anterior: es de otra interpretación.
+      setResultado(null);
+      setComparacion(undefined);
+    });
+  }, [intentar, recibirAncla]);
 
   const parar = useCallback(async () => {
-    recibirAncla(await pausa());
-    setEnMarcha(false);
-    // Pausar cierra la interpretación, así que ya hay resumen que enseñar (FR-014a).
-    setResultado(await ultimoResultado());
-    setComparacion((await compararConAnterior()) ?? undefined);
-  }, [recibirAncla]);
+    await intentar(async () => {
+      recibirAncla(await pausa());
+      setEnMarcha(false);
+      // Pausar cierra la interpretación, así que ya hay resumen que enseñar (FR-014a).
+      setResultado(await ultimoResultado());
+      setComparacion((await compararConAnterior()) ?? undefined);
+    });
+  }, [intentar, recibirAncla]);
 
   const alPrincipio = useCallback(async () => {
-    recibirAncla(await saltarA(0));
-    setPosicion(0);
-    await refrescar();
-  }, [recibirAncla, refrescar]);
+    await intentar(async () => {
+      recibirAncla(await saltarA(0));
+      setPosicion(0);
+      await refrescar();
+    });
+  }, [intentar, recibirAncla, refrescar]);
 
   const ponerVelocidad = useCallback(
     async (v: Velocidad) => {
-      recibirAncla(await cambiarVelocidad(v));
-      setVelocidad(v);
+      await intentar(async () => {
+        recibirAncla(await cambiarVelocidad(v));
+        setVelocidad(v);
+      });
     },
-    [recibirAncla],
+    [intentar, recibirAncla],
   );
 
-  const ponerModo = useCallback(async (m: Modo) => {
-    recibirAncla(await cambiarModo(m));
-    setModo(m);
-  }, [recibirAncla]);
+  const ponerModo = useCallback(
+    async (m: Modo) => {
+      await intentar(async () => {
+        recibirAncla(await cambiarModo(m));
+        setModo(m);
+      });
+    },
+    [intentar, recibirAncla],
+  );
 
   const ponerMano = useCallback(
     async (m: "izquierda" | "derecha" | null) => {
-      recibirAncla(await practicarMano(m));
-      setMano(m ?? "ambas");
+      await intentar(async () => {
+        recibirAncla(await practicarMano(m));
+        setMano(m ?? "ambas");
+      });
     },
-    [recibirAncla],
+    [intentar, recibirAncla],
   );
 
-  const ponerNivel = useCallback(async (n: NivelElegido) => {
-    await cambiarNivel(n);
-    setNivel(n);
-  }, []);
+  const ponerNivel = useCallback(
+    async (n: NivelElegido) => {
+      await intentar(async () => {
+        await cambiarNivel(n);
+        setNivel(n);
+      });
+    },
+    [intentar],
+  );
 
   const saltarLaNota = useCallback(async () => {
-    recibirAncla(await saltarPuerta());
-  }, [recibirAncla]);
+    await intentar(async () => recibirAncla(await saltarPuerta()));
+  }, [intentar, recibirAncla]);
 
   return (
     <main className="practica">
