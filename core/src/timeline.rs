@@ -17,8 +17,8 @@ use crate::time::{Micros, Ticks};
 use std::collections::{BTreeMap, VecDeque};
 
 /// Rango de las 88 teclas de un piano, en numeros de nota MIDI.
-const PIANO_MIN: u8 = 21;
-const PIANO_MAX: u8 = 108;
+pub(crate) const PIANO_MIN: u8 = 21;
+pub(crate) const PIANO_MAX: u8 = 108;
 
 /// Indice del canal de percusion (el canal 10 del estandar, contado desde cero).
 /// El canal 10 del protocolo (el 9 contando desde cero) esta reservado a percusion.

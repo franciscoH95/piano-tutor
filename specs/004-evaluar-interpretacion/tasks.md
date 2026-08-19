@@ -33,11 +33,11 @@ pura y se prueba entero, sin teclado ni ventana.
 
 ## Phase 1: Setup
 
-- [ ] T001 Crear el módulo `core/src/evaluacion/mod.rs` y declararlo en `core/src/lib.rs`, vacío y compilando
-- [ ] T002 Crear `core/tests/fixtures/interpretaciones/mod.rs` con el constructor de interpretaciones grabadas: una canción, una lista de observaciones con sus instantes y el resultado esperado
-- [ ] T003 [P] Crear el archivo de pruebas `core/tests/estadistica_test.rs` con el andamiaje mínimo
-- [ ] T004 [P] Crear el archivo de pruebas `core/tests/emparejar_test.rs` con el andamiaje mínimo
-- [ ] T005 [P] Crear el archivo de pruebas `core/tests/evaluacion_test.rs` con el andamiaje mínimo
+- [X] T001 Crear el módulo `core/src/evaluacion/mod.rs` y declararlo en `core/src/lib.rs`, vacío y compilando
+- [X] T002 Crear `core/tests/fixtures/interpretaciones/mod.rs` con el constructor de interpretaciones grabadas: una canción, una lista de observaciones con sus instantes y el resultado esperado
+- [X] T003 [P] Crear el archivo de pruebas `core/tests/estadistica_test.rs` con el andamiaje mínimo
+- [X] T004 [P] Crear el archivo de pruebas `core/tests/emparejar_test.rs` con el andamiaje mínimo
+- [X] T005 [P] Crear el archivo de pruebas `core/tests/evaluacion_test.rs` con el andamiaje mínimo
 
 **Checkpoint**: el módulo existe y `cargo test` pasa sin probar nada todavía.
 
@@ -49,31 +49,31 @@ pura y se prueba entero, sin teclado ni ventana.
 
 ### Las tolerancias, en un solo sitio
 
-- [ ] T006 Prueba en `core/tests/evaluacion_test.rs`: los tres niveles existen y sus ventanas de ataque están **anidadas** — permisivo ⊇ intermedio ⊇ exigente. Es lo que hace que SC-006 se cumpla por aritmética y no por vigilancia
-- [ ] T007 Implementar `Nivel` y `Tolerancias` en `core/src/evaluacion/tolerancias.rs`, con **todos** los umbrales de la feature: ventana de emparejamiento, ventana de ataque por nivel, cercanía del dedo que se escapa en tiempo y en semitonos, y los dos umbrales del desfase sistemático
-- [ ] T008 Prueba en `core/tests/evaluacion_test.rs`: **ningún umbral se lee fuera de `Nivel::tolerancias`**. Criterio comprobable: en `core/src/evaluacion/`, fuera de `tolerancias.rs`, **ningún literal entero mayor que 1.000** (el orden de magnitud de un microsegundo relevante) y **ningún literal con separador de millares**. El Principio I lo exige textualmente y es la clase de regla que se erosiona sola; «literales sospechosos» no era un criterio, y una prueba sin criterio pasa siempre
+- [X] T006 Prueba en `core/tests/evaluacion_test.rs`: los tres niveles existen y sus ventanas de ataque están **anidadas** — permisivo ⊇ intermedio ⊇ exigente. Es lo que hace que SC-006 se cumpla por aritmética y no por vigilancia
+- [X] T007 Implementar `Nivel` y `Tolerancias` en `core/src/evaluacion/tolerancias.rs`, con **todos** los umbrales de la feature: ventana de emparejamiento, ventana de ataque por nivel, cercanía del dedo que se escapa en tiempo y en semitonos, y los dos umbrales del desfase sistemático
+- [X] T008 Prueba en `core/tests/evaluacion_test.rs`: **ningún umbral se lee fuera de `Nivel::tolerancias`**. Criterio comprobable: en `core/src/evaluacion/`, fuera de `tolerancias.rs`, **ningún literal entero mayor que 1.000** (el orden de magnitud de un microsegundo relevante) y **ningún literal con separador de millares**. El Principio I lo exige textualmente y es la clase de regla que se erosiona sola; «literales sospechosos» no era un criterio, y una prueba sin criterio pasa siempre
 
 ### La estadística, en enteros
 
-- [ ] T009 Prueba en `core/tests/estadistica_test.rs`: la mediana de una lista de enteros **con signo**, con número par e impar de elementos. Incluye `[-3, -2]`, donde la división entera de Rust trunca hacia cero y da `-2` en vez de `-3` si no se tiene cuidado
-- [ ] T010 Prueba en `core/tests/estadistica_test.rs`: los cuartiles y el recorrido intercuartílico, con listas de 1, 2, 3, 4 y 100 elementos
-- [ ] T011 Implementar mediana y cuartiles en `core/src/evaluacion/estadistica.rs`, **sin coma flotante**, con la regla de redondeo de negativos fijada y documentada
-- [ ] T012 Prueba en `core/tests/estadistica_test.rs`: el mismo conjunto en distinto orden de entrada da el mismo resultado (SC-008)
+- [X] T009 Prueba en `core/tests/estadistica_test.rs`: la mediana de una lista de enteros **con signo**, con número par e impar de elementos. Incluye `[-3, -2]`, donde la división entera de Rust trunca hacia cero y da `-2` en vez de `-3` si no se tiene cuidado
+- [X] T010 Prueba en `core/tests/estadistica_test.rs`: los cuartiles y el recorrido intercuartílico, con listas de 1, 2, 3, 4 y 100 elementos
+- [X] T011 Implementar mediana y cuartiles en `core/src/evaluacion/estadistica.rs`, **sin coma flotante**, con la regla de redondeo de negativos fijada y documentada
+- [X] T012 Prueba en `core/tests/estadistica_test.rs`: el mismo conjunto en distinto orden de entrada da el mismo resultado (SC-008)
 
 ### La inversa del ancla
 
-- [ ] T013 Prueba en `core/tests/emparejar_test.rs`: `instante_de(ancla, posicion)` es la **inversa exacta** de `posicion_en`. Para 200 pares al azar deterministas, `posicion_en(ancla, instante_de(ancla, p))` devuelve exactamente `p`
-- [ ] T014 Prueba en `core/tests/emparejar_test.rs`: es el **techo** y no el suelo. Con num/den = 1/3 y una posición que no cae en frontera, el instante devuelto es el primero en que el cursor **alcanza o supera** esa posición, no el último en que está por debajo
-- [ ] T015 Prueba en `core/tests/emparejar_test.rs`: con velocidad de pausa (`num == 0`) devuelve `None` — el cursor no llega nunca— y con una posición por encima del tope, también
-- [ ] T016 Prueba en `core/tests/emparejar_test.rs`: **no desborda ni entra en pánico** con `num = u32::MAX` y una canción de 24 horas, y da el **mismo** valor en debug y en release
-- [ ] T017 Implementar `instante_de` en `core/src/evaluacion/emparejar.rs`: una sola división, `u128` en el intermedio, `try_from` a la salida y **ni un solo `as`**
-- [ ] T018 Prueba en `core/tests/emparejar_test.rs`: el centinela de «sin sellar» **no puede confundirse con un desfase válido**. Es la prueba que justifica prohibir `as`: `u64::MAX as i64` vale −1, que es un adelanto de un microsegundo dentro de cualquier tolerancia
+- [X] T013 Prueba en `core/tests/emparejar_test.rs`: `instante_de(ancla, posicion)` es la **inversa exacta** de `posicion_en`. Para 200 pares al azar deterministas, `posicion_en(ancla, instante_de(ancla, p))` devuelve exactamente `p`
+- [X] T014 Prueba en `core/tests/emparejar_test.rs`: es el **techo** y no el suelo. Con num/den = 1/3 y una posición que no cae en frontera, el instante devuelto es el primero en que el cursor **alcanza o supera** esa posición, no el último en que está por debajo
+- [X] T015 Prueba en `core/tests/emparejar_test.rs`: con velocidad de pausa (`num == 0`) devuelve `None` — el cursor no llega nunca— y con una posición por encima del tope, también
+- [X] T016 Prueba en `core/tests/emparejar_test.rs`: **no desborda ni entra en pánico** con `num = u32::MAX` y una canción de 24 horas, y da el **mismo** valor en debug y en release
+- [X] T017 Implementar `instante_de` en `core/src/evaluacion/emparejar.rs`: una sola división, `u128` en el intermedio, `try_from` a la salida y **ni un solo `as`**
+- [X] T018 Prueba en `core/tests/emparejar_test.rs`: el centinela de «sin sellar» **no puede confundirse con un desfase válido**. Es la prueba que justifica prohibir `as`: `u64::MAX as i64` vale −1, que es un adelanto de un microsegundo dentro de cualquier tolerancia
 
 ### Qué es evaluable
 
-- [ ] T019 Prueba en `core/tests/evaluacion_test.rs`: `es_evaluable` descarta la percusión (canal 9), lo que cae fuera de las 88 teclas, y lo de la mano no practicada
-- [ ] T020 Implementar `es_evaluable` en `core/src/evaluacion/mod.rs` y **hacer que `ProgramaDePuertas::nuevo` la consuma también**, en vez de tener su propio filtro. Dos copias del criterio volverían a divergir, que es exactamente lo que ya pasó con la percusión
-- [ ] T021 Prueba en `core/tests/espera_test.rs`: las puertas y el evaluador coinciden **nota por nota** en qué es evaluable, sobre una pieza con percusión, notas fuera de rango y dos manos
+- [X] T019 Prueba en `core/tests/evaluacion_test.rs`: `es_evaluable` descarta la percusión (canal 9), lo que cae fuera de las 88 teclas, y lo de la mano no practicada
+- [X] T020 Implementar `es_evaluable` en `core/src/evaluacion/mod.rs` y **hacer que `ProgramaDePuertas::nuevo` la consuma también**, en vez de tener su propio filtro. Dos copias del criterio volverían a divergir, que es exactamente lo que ya pasó con la percusión
+- [X] T021 Prueba en `core/tests/espera_test.rs`: las puertas y el evaluador coinciden **nota por nota** en qué es evaluable, sobre una pieza con percusión, notas fuera de rango y dos manos
 
 **Checkpoint**: aritmética, estadística y criterio de alcance listos y probados. Todavía no se juzga nada.
 

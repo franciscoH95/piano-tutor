@@ -24,6 +24,7 @@ pub mod capture;
 pub mod clock;
 pub mod digitacion;
 pub mod error;
+pub mod evaluacion;
 pub mod feedforward;
 pub mod practica;
 mod midi;

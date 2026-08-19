@@ -5,7 +5,7 @@
 //! con un cursor monotono: durante la practica no se busca nada, solo se mira la pendiente.
 
 use crate::practica::manos::Mano;
-use crate::timeline::CANAL_PERCUSION;
+use crate::evaluacion::es_evaluable;
 use crate::practica::sonando::MascaraTeclas;
 use crate::time::Micros;
 use crate::Song;
@@ -42,13 +42,13 @@ impl ProgramaDePuertas {
     pub fn nuevo(cancion: &Song, manos: &[Mano], practicada: Option<Mano>) -> Self {
         let mut puertas: Vec<Puerta> = Vec::new();
         for (i, n) in cancion.notes().iter().enumerate() {
-            if n.channel == CANAL_PERCUSION {
+            // El MISMO criterio que usa el evaluador. Tenerlo en dos sitios es como se
+            // coló el fallo de la percusion: el comentario decia una cosa y el codigo otra.
+            let Some(suya) = manos.get(i).copied() else {
                 continue;
-            }
-            if let (Some(quiero), Some(suya)) = (practicada, manos.get(i).copied()) {
-                if quiero != suya {
-                    continue;
-                }
+            };
+            if !es_evaluable(n.channel, n.key, suya, practicada) {
+                continue;
             }
             // Las notas vienen ordenadas por ataque, asi que las simultaneas caen seguidas
             // y basta mirar la ultima puerta.
