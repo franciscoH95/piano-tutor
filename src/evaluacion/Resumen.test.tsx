@@ -19,6 +19,10 @@ function resultado(p: Partial<ResultadoPlano> = {}): ResultadoPlano {
     desfaseDispersionUs: null,
     sinTocar: false,
     parcial: false,
+    porMano: {
+      izquierda: { acertadas: 0, fueraDeTiempo: 0, omitidas: 0 },
+      derecha: { acertadas: 0, fueraDeTiempo: 0, omitidas: 0 },
+    },
     ...p,
   };
 }
@@ -88,5 +92,44 @@ describe("lo que no es culpa del alumno", () => {
   it("lo saltado se dice aparte", () => {
     render(<Resumen resultado={resultado({ acertadas: 5, intentadas: 5, noIntentadas: 4 })} />);
     expect(screen.getByText(/salt/i)).toBeInTheDocument();
+  });
+});
+
+describe("las dos manos", () => {
+  it("se muestran por separado cuando la pieza las tiene", () => {
+    // T053 (FR-018). «17 de 20» junto no dice si el problema está en una mano concreta,
+    // que es justo lo que el alumno necesita saber para repasar mañana.
+    render(
+      <Resumen
+        resultado={resultado({
+          acertadas: 12,
+          omitidas: 8,
+          intentadas: 20,
+          porMano: {
+            izquierda: { acertadas: 10, fueraDeTiempo: 0, omitidas: 0 },
+            derecha: { acertadas: 2, fueraDeTiempo: 0, omitidas: 8 },
+          },
+        })}
+      />,
+    );
+    expect(screen.getByText(/izquierda/i)).toBeInTheDocument();
+    expect(screen.getByText(/derecha/i)).toBeInTheDocument();
+  });
+
+  it("no las muestra si la pieza es de una sola mano", () => {
+    // Enseñar «derecha: 0 de 0» sería ruido que hace pensar que algo falló.
+    render(
+      <Resumen
+        resultado={resultado({
+          acertadas: 10,
+          intentadas: 10,
+          porMano: {
+            izquierda: { acertadas: 10, fueraDeTiempo: 0, omitidas: 0 },
+            derecha: { acertadas: 0, fueraDeTiempo: 0, omitidas: 0 },
+          },
+        })}
+      />,
+    );
+    expect(screen.queryByText(/derecha/i)).not.toBeInTheDocument();
   });
 });

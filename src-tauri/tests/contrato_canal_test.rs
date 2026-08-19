@@ -82,7 +82,11 @@ fn muestra_el_json_real() {
 
 // ---------------------------------------------------------------- T042: el resultado
 
-use piano_tutor_lib::comandos::ResultadoPlano;
+use piano_tutor_lib::comandos::{PorMano, RecuentoPlano, ResultadoPlano};
+
+fn recuento() -> RecuentoPlano {
+    RecuentoPlano { acertadas: 0, fuera_de_tiempo: 0, omitidas: 0 }
+}
 
 #[test]
 fn el_resultado_viaja_en_camello_como_el_resto_del_puente() {
@@ -101,6 +105,7 @@ fn el_resultado_viaja_en_camello_como_el_resto_del_puente() {
         desfase_dispersion_us: Some(5_000),
         sin_tocar: false,
         parcial: true,
+        por_mano: PorMano { izquierda: recuento(), derecha: recuento() },
     };
     let s = serde_json::to_string(&r).expect("serializa");
     assert!(s.contains("\"fueraDeTiempo\":1"), "{s}");
@@ -126,6 +131,7 @@ fn sin_desfase_los_campos_viajan_como_nulos() {
         desfase_dispersion_us: None,
         sin_tocar: true,
         parcial: false,
+        por_mano: PorMano { izquierda: recuento(), derecha: recuento() },
     };
     let s = serde_json::to_string(&r).expect("serializa");
     assert!(s.contains("\"desfaseMedianaUs\":null"), "{s}");

@@ -536,6 +536,31 @@ pub struct ResultadoPlano {
     pub sin_tocar: bool,
     /// Los tiempos NO se evaluaron. **Hay que decirlo** (FR-015a).
     pub parcial: bool,
+    /// Recuento de cada mano (FR-018).
+    pub por_mano: PorMano,
+}
+
+/// El recuento de las dos manos.
+#[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PorMano {
+    pub izquierda: RecuentoPlano,
+    pub derecha: RecuentoPlano,
+}
+
+/// Lo que le paso a una mano.
+#[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RecuentoPlano {
+    pub acertadas: usize,
+    pub fuera_de_tiempo: usize,
+    pub omitidas: usize,
+}
+
+impl From<piano_core::evaluacion::Recuento> for RecuentoPlano {
+    fn from(r: piano_core::evaluacion::Recuento) -> Self {
+        Self { acertadas: r.acertadas, fuera_de_tiempo: r.fuera_de_tiempo, omitidas: r.omitidas }
+    }
 }
 
 impl From<&piano_core::evaluacion::Resultado> for ResultadoPlano {
@@ -553,6 +578,10 @@ impl From<&piano_core::evaluacion::Resultado> for ResultadoPlano {
             desfase_dispersion_us: r.desfase.map(|d| d.dispersion_us),
             sin_tocar: r.sin_tocar,
             parcial: r.parcial,
+            por_mano: PorMano {
+                izquierda: r.por_mano[0].into(),
+                derecha: r.por_mano[1].into(),
+            },
         }
     }
 }

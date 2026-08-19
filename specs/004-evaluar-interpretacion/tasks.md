@@ -161,13 +161,13 @@ interpretaciones grabadas y sin nada enchufado.
 **Prueba independiente**: la misma interpretación grabada, comprobando que cada acierto y cada fallo
 queda situado en su posición y en su mano.
 
-- [ ] T048 [US2] Prueba en `core/tests/evaluacion_test.rs`: cada veredicto queda asociado a su índice de nota, y una interpretación con todos los fallos en la segunda mitad los sitúa allí y no repartidos
-- [ ] T049 [US2] Prueba en `core/tests/evaluacion_test.rs`: con una pieza a dos manos, el resultado separa la izquierda de la derecha (FR-018)
-- [ ] T050 [US2] Implementar la localización y el recuento por mano en `core/src/evaluacion/resultado.rs`
-- [ ] T051 [US2] Prueba en `core/tests/evaluacion_test.rs`: el veredicto del evaluador se refleja en `EstadoNota` de la vista, de modo que el pentagrama y el resumen **no puedan discrepar**
-- [ ] T052 [US2] Cablear el veredicto a `EstadoNota` en `core/src/practica/vista.rs`, y **retirar la mitad juzgadora de `core/src/practica/sonando.rs`** (`tocada`, `informada`, `cursor_omision`, `registrar`, `omitidas`, `clasificar`, `Situacion`). Verificado que no tiene ningún llamador de producción; se conservan `MascaraTeclas` y `vigentes()`, que las puertas sí usan
-- [ ] T053 [US2] Prueba en `src/evaluacion/Resumen.test.tsx`: el resumen distingue las dos manos
-- [ ] T054 [US2] Implementar la vista por mano y por posición en `src/evaluacion/Resumen.tsx`
+- [X] T048 [US2] Prueba en `core/tests/evaluacion_test.rs`: cada veredicto queda asociado a su índice de nota, y una interpretación con todos los fallos en la segunda mitad los sitúa allí y no repartidos
+- [X] T049 [US2] Prueba en `core/tests/evaluacion_test.rs`: con una pieza a dos manos, el resultado separa la izquierda de la derecha (FR-018)
+- [X] T050 [US2] Implementar la localización y el recuento por mano en `core/src/evaluacion/resultado.rs`
+- [X] T051 [US2] Prueba en `core/tests/evaluacion_test.rs`: el veredicto del evaluador se refleja en `EstadoNota` de la vista, de modo que el pentagrama y el resumen **no puedan discrepar**
+- [X] T052 [US2] Cablear el veredicto a `EstadoNota` en `core/src/practica/vista.rs`, y **retirar la mitad juzgadora de `core/src/practica/sonando.rs`** (`tocada`, `informada`, `cursor_omision`, `registrar`, `omitidas`, `clasificar`, `Situacion`). Verificado que no tiene ningún llamador de producción; se conservan `MascaraTeclas` y `vigentes()`, que las puertas sí usan
+- [X] T053 [US2] Prueba en `src/evaluacion/Resumen.test.tsx`: el resumen distingue las dos manos
+- [X] T054 [US2] Implementar la vista por mano y por posición en `src/evaluacion/Resumen.tsx`
 
 **Checkpoint**: el alumno sabe qué repasar mañana.
 

@@ -140,6 +140,16 @@ impl Evaluador {
         self.resumir()
     }
 
+    /// El veredicto de la nota `indice`, **solo si ya es firme**.
+    ///
+    /// `None` mientras la nota sigue abierta: todavia puede recibir una pulsacion. Pintarla
+    /// como omitida antes de tiempo seria acusar al alumno de algo que aun tiene ocasion de
+    /// hacer.
+    #[must_use]
+    pub fn veredicto_firme(&self, indice: usize) -> Option<Veredicto> {
+        self.notas.iter().find(|n| n.indice == indice).filter(|n| n.tomada).map(|n| n.veredicto)
+    }
+
     /// El veredicto de la nota `indice` de `Song::notes`.
     #[must_use]
     pub fn veredicto_de(&self, indice: usize) -> Veredicto {

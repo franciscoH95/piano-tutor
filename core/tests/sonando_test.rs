@@ -1,9 +1,14 @@
-//! T060, T062 y T064 — qué está sonando y qué toca el alumno.
+//! T060 y T064 — qué está sonando en la canción.
+//!
+//! Las pruebas del **juicio** —acierto, nota extra, omitida— se retiraron con la feature
+//! 004: ese veredicto lo decide ahora `piano_core::evaluacion`, y sus pruebas viven en
+//! `evaluacion_test.rs`. Tenerlas aquí también habría dejado dos sitios afirmando cosas
+//! sobre lo mismo, y el día que discrepasen no sabríamos cuál manda.
 
 mod fixtures;
 use fixtures::SmfBuilder;
 use piano_core::load_smf;
-use piano_core::practica::{ConjuntoSonando, MascaraTeclas, Situacion};
+use piano_core::practica::{ConjuntoSonando, MascaraTeclas};
 use piano_core::time::Micros;
 use piano_core::Song;
 
@@ -121,59 +126,7 @@ fn recolocar_hacia_atras_vuelve_a_encontrar_el_pedal() {
 
 // ---------------------------------------------------------------- las tres situaciones
 
-#[test]
-fn se_distingue_el_acierto_de_la_nota_extra() {
-    // FR-014a, primeras dos situaciones.
-    let song = cancion(&[(0, 60, 1_000)]);
-    let mut c = ConjuntoSonando::nuevo(&song);
-    c.avanzar(&song, Micros(500_000));
-    assert_eq!(c.clasificar(60), Situacion::Acierto);
-    assert_eq!(c.clasificar(61), Situacion::Extra);
-    assert_eq!(c.clasificar(59), Situacion::Extra);
-}
 
-#[test]
-fn barriendo_las_ciento_veintiocho_teclas_todas_se_clasifican_bien() {
-    // SC-005a. Se barren **las 128**, no solo las que la canción usa: una implementación
-    // que devolviera siempre "extra" pasaría una prueba que solo mirase las ausentes, y
-    // una que devolviera siempre "acierto" pasaría la que solo mirase las presentes.
-    let song = cancion(&[
-        (0, 60, 2_000),
-        (500, 64, 2_000),
-        (1_000, 67, 3_000),
-        (3_000, 72, 1_000),
-    ]);
-    let mut c = ConjuntoSonando::nuevo(&song);
-
-    for pos_ms in [0u64, 400, 700, 1_200, 2_100, 2_600, 3_500, 4_500] {
-        let pos = pos_ms * 1_000;
-        c.avanzar(&song, Micros(pos));
-        // Verdad calculada aparte, a fuerza bruta sobre la canción entera.
-        let esperadas: Vec<u8> = song
-            .notes()
-            .iter()
-            .filter(|n| n.onset_us.0 <= pos && pos < n.end_us.0)
-            .map(|n| n.key)
-            .collect();
-
-        let mut aciertos = 0;
-        let mut extras = 0;
-        for k in 0..128u8 {
-            match c.clasificar(k) {
-                Situacion::Acierto => {
-                    assert!(esperadas.contains(&k), "en {pos} la tecla {k} no sonaba");
-                    aciertos += 1;
-                }
-                Situacion::Extra => {
-                    assert!(!esperadas.contains(&k), "en {pos} la tecla {k} sí sonaba");
-                    extras += 1;
-                }
-            }
-        }
-        assert_eq!(aciertos + extras, 128, "las 128 se clasifican, ninguna se queda fuera");
-        assert_eq!(aciertos, esperadas.len(), "y son exactamente las que suenan en {pos}");
-    }
-}
 
 // ---------------------------------------------------------------- coste
 
@@ -207,113 +160,11 @@ fn el_coste_de_la_consulta_no_crece_con_el_tamano_de_la_cancion() {
 
 // ---------------------------------------------------------------- la nota omitida
 
-#[test]
-fn una_nota_que_nadie_toco_se_declara_omitida_al_terminar() {
-    // FR-014a, tercera situación. No se puede afirmar en el ataque: solo cuando su duración
-    // ha pasado entera.
-    let song = cancion(&[(0, 60, 1_000)]); // 0 → 1.000.000
-    let mut c = ConjuntoSonando::nuevo(&song);
-    let mut out = Vec::new();
 
-    c.avanzar(&song, Micros(500_000));
-    c.registrar(&song, MascaraTeclas::VACIA, Micros(500_000));
-    c.omitidas(&song, Micros(500_000), &mut out);
-    assert!(out.is_empty(), "a mitad de la nota todavía no se sabe");
 
-    c.avanzar(&song, Micros(1_000_000));
-    c.registrar(&song, MascaraTeclas::VACIA, Micros(1_000_000));
-    c.omitidas(&song, Micros(1_000_000), &mut out);
-    assert_eq!(out, vec![0], "terminó sin que nadie la tocara");
-}
 
-#[test]
-fn una_tecla_mantenida_cuenta_aunque_no_llegue_ningun_ataque_nuevo() {
-    // **La trampa de esta funcionalidad.** En un teclado real, una tecla que se mantiene
-    // pulsada no genera eventos nuevos. Una implementación que solo mirase los ataques
-    // declararía omitida una nota que el alumno está tocando en ese preciso momento.
-    let song = cancion(&[(1_000, 60, 1_000)]); // 1.000.000 → 2.000.000
-    let mut c = ConjuntoSonando::nuevo(&song);
-    let mut pulsadas = MascaraTeclas::VACIA;
-    pulsadas.poner(60); // pulsada ANTES del ataque, y nunca se vuelve a pulsar
 
-    for pos in [500_000u64, 1_000_000, 1_500_000, 2_000_000] {
-        c.avanzar(&song, Micros(pos));
-        c.registrar(&song, pulsadas, Micros(pos));
-    }
-    let mut out = Vec::new();
-    c.omitidas(&song, Micros(2_000_000), &mut out);
-    assert!(out.is_empty(), "el alumno la estaba tocando: no es omitida");
-}
 
-#[test]
-fn tocarla_en_el_ultimo_microsegundo_basta() {
-    let song = cancion(&[(0, 60, 1_000)]);
-    let mut c = ConjuntoSonando::nuevo(&song);
-    let mut pulsadas = MascaraTeclas::VACIA;
-    pulsadas.poner(60);
-
-    c.avanzar(&song, Micros(999_999));
-    c.registrar(&song, pulsadas, Micros(999_999));
-    c.avanzar(&song, Micros(1_000_000));
-    c.registrar(&song, MascaraTeclas::VACIA, Micros(1_000_000));
-
-    let mut out = Vec::new();
-    c.omitidas(&song, Micros(1_000_000), &mut out);
-    assert!(out.is_empty(), "sonaba y estaba pulsada, aunque fuese al final");
-}
-
-#[test]
-fn la_omision_se_comunica_una_sola_vez() {
-    // Como el final de la canción: si se repitiera, el puente llevaría sesenta avisos por
-    // segundo de una nota que ya pasó.
-    let song = cancion(&[(0, 60, 1_000)]);
-    let mut c = ConjuntoSonando::nuevo(&song);
-    let mut total = 0;
-    for i in 1..=60u64 {
-        let pos = 1_000_000 + i * 16_667;
-        c.avanzar(&song, Micros(pos));
-        c.registrar(&song, MascaraTeclas::VACIA, Micros(pos));
-        let mut out = Vec::new();
-        c.omitidas(&song, Micros(pos), &mut out);
-        total += out.len();
-    }
-    assert_eq!(total, 1, "una sola vez en sesenta consultas");
-}
-
-#[test]
-fn tocar_otra_tecla_no_salva_a_la_nota() {
-    let song = cancion(&[(0, 60, 1_000)]);
-    let mut c = ConjuntoSonando::nuevo(&song);
-    let mut pulsadas = MascaraTeclas::VACIA;
-    pulsadas.poner(61); // la de al lado
-
-    for pos in [200_000u64, 600_000, 1_000_000] {
-        c.avanzar(&song, Micros(pos));
-        c.registrar(&song, pulsadas, Micros(pos));
-    }
-    let mut out = Vec::new();
-    c.omitidas(&song, Micros(1_000_000), &mut out);
-    assert_eq!(out, vec![0], "tocar al lado no cuenta");
-}
-
-#[test]
-fn de_un_acorde_a_medias_solo_se_omite_lo_que_falto() {
-    let song = cancion(&[(0, 60, 1_000), (0, 64, 1_000), (0, 67, 1_000)]);
-    let mut c = ConjuntoSonando::nuevo(&song);
-    let mut pulsadas = MascaraTeclas::VACIA;
-    pulsadas.poner(60);
-    pulsadas.poner(67);
-
-    c.avanzar(&song, Micros(500_000));
-    c.registrar(&song, pulsadas, Micros(500_000));
-    c.avanzar(&song, Micros(1_000_000));
-    c.registrar(&song, pulsadas, Micros(1_000_000));
-
-    let mut out = Vec::new();
-    c.omitidas(&song, Micros(1_000_000), &mut out);
-    let teclas: Vec<u8> = out.iter().filter_map(|i| song.notes().get(*i)).map(|n| n.key).collect();
-    assert_eq!(teclas, vec![64], "solo la que no se tocó");
-}
 
 #[test]
 fn una_sola_nota_larga_no_le_cobra_peaje_al_resto_de_la_pieza() {
@@ -354,34 +205,6 @@ fn una_sola_nota_larga_no_le_cobra_peaje_al_resto_de_la_pieza() {
     );
 }
 
-#[test]
-fn una_pulsacion_satisface_a_todas_las_notas_de_esa_tecla_que_suenan() {
-    // La misma tecla puede sonar en DOS notas a la vez: una melodía doblada en dos pistas
-    // sobrevive solapada, porque el cargador solo acorta cuando coinciden pista, canal y
-    // tecla. Como el alumno no puede pulsar dos veces la misma tecla a la vez, una sola
-    // pulsación tiene que satisfacer a las dos; si no, en modo espera la puerta no abriría
-    // jamás.
-    let raw = SmfBuilder::new(1000)
-        .track(|t| t.tempo(0, 1_000_000).note(0, 60, 90, 4_000)) // pedal 0 → 4 s
-        .track(|t| {
-            t.raw(2_000, &[0x91, 60, 90]).raw(3_000, &[0x81, 60, 0]) // 2 s → 3 s
-        })
-        .build();
-    let song = load_smf(&raw).expect("valida");
-    assert_eq!(song.notes().len(), 2, "las dos sobreviven sin acortarse");
-
-    let mut c = ConjuntoSonando::nuevo(&song);
-    let mut pulsadas = MascaraTeclas::VACIA;
-    pulsadas.poner(60);
-
-    for pos in [2_400_000u64, 2_500_000, 3_000_000, 4_000_000] {
-        c.avanzar(&song, Micros(pos));
-        c.registrar(&song, pulsadas, Micros(pos));
-    }
-    let mut out = Vec::new();
-    c.omitidas(&song, Micros(4_000_000), &mut out);
-    assert!(out.is_empty(), "una pulsación vale para las dos; omitidas: {out:?}");
-}
 
 #[test]
 fn retroceder_sin_recolocar_a_mano_sigue_dando_la_respuesta_correcta() {

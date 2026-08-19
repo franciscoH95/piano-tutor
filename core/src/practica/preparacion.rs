@@ -6,7 +6,7 @@
 
 use crate::digitacion::{digitar, Dedo, Digitacion};
 use crate::practica::cursor::{Ancla, Avance, Cursor, Paso, Velocidad};
-use crate::evaluacion::{Evaluador, Nivel, Resultado};
+use crate::evaluacion::{Evaluador, Nivel, Resultado, Veredicto};
 use crate::practica::sonando::MascaraTeclas;
 use crate::capture::{Observacion, TipoEvento};
 use crate::practica::manos::{repartir, Mano, RepartoDeManos};
@@ -154,7 +154,18 @@ impl Preparacion {
                 mano: self.reparto.mano(indice),
                 dedo: self.digitacion.dedo(indice),
                 nombre: self.cancion.armaduras().nombre(tick, v.key),
-                estado: v.estado,
+                // **Un solo oráculo.** El veredicto lo decide el evaluador; la vista solo
+                // lo pinta. Con dos sitios que decidan «acertada», el pentagrama y el
+                // resumen discreparían en silencio.
+                estado: match self.evaluando.as_ref().and_then(|e| e.veredicto_firme(indice)) {
+                    Some(Veredicto::Acertada | Veredicto::TocadaFueraDeTiempo) => {
+                        EstadoNota::Acertada
+                    }
+                    Some(Veredicto::Omitida) => EstadoNota::Omitida,
+                    // Fuera de alcance y no intentada no son veredictos sobre el alumno, y
+                    // mientras no haya veredicto manda lo que dice la canción.
+                    _ => v.estado,
+                },
             });
         }
     }

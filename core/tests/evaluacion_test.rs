@@ -625,3 +625,72 @@ fn cambiar_de_modo_a_mitad_evalua_cada_nota_segun_su_regimen() {
     assert_eq!(r.fuera_de_tiempo, 10, "las diez de tempo: 120 ms es fuera de la ventana");
     assert!(r.parcial, "hubo notas sin tiempo evaluado, así que el resultado es parcial");
 }
+
+// ---------------------------------------------------------------- T048, T049
+
+#[test]
+fn cada_veredicto_queda_situado_en_su_nota() {
+    // T048 (FR-017). Un «80 %» no cambia lo que el alumno hace mañana; saber que los fallos
+    // están en la segunda mitad, sí.
+    let song = escala(20);
+    let mut e = evaluador(&song, Nivel::Intermedio);
+    // Toca bien las diez primeras y no toca las diez últimas.
+    for n in song.notes().iter().take(10) {
+        e.observar(ataque(n.onset_us.0, n.key, 90));
+        e.observar(suelta(n.onset_us.0 + 200_000, n.key));
+    }
+    let r = e.cerrar(Micros(20_000_000));
+
+    assert_eq!(r.por_nota.len(), 20, "una entrada por nota");
+    let aciertos: Vec<usize> = r
+        .por_nota
+        .iter()
+        .filter(|(_, v)| *v == Veredicto::Acertada)
+        .map(|(i, _)| *i)
+        .collect();
+    assert_eq!(aciertos, (0..10).collect::<Vec<_>>(), "los aciertos, en la primera mitad");
+    let fallos: Vec<usize> = r
+        .por_nota
+        .iter()
+        .filter(|(_, v)| *v == Veredicto::Omitida)
+        .map(|(i, _)| *i)
+        .collect();
+    assert_eq!(fallos, (10..20).collect::<Vec<_>>(), "y los fallos, en la segunda");
+}
+
+#[test]
+fn el_resultado_separa_una_mano_de_la_otra() {
+    // T049 (FR-018). Con la izquierda bien y la derecha mal, decirlo junto sería inútil.
+    let song = cancion(&[(0, 40, 300), (0, 72, 300), (500, 43, 300), (500, 74, 300)]);
+    let manos = vec![Mano::Izquierda, Mano::Derecha, Mano::Izquierda, Mano::Derecha];
+    let mut e = Evaluador::nuevo(&song, &manos, None, Nivel::Intermedio);
+    // Toca solo las de la izquierda.
+    for (t, k) in [(0u64, 40u8), (500_000, 43)] {
+        e.observar(ataque(t, k, 90));
+        e.observar(suelta(t + 200_000, k));
+    }
+    let r = e.cerrar(Micros(3_000_000));
+
+    let izq = r.por_mano[0];
+    let der = r.por_mano[1];
+    assert_eq!(izq.acertadas, 2, "la izquierda, perfecta");
+    assert_eq!(izq.omitidas, 0);
+    assert_eq!(der.acertadas, 0, "la derecha, sin tocar");
+    assert_eq!(der.omitidas, 2);
+}
+
+#[test]
+fn con_una_sola_mano_la_otra_no_aparece_como_fallada() {
+    // Practicando la izquierda, las notas de la derecha no se le piden: no pueden contar
+    // como omitidas.
+    let song = cancion(&[(0, 40, 300), (0, 72, 300)]);
+    let manos = vec![Mano::Izquierda, Mano::Derecha];
+    let mut e = Evaluador::nuevo(&song, &manos, Some(Mano::Izquierda), Nivel::Intermedio);
+    e.observar(ataque(0, 40, 90));
+    e.observar(suelta(200_000, 40));
+    let r = e.cerrar(Micros(2_000_000));
+
+    assert_eq!(r.acertadas, 1);
+    assert_eq!(r.omitidas, 0, "la de la derecha no se le pidió");
+    assert_eq!(r.intentadas(), 1, "y no está en el denominador");
+}

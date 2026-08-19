@@ -7,7 +7,7 @@
 mod fixtures;
 use fixtures::SmfBuilder;
 use piano_core::load_smf;
-use piano_core::practica::{Avance, Mano, MascaraTeclas, Preparacion, Reparto};
+use piano_core::practica::{Avance, EstadoNota, Mano, MascaraTeclas, Preparacion, Reparto};
 use piano_core::time::{Micros, Ticks};
 use piano_core::Song;
 
@@ -334,4 +334,56 @@ fn cargar_otra_cancion_tira_el_resultado_anterior() {
     assert!(p.resultado().is_some());
     p.cargar(cancion_b());
     assert!(p.resultado().is_none(), "la canción nueva empieza sin resultado");
+}
+
+#[test]
+fn el_pentagrama_y_el_resumen_no_pueden_discrepar() {
+    // T051. Si el veredicto se decidiera en dos sitios, el pentagrama pintaría una cosa y
+    // el resumen diría otra, y discreparían **en silencio**. El Principio I exige un solo
+    // criterio, así que la vista pregunta al evaluador y no juzga por su cuenta.
+    let mut p = Preparacion::nueva(una_voz());
+    p.poner_en_marcha(Micros::ZERO);
+
+    // Mientras suena y nadie la ha juzgado, la vista no puede afirmar nada del alumno: la
+    // pinta sonando, que es un hecho de la canción, no un veredicto sobre él.
+    let mut out = Vec::new();
+    p.detallar(0, 100, &mut out);
+    assert_eq!(out[0].estado, EstadoNota::Sonando, "aún no hay veredicto");
+
+    // Se acierta la primera y se deja pasar su ventana.
+    p.observar_tecla(60, true, Micros(10_000));
+    p.observar_tecla(60, false, Micros(200_000));
+    let mut m = MascaraTeclas::VACIA;
+    m.poner(60);
+    // Sin pasarse del final: llegar al final CIERRA la interpretación, y entonces ya no hay
+    // evaluador al que preguntar. La pieza dura 750 ms.
+    p.avanzar_con(Micros(600_000), m);
+
+    let mut out = Vec::new();
+    p.detallar(0, 100, &mut out);
+    assert_eq!(out[0].estado, EstadoNota::Acertada, "el veredicto del evaluador se pinta");
+}
+
+#[test]
+fn una_nota_que_paso_sin_tocarse_se_pinta_omitida() {
+    let mut p = Preparacion::nueva(una_voz());
+    p.poner_en_marcha(Micros::ZERO);
+    p.avanzar_con(Micros(600_000), MascaraTeclas::VACIA);
+    let mut out = Vec::new();
+    p.detallar(0, 100, &mut out);
+    assert_eq!(out[0].estado, EstadoNota::Omitida);
+}
+
+#[test]
+fn sin_interpretacion_en_curso_la_vista_no_inventa_veredictos() {
+    // Parado, nadie ha juzgado nada: pintar «omitida» sería acusar al alumno de algo que no
+    // ha tenido ocasión de hacer.
+    let mut p = Preparacion::nueva(una_voz());
+    p.avanzar_a(2_000_000);
+    let mut out = Vec::new();
+    p.detallar(0, 3_000_000, &mut out);
+    assert!(
+        out.iter().all(|n| n.estado != EstadoNota::Omitida),
+        "sin interpretación no hay veredicto que pintar"
+    );
 }

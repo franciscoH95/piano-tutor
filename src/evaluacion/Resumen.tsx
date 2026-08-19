@@ -22,7 +22,21 @@ export type ResultadoPlano = {
   sinTocar: boolean;
   /** Los tiempos no se evaluaron. Hay que decirlo. */
   parcial: boolean;
+  /** Recuento de cada mano (FR-018). */
+  porMano: { izquierda: Recuento; derecha: Recuento };
 };
+
+/** Lo que le pasó a una mano. */
+export type Recuento = {
+  acertadas: number;
+  fueraDeTiempo: number;
+  omitidas: number;
+};
+
+/** Si a esta mano se le pidió algo. */
+function tuvoNotas(r: Recuento): boolean {
+  return r.acertadas + r.fueraDeTiempo + r.omitidas > 0;
+}
 
 function ms(us: number): number {
   return Math.round(Math.abs(us) / 1000);
@@ -64,6 +78,25 @@ export function Resumen({ resultado: r }: { resultado: ResultadoPlano }) {
           </li>
         )}
       </ul>
+
+      {/* Solo si la pieza tiene las dos: enseñar «derecha: 0 de 0» es ruido que hace
+          pensar que algo falló. */}
+      {tuvoNotas(r.porMano.izquierda) && tuvoNotas(r.porMano.derecha) && (
+        <ul className="por-mano">
+          <li>
+            Izquierda: {r.porMano.izquierda.acertadas} de{" "}
+            {r.porMano.izquierda.acertadas +
+              r.porMano.izquierda.fueraDeTiempo +
+              r.porMano.izquierda.omitidas}
+          </li>
+          <li>
+            Derecha: {r.porMano.derecha.acertadas} de{" "}
+            {r.porMano.derecha.acertadas +
+              r.porMano.derecha.fueraDeTiempo +
+              r.porMano.derecha.omitidas}
+          </li>
+        </ul>
+      )}
 
       {/* El signo ES la información: «40 ms» no le dice nada al alumno, «vas 40 ms tarde» sí. */}
       {r.desfaseMedianaUs !== null && (
