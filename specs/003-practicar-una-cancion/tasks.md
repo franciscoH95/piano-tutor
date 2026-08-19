@@ -217,16 +217,38 @@ renderizador de componentes (T004a).
 ## Phase 8: Polish
 
 - [ ] T089 Implementar el banco de fotogramas en `bench/src/bin/fotogramas.rs`: abre ventana real, mide y publica las **cinco cifras** de SC-003 a SC-003d
-- [ ] T090 Implementar en `bench/src/bin/fotogramas.rs` la detección de suspensiones del sistema (intervalos > 200 ms), su exclusión del cálculo y su **declaración en el informe**. Sin esto el informe publica un número inventado: en la primera medición se perdieron 430 de 600 segundos por esta causa
+- [X] T090 Implementar en `bench/src/bin/fotogramas.rs` la detección de suspensiones del sistema (intervalos > 200 ms), su exclusión del cálculo y su **declaración en el informe**. Sin esto el informe publica un número inventado: en la primera medición se perdieron 430 de 600 segundos por esta causa
 - [ ] T090a Implementar en `bench/src/bin/fotogramas.rs` la medición de extremo a extremo de SC-004: desde que el evento de tecla existe en Rust hasta que el píxel cambia, con al menos 1.000 eventos a ritmo realista, reportando p50, p95 y p99. **Es el criterio para el que existe todo el diseño del puente** —canal, hilo reenviador, anclas— y hasta ahora solo se había medido en una maqueta, no en el producto
 - [ ] T091 Ejecutar el banco de fotogramas con una pieza densa y registrar las cinco cifras en `specs/003-practicar-una-cancion/quickstart.md`, con fecha y máquina
 - [ ] T091b Comprobación manual de SC-001, con el procedimiento anotado en `specs/003-practicar-una-cancion/quickstart.md`: desde abrir la aplicación hasta ver una canción propia en pantalla, medir que pasan menos de 30 segundos y no más de tres acciones. Cronómetro en mano, con un archivo que no se haya abierto antes
 - [ ] T091c Comprobación manual de SC-006, anotada en el mismo sitio: alguien que **no sepa tocar la pieza** consigue llegar a su final en modo espera. No se puede automatizar —es el criterio más importante de la feature y depende de una persona—, pero sin estar planificado nadie lo comprueba
-- [ ] T092 [P] Documentar con rustdoc la API pública de `core/src/practica/` y `core/src/digitacion/`
-- [ ] T093 [P] Verificar `cargo clippy --workspace --all-targets -- -D warnings` limpio y `pnpm build` sin avisos
-- [ ] T094 [P] Revisar `src/practica/Lienzo.tsx` archivo a archivo y mudar a `piano-core` cualquier decisión que se haya colado. Es la condición que sostiene su excepción constitucional
-- [ ] T095 Verificar que `cargo tree -p piano-core` sigue dando exactamente tres líneas
+- [X] T092 [P] Documentar con rustdoc la API pública de `core/src/practica/` y `core/src/digitacion/`
+- [X] T093 [P] Verificar `cargo clippy --workspace --all-targets -- -D warnings` limpio y `pnpm build` sin avisos
+- [X] T094 [P] Revisar `src/practica/Lienzo.tsx` archivo a archivo y mudar a `piano-core` cualquier decisión que se haya colado. Es la condición que sostiene su excepción constitucional
+- [X] T095 Verificar que `cargo tree -p piano-core` sigue dando exactamente tres líneas
 - [ ] T096 Actualizar `Complexity Tracking` en `plan.md` con el resultado real del banco de fotogramas
+
+### Por qué quedan seis sin hacer
+
+Ninguna se ha saltado por comodidad; las seis necesitan algo que el código no puede darse a
+sí mismo.
+
+- **T089, T090a, T091, T096** necesitan una **ventana visible en pantalla**. La propia
+  especificación lo deja escrito: sin ella el sistema no dibuja ni un fotograma, así que un
+  banco automático publicaría ceros. Lo que sí está hecho y probado es el **cálculo**
+  (T090), que es donde SC-003c avisa del riesgo real —un informe que ignore las
+  suspensiones publica un número inventado—: vive en `src/practica/fotogramas.ts` con 13
+  pruebas. El procedimiento para tomar la medida está en `quickstart.md`, con la tabla
+  vacía esperando las cifras.
+- **T091b y T091c** son comprobaciones **manuales por definición**. T091c —que alguien que
+  no sepa tocar la pieza llegue a su final en modo espera— es el criterio más importante de
+  la feature y depende de una persona. Están escritas en `quickstart.md` precisamente
+  porque, si no están planificadas, nadie las hace.
+
+**Desviación declarada**: T090 pedía implementarlo en `bench/src/bin/fotogramas.rs`. La
+detección de suspensiones es lógica, no instrumentación, y en Rust no tendría nada que
+observar. Vive en TypeScript, junto a las marcas de tiempo que la producen, y con pruebas.
+El binario de Rust explica dónde está y por qué.
 
 ---
 

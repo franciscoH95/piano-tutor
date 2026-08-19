@@ -91,3 +91,41 @@ Abre una canción, elige tu teclado y toca. Comprueba:
   suavidad pero no a la corrección — pero medirlo sigue pendiente.
 - **Pantallas de dpr mayor que 2.** Todo se midió en dpr 2. Un monitor 5K multiplica el relleno, al
   que Canvas 2D es sensible.
+
+## Medir los fotogramas (SC-003 a SC-003d) y la latencia de reflejo (SC-004)
+
+**Estas cifras no se pueden tomar de forma automática.** Está medido que sin una ventana
+visible en pantalla el sistema no dibuja ni un fotograma, así que un banco sin ventana
+publicaría ceros. El cálculo —que es donde está el riesgo de publicar un número
+inventado— sí está probado, en `src/practica/fotogramas.ts`.
+
+### Procedimiento
+
+1. `pnpm tauri dev` con la ventana **visible y en primer plano**. Si queda tapada por otra,
+   el sistema suspende el dibujo y la traza se llena de huecos.
+2. Abrir una pieza densa (≥ 2.000 notas) y reproducirla entera a velocidad normal.
+3. Al terminar, recoger la traza y pasarla por `analizar()`.
+4. Anotar abajo las cinco cifras, **con fecha y máquina**.
+
+### Lo que el informe debe declarar
+
+`analizar()` devuelve `suspensiones`, `msSuspendidos` y `valido`. **Un informe que no
+declare las suspensiones no es válido** (SC-003c), y si `valido` es `false` significa que se
+suspendió tanto que las cifras no describen la reproducción: hay que repetir la medida.
+
+### Mediciones registradas
+
+| Fecha | Máquina | SC-003 (%) | SC-003a | SC-003b (ms) | SC-003c | SC-003d (ms) | SC-004 p95 |
+|-------|---------|-----------|---------|--------------|---------|--------------|------------|
+| _pendiente_ | | | | | | | |
+
+### Comprobaciones manuales pendientes
+
+Ninguna de las dos se puede automatizar, y por eso están escritas: si no están planificadas,
+nadie las hace.
+
+- **SC-001** (T091b): desde abrir la aplicación hasta ver una canción propia en pantalla,
+  cronómetro en mano y con un archivo que no se haya abierto antes. Debe pasar **menos de
+  30 segundos** y no más de **tres acciones**.
+- **SC-006** (T091c): alguien que **no sepa tocar la pieza** consigue llegar a su final en
+  modo espera. Es el criterio más importante de la feature y depende de una persona.
