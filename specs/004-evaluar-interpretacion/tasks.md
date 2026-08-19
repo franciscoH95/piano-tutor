@@ -99,13 +99,19 @@ interpretaciones grabadas y sin nada enchufado.
 - [ ] T027 [US1] Prueba en `core/tests/emparejar_test.rs`: la misma tecla dos veces seguidas en la canción y el alumno la toca **una sola vez**. Se declara cuál de las dos recibe la pulsación y por qué, y el resultado es estable
 - [ ] T028 [US1] Implementar el sellado del instante esperado al **cruzar** el ataque, con el ancla vigente, en `core/src/evaluacion/emparejar.rs`. Se sella una vez y **no se recalcula nunca**
 - [ ] T029 [US1] Prueba en `core/tests/emparejar_test.rs`: el instante esperado **no depende de la cadencia de fotogramas**. El mismo guion con 1, 100 y 10.000 avances da los mismos desfases
-- [ ] T030 [US1] Implementar el emparejamiento en línea completo, con todas las reglas de desempate explícitas, en `core/src/evaluacion/emparejar.rs`
+- [ ] T029a [US1] Prueba en `core/tests/evaluacion_test.rs`: `Evaluador::observar` **no asigna memoria** por evento. Se cuenta con el contador de asignaciones que la feature 002 ya dejó montado, y con contador por hilo para que no lo ensucien las pruebas en paralelo — el fallo exacto que ya se corrigió una vez ahí
+- [ ] T030 [US1] Implementar `Evaluador::observar` y `Evaluador::avanzar` con el emparejamiento en línea completo y todas las reglas de desempate explícitas, en `core/src/evaluacion/emparejar.rs` y `core/src/evaluacion/mod.rs`
 
 ### El veredicto
 
 - [ ] T031 [US1] Prueba en `core/tests/evaluacion_test.rs`: las seis clases de veredicto se distinguen — acertada, tocada fuera de tiempo, omitida, no intentada, fuera de alcance, y de más
+- [ ] T031a [US1] Prueba en `core/tests/evaluacion_test.rs`: SC-013, el **dedo que se escapa**. Se roza la tecla contigua y acto seguido se toca la correcta: la contigua se clasifica como dedo que se escapa y **no** como nota de más equiparable a tocar un compás equivocado, y el acierto sigue contando como acierto
+- [ ] T031b [US1] Prueba en `core/tests/evaluacion_test.rs`: la cercanía del dedo que se escapa **no se traga notas legítimas**. Si la contigua es una nota que la canción sí pide en ese instante, se empareja con ella y se cuenta como acierto, no como dedo escapado
+- [ ] T031c [US1] Implementar la clasificación del dedo que se escapa en `core/src/evaluacion/mod.rs`, con su tolerancia en tiempo y en semitonos leída de `tolerancias.rs` (FR-010a, FR-011a)
 - [ ] T032 [US1] Prueba en `core/tests/evaluacion_test.rs`: la omisión es un **vencimiento del cursor**, no un temporizador. En modo espera, una nota que el cursor está esperando **no vence** por mucho que pase el reloj real: es la nota que el alumno está a punto de acertar
-- [ ] T033 [US1] Implementar el vencimiento y la clasificación en `core/src/evaluacion/mod.rs`
+- [ ] T032a [US1] Prueba en `core/tests/evaluacion_test.rs`: FR-013, un pasaje saltado con la salida del modo espera queda **no intentado** y **no** cuenta como fallado. Ejercita `Evaluador::saltar`
+- [ ] T032b [US1] Prueba en `core/tests/evaluacion_test.rs`: SC-009, el porcentaje de aciertos se calcula **sobre lo que el alumno intentó**. Las no intentadas y las fuera de alcance quedan fuera del denominador; con 20 notas de las que 5 se saltaron, el 100 % de las 15 restantes da 100 %, no 75 %
+- [ ] T033 [US1] Implementar el vencimiento, la clasificación y `Evaluador::saltar` en `core/src/evaluacion/mod.rs`
 - [ ] T034 [US1] Prueba en `core/tests/evaluacion_test.rs`: SC-001, la interpretación perfecta da 20 acertadas, 0 omitidas y 0 de más **en los tres niveles**
 - [ ] T035 [US1] Prueba en `core/tests/evaluacion_test.rs`: SC-002, cero observaciones se comunica como «no se tocó nada» y **no** como 0 % de aciertos
 - [ ] T036 [US1] Implementar `Resultado` y los recuentos en `core/src/evaluacion/resultado.rs`
@@ -117,6 +123,12 @@ interpretaciones grabadas y sin nada enchufado.
 - [ ] T039 [US1] Prueba en `core/tests/evaluacion_test.rs`: con menos del mínimo de notas **no** se afirma que haya desfase sistemático. Con dos notas la mediana existe y no significa nada
 - [ ] T040 [US1] Implementar la detección del desfase sistemático en `core/src/evaluacion/resultado.rs`
 - [ ] T041 [US1] Prueba en `core/tests/evaluacion_test.rs`: SC-012, la misma interpretación a mitad de velocidad con los mismos desfases absolutos da el **mismo** número de aciertos. Si salen más, la tolerancia está escalando con el tempo y FR-008a está roto
+
+### Determinismo (Principio I, no negociable)
+
+- [ ] T041a [US1] Prueba en `core/tests/evaluacion_test.rs`: **SC-005**, la misma interpretación evaluada 100 veces da resultados **idénticos campo a campo**, incluidos los veredictos por nota y el desfase sistemático
+- [ ] T041b [US1] Prueba en `core/tests/evaluacion_test.rs`: **SC-008**, ninguna medida ni recuento depende del **orden de llegada** de pulsaciones que ocurrieron en el mismo instante. Se evalúa la misma interpretación con las simultáneas permutadas de las seis formas posibles y los seis resultados coinciden
+- [ ] T041c [US1] Prueba en `core/tests/evaluacion_test.rs`: FR-003 y FR-021, el resultado **no depende del perfil de compilación**. Los valores que podrían diferir entre debug y release —los que pasan por `u128` y `try_from`— se comprueban explícitamente, porque la misma entrada con dos salidas según cómo se compile es la violación más silenciosa del Principio I
 
 ### El puente y la pantalla
 
@@ -243,7 +255,7 @@ Phase 1 (Setup) ──► Phase 2 (Foundational) ──► Phase 3 (US1) 🎯 MV
 
 ## Implementation Strategy
 
-**MVP = Fases 1 a 3.** Al terminarlas el alumno toca una pieza y ve cuántas acertó, cuántas se dejó
+**MVP = Fases 1 a 3 (56 tareas).** Al terminarlas el alumno toca una pieza y ve cuántas acertó, cuántas se dejó
 y cuántas tocó de más, con detección de desfase sistemático. Es entregable por sí solo.
 
 Después, por valor decreciente: **US2** (dónde fallo) es lo que más cambia lo que el alumno hace
