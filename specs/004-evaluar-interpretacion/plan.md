@@ -149,10 +149,30 @@ src/evaluacion/                 # NUEVO: mostrar el resultado
 src-tauri/src/comandos.rs       # existente; se le añaden los mandos del resultado
 ```
 
+## Constitution Check (después del diseño)
+
+Se vuelve a comprobar con las decisiones de la Fase 0 encima de la mesa.
+
+| Principio | Antes | Después | Qué cambió |
+|---|---|---|---|
+| I. Precisión musical | Cumple | **Cumple mejor** | La Decisión 1 convierte SC-006 en consecuencia estructural en vez de propiedad que hay que vigilar. La Decisión 4 elimina el riesgo de dos oráculos discrepando en silencio |
+| II. TDD | Cumple | Cumple | Sin excepciones que declarar. Ningún archivo nuevo en la lista de exentos |
+| III. Núcleo desacoplado | Cumple | Cumple | Ninguna dependencia nueva; ninguna tolerancia cruza el puente |
+| IV. <30 ms p95 | Cumple si el diseño respeta el coste | **Cumple** | El sellado ocurre al cruzar, con coste constante; el resumen —medianas, cuartiles— se calcula **al cerrar**, no por evento |
+| V. Local primero | Cumple | Cumple | Sin almacenamiento y sin red |
+
+**Veredicto**: pasa. No se necesita ninguna enmienda a la constitución ni ninguna entrada en el
+Complexity Tracking por violación.
+
 ## Complexity Tracking
 
-*Se rellena cuando el diseño esté cerrado y medido. Por ahora, el único punto donde la complejidad
-puede dispararse es el emparejamiento en línea: `FR-004` prohíbe revisar decisiones a la luz de lo
-que venga después, lo que descarta el emparejamiento óptimo global y obliga a un algoritmo que
-decide sobre la marcha. La Fase 0 tiene que fijar cuánta precisión se pierde por no mirar el futuro
-y dejarlo escrito, no descubrirlo durante la implementación.*
+Ninguna violación que justificar. Dos puntos donde la complejidad es **real pero necesaria**, y
+conviene que estén escritos para que nadie los «simplifique» sin saber lo que quita:
+
+| Complejidad | Por qué es necesaria | Qué pasa si se simplifica |
+|---|---|---|
+| **Dos ventanas** (emparejamiento y ataque) en vez de una | Hace que SC-006 se cumpla por aritmética | Con una sola, cambiar de nivel cambia qué se empareja, y una nota puede quedar acertada en el nivel exigente y sin pareja en el permisivo |
+| **Sellar el instante esperado al cruzar**, en vez de calcularlo al evaluar | FR-004 prohíbe revisar; `posicion_en` recorta por el tope y truncaría la tardanza en silencio | Un cambio de velocidad reescribiría veredictos ya dados, y una nota tardía más allá del final del archivo se mediría mal sin que nada fallase |
+
+**Medición pendiente**: cuánta precisión se pierde por no mirar el futuro (FR-004). Es cuantificable
+con las interpretaciones grabadas y es una tarea de la implementación, no una suposición del plan.
