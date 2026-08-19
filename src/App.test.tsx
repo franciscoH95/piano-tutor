@@ -35,6 +35,7 @@ beforeEach(() => {
   vi.mocked(puente.saltarPuerta).mockResolvedValue(null);
   vi.mocked(puente.ultimoResultado).mockResolvedValue(null);
   vi.mocked(puente.cambiarNivel).mockResolvedValue();
+  vi.mocked(puente.compararConAnterior).mockResolvedValue(null);
 });
 
 afterEach(() => {

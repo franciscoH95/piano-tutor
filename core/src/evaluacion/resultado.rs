@@ -159,3 +159,33 @@ pub(crate) const fn desfase(pulsacion: Micros, esperado: Micros) -> i64 {
     let b = esperado.0 as i64;
     a.wrapping_sub(b)
 }
+
+/// Cual de dos interpretaciones fue mejor. `Greater` significa que `a` fue mejor.
+///
+/// # Por que lexico y no una puntuacion
+///
+/// Manda el **numero de notas acertadas**, y solo cuando empatan decide la desviacion
+/// (FR-020). Combinarlas en una puntuacion unica con pesos esta **prohibido**: unos pesos
+/// arbitrarios reordenarian en silencio interpretaciones ya juzgadas cada vez que alguien
+/// los ajustase, y serian justo la clase de constante dispersa que el Principio I prohibe.
+///
+/// Ademas coincide con el orden en que se aprende: nadie pule el ritmo de un pasaje cuyas
+/// notas todavia se equivoca.
+///
+/// # Por que es total
+///
+/// FR-020a lo exige: para cualquier par hay respuesta. «No se puede saber» no es admisible,
+/// porque es justo cuando el alumno mas quiere saberlo. Al ser lexico sobre dos ordenes
+/// totales, el resultado tambien lo es, y es transitivo por construccion.
+#[must_use]
+pub fn comparar(a: &Resultado, b: &Resultado) -> core::cmp::Ordering {
+    // Mas aciertos, mejor.
+    match a.acertadas.cmp(&b.acertadas) {
+        core::cmp::Ordering::Equal => {}
+        otro => return otro,
+    }
+    // Menos desviacion, mejor. **Sin desfase sistematico cuenta como cero**: ir a tempo es
+    // lo mejor que puede pasar, no una ausencia de dato.
+    let desviacion = |r: &Resultado| r.desfase.map_or(0, |d| d.mediana_us.unsigned_abs());
+    desviacion(b).cmp(&desviacion(a))
+}

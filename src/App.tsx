@@ -5,7 +5,12 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import "./App.css";
 import { Selector, type DispositivoPlano } from "./dispositivos/Selector";
-import { Resumen, type NivelElegido, type ResultadoPlano } from "./evaluacion/Resumen";
+import {
+  Resumen,
+  type Comparacion,
+  type NivelElegido,
+  type ResultadoPlano,
+} from "./evaluacion/Resumen";
 import { Controles } from "./practica/controles";
 import { Lienzo } from "./practica/Lienzo";
 import { construirEscena, VENTANA_US } from "./practica/escena";
@@ -21,6 +26,7 @@ import {
   ajustarCorte,
   cambiarModo,
   cambiarNivel,
+  compararConAnterior,
   cambiarVelocidad,
   conectarTeclado,
   elegirArchivo,
@@ -57,6 +63,7 @@ export default function App() {
   const [modo, setModo] = useState<Modo>("porReloj");
   const [resultado, setResultado] = useState<ResultadoPlano | null>(null);
   const [nivel, setNivel] = useState<NivelElegido>("intermedio");
+  const [comparacion, setComparacion] = useState<Comparacion | undefined>(undefined);
   const [mano, setMano] = useState<ManoElegida>("ambas");
   const notasRef = useRef(notas);
   notasRef.current = notas;
@@ -150,6 +157,7 @@ export default function App() {
     setEnMarcha(true);
     // Empezar de nuevo retira el resumen anterior: es de otra interpretación.
     setResultado(null);
+    setComparacion(undefined);
   }, [recibirAncla]);
 
   const parar = useCallback(async () => {
@@ -157,6 +165,7 @@ export default function App() {
     setEnMarcha(false);
     // Pausar cierra la interpretación, así que ya hay resumen que enseñar (FR-014a).
     setResultado(await ultimoResultado());
+    setComparacion((await compararConAnterior()) ?? undefined);
   }, [recibirAncla]);
 
   const alPrincipio = useCallback(async () => {
@@ -246,7 +255,12 @@ export default function App() {
       {/* Siempre visibles, haya canción o no y haya fallado la carga o no: es lo que
           mantiene la aplicación utilizable después de un error (FR-004). */}
       {resultado !== null && (
-        <Resumen resultado={resultado} nivel={nivel} onNivel={ponerNivel} />
+        <Resumen
+          resultado={resultado}
+          comparacion={comparacion}
+          nivel={nivel}
+          onNivel={ponerNivel}
+        />
       )}
 
       <Controles

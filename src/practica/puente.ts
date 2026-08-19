@@ -5,7 +5,7 @@
 
 import { Channel, invoke } from "@tauri-apps/api/core";
 import type { DispositivoPlano } from "../dispositivos/Selector";
-import type { ResultadoPlano } from "../evaluacion/Resumen";
+import type { Comparacion, ResultadoPlano } from "../evaluacion/Resumen";
 import { open } from "@tauri-apps/plugin-dialog";
 
 /** Lo que el núcleo cuenta de una canción recién abierta. */
@@ -107,7 +107,7 @@ export async function cambiarVelocidad(v: {
 import type { MensajeDelNucleo } from "./modelo";
 export type { MensajeDelNucleo };
 export type { DispositivoPlano };
-export type { ResultadoPlano };
+export type { ResultadoPlano, Comparacion };
 
 /**
  * Abre el canal por el que el núcleo empuja teclas, anclas y avisos.
@@ -177,4 +177,9 @@ export async function cambiarNivel(
   nivel: "permisivo" | "intermedio" | "exigente",
 ): Promise<void> {
   return invoke<void>("evaluacion_nivel", { nivel });
+}
+
+/** Cómo fue el último intento respecto al anterior del mismo tramo. */
+export async function compararConAnterior(): Promise<Comparacion | null> {
+  return invoke<Comparacion | null>("evaluacion_comparar_con_anterior");
 }

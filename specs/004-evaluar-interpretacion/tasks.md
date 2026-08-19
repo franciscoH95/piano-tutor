@@ -198,15 +198,15 @@ coherentes.
 
 **Prueba independiente**: dos interpretaciones del mismo pasaje, una mejor, se ordenan sin ambigüedad.
 
-- [ ] T062 [US4] Prueba en `core/tests/evaluacion_test.rs`: SC-010, de dos interpretaciones con la mitad de fallos una que otra, siempre se señala la mejor
-- [ ] T063 [US4] Prueba en `core/tests/evaluacion_test.rs`: el orden es **total** (FR-020a). Para 100 pares, `comparar` siempre devuelve mayor, menor o igual; nunca «no se sabe». Y es transitivo: si a > b y b > c, entonces a > c
-- [ ] T064 [US4] Prueba en `core/tests/evaluacion_test.rs`: el orden es **léxico**, no una puntuación con pesos. Una interpretación con un acierto más y peor ritmo gana; si se pudiera compensar, no sería léxico
-- [ ] T065 [US4] Implementar `comparar` en `core/src/evaluacion/resultado.rs`
-- [ ] T066 [US4] Prueba en `core/tests/evaluacion_test.rs`: dos intentos del **mismo tramo** se identifican como comparables, y dos de tramos distintos no
-- [ ] T067 [US4] Implementar la identificación de tramo y la comparación con el intento anterior en `core/src/evaluacion/mod.rs`
-- [ ] T068 [US4] Implementar `evaluacion_comparar_con_anterior` en `src-tauri/src/comandos.rs`
-- [ ] T069 [US4] Prueba en `src/evaluacion/Resumen.test.tsx`: se muestra si este intento fue mejor que el anterior, y se dice cuándo no hay anterior con qué comparar
-- [ ] T070 [US4] Implementar la comparación en `src/evaluacion/Resumen.tsx`
+- [X] T062 [US4] Prueba en `core/tests/evaluacion_test.rs`: SC-010, de dos interpretaciones con la mitad de fallos una que otra, siempre se señala la mejor
+- [X] T063 [US4] Prueba en `core/tests/evaluacion_test.rs`: el orden es **total** (FR-020a). Para 100 pares, `comparar` siempre devuelve mayor, menor o igual; nunca «no se sabe». Y es transitivo: si a > b y b > c, entonces a > c
+- [X] T064 [US4] Prueba en `core/tests/evaluacion_test.rs`: el orden es **léxico**, no una puntuación con pesos. Una interpretación con un acierto más y peor ritmo gana; si se pudiera compensar, no sería léxico
+- [X] T065 [US4] Implementar `comparar` en `core/src/evaluacion/resultado.rs`
+- [X] T066 [US4] Prueba en `core/tests/evaluacion_test.rs`: dos intentos del **mismo tramo** se identifican como comparables, y dos de tramos distintos no
+- [X] T067 [US4] Implementar la identificación de tramo y la comparación con el intento anterior en `core/src/evaluacion/mod.rs`
+- [X] T068 [US4] Implementar `evaluacion_comparar_con_anterior` en `src-tauri/src/comandos.rs`
+- [X] T069 [US4] Prueba en `src/evaluacion/Resumen.test.tsx`: se muestra si este intento fue mejor que el anterior, y se dice cuándo no hay anterior con qué comparar
+- [X] T070 [US4] Implementar la comparación en `src/evaluacion/Resumen.tsx`
 
 **Checkpoint**: repetir un pasaje tiene sentido.
 

@@ -161,3 +161,27 @@ describe("el selector de exigencia", () => {
     expect(screen.queryByRole("combobox", { name: /exigencia/i })).not.toBeInTheDocument();
   });
 });
+
+describe("comparar con el intento anterior", () => {
+  it("dice que fue mejor", () => {
+    render(<Resumen resultado={resultado({ acertadas: 8, intentadas: 10 })} comparacion={{ mejor: true, igual: false }} />);
+    expect(screen.getByText(/mejor/i)).toBeInTheDocument();
+  });
+
+  it("dice que fue peor", () => {
+    // Empeorar también se dice: callarlo dejaría al alumno sin saber que ese cambio que
+    // probó le fue mal.
+    render(<Resumen resultado={resultado({ acertadas: 3, intentadas: 10 })} comparacion={{ mejor: false, igual: false }} />);
+    expect(screen.getByText(/peor|no mejor/i)).toBeInTheDocument();
+  });
+
+  it("dice que fue igual", () => {
+    render(<Resumen resultado={resultado({ acertadas: 5, intentadas: 10 })} comparacion={{ mejor: false, igual: true }} />);
+    expect(screen.getByText(/igual/i)).toBeInTheDocument();
+  });
+
+  it("cuando no hay con qué comparar, no dice nada en vez de inventarse un «mejor»", () => {
+    render(<Resumen resultado={resultado({ acertadas: 5, intentadas: 10 })} />);
+    expect(screen.queryByText(/mejor|peor|igual que/i)).not.toBeInTheDocument();
+  });
+})

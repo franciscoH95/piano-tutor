@@ -6,7 +6,7 @@
 
 use crate::digitacion::{digitar, Dedo, Digitacion};
 use crate::practica::cursor::{Ancla, Avance, Cursor, Paso, Velocidad};
-use crate::evaluacion::{Evaluador, Nivel, Resultado, Veredicto};
+use crate::evaluacion::{comparar, Evaluador, Nivel, Resultado, Veredicto};
 use crate::practica::sonando::MascaraTeclas;
 use crate::capture::{Observacion, TipoEvento};
 use crate::practica::manos::{repartir, Mano, RepartoDeManos};
@@ -59,8 +59,28 @@ pub struct Preparacion {
     /// reanudar abre otra (FR-014a). Es la misma frontera que el cursor ya usa para cambiar
     /// de regimen, asi que no hay concepto nuevo que inventar.
     evaluando: Option<Evaluador>,
-    /// El resultado de la ultima interpretacion cerrada.
-    ultimo: Option<Resultado>,
+    /// El resultado de la ultima interpretacion cerrada, con el tramo que abarco.
+    ultimo: Option<Intento>,
+    /// El anterior, para poder decir si se mejoro.
+    anterior: Option<Intento>,
+    /// Donde empezo la interpretacion en curso.
+    desde: Micros,
+}
+
+/// Un intento cerrado, con el tramo de cancion que abarco.
+struct Intento {
+    resultado: Resultado,
+    desde: Micros,
+    hasta: Micros,
+}
+
+/// Como fue este intento respecto al anterior del mismo tramo.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub struct Comparacion {
+    /// Este intento fue mejor que el anterior.
+    pub mejor: bool,
+    /// O exactamente igual.
+    pub igual: bool,
 }
 
 impl Preparacion {
@@ -84,6 +104,8 @@ impl Preparacion {
             nivel: Nivel::Intermedio,
             evaluando: None,
             ultimo: None,
+            anterior: None,
+            desde: Micros(0),
             cancion,
             posicion: Micros(0),
             vista: Vista::nueva(),
@@ -192,8 +214,25 @@ impl Preparacion {
 
     /// El resultado de la última interpretación cerrada, si la hay.
     #[must_use]
-    pub const fn resultado(&self) -> Option<&Resultado> {
-        self.ultimo.as_ref()
+    pub fn resultado(&self) -> Option<&Resultado> {
+        self.ultimo.as_ref().map(|i| &i.resultado)
+    }
+
+    /// Cómo fue el último intento respecto al anterior **del mismo tramo**.
+    ///
+    /// `None` si no hay anterior, o si el anterior era de otro tramo: comparar el compás 1
+    /// con el compás 9 no dice nada útil, y decirlo igualmente sería peor que callarse.
+    #[must_use]
+    pub fn comparacion(&self) -> Option<Comparacion> {
+        let (ultimo, anterior) = (self.ultimo.as_ref()?, self.anterior.as_ref()?);
+        if ultimo.desde != anterior.desde || ultimo.hasta != anterior.hasta {
+            return None;
+        }
+        let orden = comparar(&ultimo.resultado, &anterior.resultado);
+        Some(Comparacion {
+            mejor: orden == core::cmp::Ordering::Greater,
+            igual: orden == core::cmp::Ordering::Equal,
+        })
     }
 
     /// Cuánta exigencia. Afecta a la interpretación siguiente.
@@ -215,16 +254,23 @@ impl Preparacion {
     }
 
     fn abrir_interpretacion(&mut self) {
+        self.desde = self.posicion;
         let manos: Vec<Mano> = (0..self.reparto.len()).map(|i| self.reparto.mano(i)).collect();
         let mut e = Evaluador::nuevo(&self.cancion, &manos, self.practicada, self.nivel);
         e.evaluar_tiempos(self.cursor.avance() == Avance::PorReloj);
+        // Traduce las posiciones de canción al eje del reloj, que es donde llegan las
+        // pulsaciones. Sin esto, al repetir un pasaje el reloj ya no está en cero y el
+        // emparejamiento compararía peras con manzanas.
+        e.sellar(&self.cursor.ancla());
         self.evaluando = Some(e);
-        self.ultimo = None;
     }
 
     fn cerrar_interpretacion(&mut self) {
         if let Some(e) = self.evaluando.take() {
-            self.ultimo = Some(e.cerrar(self.posicion));
+            let intento =
+                Intento { resultado: e.cerrar(self.posicion), desde: self.desde, hasta: self.posicion };
+            self.anterior = self.ultimo.take();
+            self.ultimo = Some(intento);
         }
     }
 
@@ -253,7 +299,12 @@ impl Preparacion {
         let paso = self.cursor.avanzar_con(ahora, pulsadas);
         self.avanzar_a(paso.posicion.0);
         if let Some(e) = self.evaluando.as_mut() {
-            e.avanzar(paso.posicion);
+            // Al cambiar el régimen cambia de verdad el instante esperado de lo que aún no
+            // ha sonado, así que se vuelve a sellar. Lo ya juzgado no se toca (FR-004).
+            if paso.ancla.is_some() {
+                e.sellar(&self.cursor.ancla());
+            }
+            e.avanzar(ahora);
         }
         // Llegar al final tambien cierra la interpretacion (FR-014a).
         if paso.terminada {

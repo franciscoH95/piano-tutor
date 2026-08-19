@@ -22,7 +22,7 @@ mod tolerancias;
 pub use emparejar::instante_de;
 pub use evaluador::Evaluador;
 pub use resultado::{
-    sistematico, Medida, Recuento, Resultado, Sistematico, Veredicto,
+    comparar, sistematico, Medida, Recuento, Resultado, Sistematico, Veredicto,
 };
 pub use pulsacion::{Pulsacion, Pulsaciones};
 pub use estadistica::{cuartiles, mediana};

@@ -759,3 +759,97 @@ fn cambiar_de_nivel_no_cambia_que_se_empareja_con_que() {
     assert_eq!(p, x, "el emparejamiento no puede depender del nivel");
     assert_eq!(p.len(), 20, "y las veinte se emparejaron en los dos");
 }
+
+// ---------------------------------------------------------------- T062, T063, T064
+
+use core::cmp::Ordering;
+use piano_core::evaluacion::comparar;
+
+/// Una interpretación de la escala con `fallos` notas sin tocar y el resto desplazadas.
+fn intento(song: &Song, fallos: usize, desplazamiento: i64) -> piano_core::evaluacion::Resultado {
+    let mut e = evaluador(song, Nivel::Permisivo);
+    for n in song.notes().iter().skip(fallos) {
+        let t = n.onset_us.0.saturating_add_signed(desplazamiento);
+        e.observar(ataque(t, n.key, 90));
+        e.observar(suelta(t + 200_000, n.key));
+    }
+    e.cerrar(Micros(30_000_000))
+}
+
+#[test]
+fn de_dos_intentos_se_señala_el_mejor() {
+    // T062 (SC-010).
+    let song = escala(20);
+    let malo = intento(&song, 10, 0);
+    let bueno = intento(&song, 5, 0);
+    assert_eq!(comparar(&bueno, &malo), Ordering::Greater);
+    assert_eq!(comparar(&malo, &bueno), Ordering::Less);
+    assert_eq!(comparar(&bueno, &bueno), Ordering::Equal);
+}
+
+#[test]
+fn el_orden_es_total_y_transitivo() {
+    // T063 (FR-020a). «No se puede saber» no es una respuesta admisible: es justo cuando el
+    // alumno más quiere saberlo.
+    let song = escala(20);
+    let intentos: Vec<_> = (0..10)
+        .map(|i| intento(&song, i, (i as i64 - 5) * 20_000))
+        .collect();
+
+    // Total: cualquier par se ordena, y de forma antisimétrica.
+    for a in &intentos {
+        for b in &intentos {
+            let ab = comparar(a, b);
+            let ba = comparar(b, a);
+            assert_eq!(ab, ba.reverse(), "antisimetría");
+        }
+    }
+    // Transitivo.
+    for a in &intentos {
+        for b in &intentos {
+            for c in &intentos {
+                if comparar(a, b) == Ordering::Greater && comparar(b, c) == Ordering::Greater {
+                    assert_eq!(comparar(a, c), Ordering::Greater, "transitividad");
+                }
+            }
+        }
+    }
+}
+
+#[test]
+fn el_orden_es_lexico_y_no_una_puntuacion_con_pesos() {
+    // T064. Una interpretación con **un acierto más** y un ritmo mucho peor gana igual. Si
+    // se pudieran compensar, no sería léxico, y unos pesos arbitrarios reordenarían en
+    // silencio interpretaciones ya juzgadas cada vez que se ajustasen.
+    let song = escala(20);
+    let mas_aciertos_peor_ritmo = intento(&song, 4, 110_000); // 16 aciertos, muy desplazado
+    let menos_aciertos_ritmo_perfecto = intento(&song, 5, 0); // 15 aciertos, clavado
+
+    assert_eq!(mas_aciertos_peor_ritmo.acertadas, 16);
+    assert_eq!(menos_aciertos_ritmo_perfecto.acertadas, 15);
+    assert_eq!(
+        comparar(&mas_aciertos_peor_ritmo, &menos_aciertos_ritmo_perfecto),
+        Ordering::Greater,
+        "manda el número de notas; el ritmo solo desempata"
+    );
+}
+
+#[test]
+fn con_los_mismos_aciertos_decide_el_ritmo() {
+    let song = escala(20);
+    let clavado = intento(&song, 5, 0);
+    let desplazado = intento(&song, 5, 100_000);
+    assert_eq!(clavado.acertadas, desplazado.acertadas, "empatan en notas");
+    assert_eq!(comparar(&clavado, &desplazado), Ordering::Greater, "y decide el ritmo");
+}
+
+#[test]
+fn no_tener_desfase_sistematico_es_mejor_que_tenerlo() {
+    // Ir a tempo es lo mejor que puede pasarte, así que la ausencia de desfase gana.
+    let song = escala(20);
+    let a_tempo = intento(&song, 0, 0);
+    let tarde = intento(&song, 0, 100_000);
+    assert!(a_tempo.desfase.is_none());
+    assert!(tarde.desfase.is_some());
+    assert_eq!(comparar(&a_tempo, &tarde), Ordering::Greater);
+}

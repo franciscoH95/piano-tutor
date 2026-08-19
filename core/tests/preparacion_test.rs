@@ -297,7 +297,10 @@ fn pausar_cierra_la_interpretacion_y_reanudar_abre_otra() {
     assert!(p.resultado().is_some(), "pausar cierra la interpretación");
 
     p.poner_en_marcha(Micros(600_000));
-    assert!(p.resultado().is_none(), "reanudar abre otra, y todavía no ha cerrado");
+    // El resultado del intento anterior **sigue ahí**: `resultado()` es «el último cerrado»,
+    // y es lo que permite comparar un intento con el anterior. Quien pinta decide si lo
+    // enseña mientras se toca; el núcleo no lo tira.
+    assert!(p.resultado().is_some(), "el último cerrado sobrevive a abrir otro");
 }
 
 #[test]
@@ -386,4 +389,68 @@ fn sin_interpretacion_en_curso_la_vista_no_inventa_veredictos() {
         out.iter().all(|n| n.estado != EstadoNota::Omitida),
         "sin interpretación no hay veredicto que pintar"
     );
+}
+
+// ------------------------------------------------- comparar intentos
+
+#[test]
+fn dos_intentos_del_mismo_tramo_se_pueden_comparar() {
+    // T066. Repetir un pasaje es la forma normal de estudiar, y es lo que sostiene la
+    // historia 4.
+    let mut p = Preparacion::nueva(una_voz());
+    let mut m = MascaraTeclas::VACIA;
+    m.poner(60);
+
+    // Primer intento: no toca nada.
+    p.poner_en_marcha(Micros::ZERO);
+    p.avanzar_con(Micros(600_000), MascaraTeclas::VACIA);
+    p.pausar(Micros(600_000));
+    assert!(p.comparacion().is_none(), "el primer intento no tiene con qué compararse");
+
+    // Vuelve al principio y lo repite acertando.
+    p.saltar_a(Micros::ZERO, Micros(700_000));
+    p.poner_en_marcha(Micros(700_000));
+    p.observar_tecla(60, true, Micros(700_010));
+    p.observar_tecla(60, false, Micros(800_000));
+    p.avanzar_con(Micros(1_300_000), m);
+    p.pausar(Micros(1_300_000));
+
+    let c = p.comparacion().expect("ahora sí hay con qué comparar");
+    assert!(c.mejor, "el segundo intento fue mejor");
+}
+
+#[test]
+fn dos_intentos_de_tramos_distintos_no_se_comparan() {
+    // Comparar el compás 1 con el compás 9 no dice nada útil, y decirlo igualmente sería
+    // peor que callarse.
+    let mut p = Preparacion::nueva(una_voz());
+    p.poner_en_marcha(Micros::ZERO);
+    p.pausar(Micros(200_000));
+
+    p.saltar_a(Micros(500_000), Micros(300_000));
+    p.poner_en_marcha(Micros(300_000));
+    p.pausar(Micros(400_000));
+
+    assert!(p.comparacion().is_none(), "tramos distintos, nada que comparar");
+}
+
+#[test]
+fn empeorar_tambien_se_dice() {
+    let mut p = Preparacion::nueva(una_voz());
+    let mut m = MascaraTeclas::VACIA;
+    m.poner(60);
+
+    p.poner_en_marcha(Micros::ZERO);
+    p.observar_tecla(60, true, Micros(10_000));
+    p.observar_tecla(60, false, Micros(100_000));
+    p.avanzar_con(Micros(600_000), m);
+    p.pausar(Micros(600_000));
+
+    p.saltar_a(Micros::ZERO, Micros(700_000));
+    p.poner_en_marcha(Micros(700_000));
+    p.avanzar_con(Micros(1_300_000), MascaraTeclas::VACIA);
+    p.pausar(Micros(1_300_000));
+
+    let c = p.comparacion().expect("hay comparación");
+    assert!(!c.mejor, "el segundo fue peor y se dice");
 }

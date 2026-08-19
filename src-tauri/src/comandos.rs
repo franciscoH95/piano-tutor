@@ -614,3 +614,29 @@ pub fn evaluacion_nivel(estado: tauri::State<'_, std::sync::Arc<Estado>>, nivel:
         p.cambiar_nivel(elegido);
     }
 }
+
+/// Como fue el ultimo intento respecto al anterior **del mismo tramo**.
+#[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ComparacionPlana {
+    pub mejor: bool,
+    pub igual: bool,
+}
+
+/// Compara el ultimo intento con el anterior.
+///
+/// `None` si no hay anterior, o si era de otro tramo: comparar el compas 1 con el compas 9
+/// no dice nada util, y decirlo igualmente seria peor que callarse.
+#[tauri::command]
+pub fn evaluacion_comparar_con_anterior(
+    estado: tauri::State<'_, std::sync::Arc<Estado>>,
+) -> Option<ComparacionPlana> {
+    let guarda = match estado.preparacion.lock() {
+        Ok(g) => g,
+        Err(envenenado) => envenenado.into_inner(),
+    };
+    guarda
+        .as_ref()?
+        .comparacion()
+        .map(|c| ComparacionPlana { mejor: c.mejor, igual: c.igual })
+}

@@ -7,11 +7,12 @@
 //! habria decidido sabiendolo todo. Esa perdida es el precio de FR-004, y se mide aparte.
 
 use crate::capture::Observacion;
+use crate::evaluacion::emparejar::instante_de;
 use crate::evaluacion::pulsacion::Pulsaciones;
 use crate::evaluacion::resultado::{contar, desfase, sistematico};
 use crate::evaluacion::tolerancias::{Nivel, Tolerancias};
 use crate::evaluacion::{es_evaluable, Medida, Recuento, Resultado, Veredicto};
-use crate::practica::Mano;
+use crate::practica::{Ancla, Mano};
 use crate::time::Micros;
 use crate::Song;
 
@@ -19,8 +20,15 @@ use crate::Song;
 struct EnJuego {
     indice: usize,
     key: u8,
-    /// Cuando deberia sonar. Se calcula **una vez** y no se recalcula (FR-004).
-    esperado: Micros,
+    /// Donde cae en la CANCION.
+    onset: Micros,
+    /// Cuando deberia sonar **en el reloj de sesion**, que es el eje en el que llegan las
+    /// pulsaciones del alumno.
+    ///
+    /// `None` mientras no se haya podido sellar. Se sella con el ancla vigente y **no se
+    /// recalcula una vez la nota esta juzgada** (FR-004); las que aun no lo estan si se
+    /// vuelven a sellar al cambiar el ancla, porque su instante esperado cambio de verdad.
+    esperado: Option<Micros>,
     duracion: u64,
     mano: Mano,
     tomada: bool,
@@ -71,7 +79,8 @@ impl Evaluador {
                 notas.push(EnJuego {
                     indice: i,
                     key: n.key,
-                    esperado: n.onset_us,
+                    onset: n.onset_us,
+                    esperado: None,
                     duracion: n.end_us.0.saturating_sub(n.onset_us.0),
                     mano,
                     tomada: false,
@@ -85,7 +94,7 @@ impl Evaluador {
                 fuera_de_alcance += 1;
             }
         }
-        Self {
+        let mut evaluador = Self {
             tol: nivel.tolerancias(),
             notas,
             entrada: Pulsaciones::nuevas(),
@@ -95,6 +104,37 @@ impl Evaluador {
             no_intentadas: 0,
             examinadas: 0,
             tiempos: true,
+        };
+        // Se sella con un ancla **identidad**: reloj y cancion coincidiendo, a tempo normal
+        // desde cero. Es lo correcto para una interpretacion que empieza al principio con el
+        // reloj a cero, y quien tenga un ancla de verdad —`Preparacion`— vuelve a sellar
+        // acto seguido. Sin sellar de entrada, un evaluador recien creado no emparejaria
+        // nada y ese silencio seria dificil de diagnosticar.
+        evaluador.sellar(&Ancla {
+            posicion_us: Micros(0),
+            instante_us: Micros(0),
+            num: 1,
+            den: 1,
+            tope_us: None,
+        });
+        evaluador
+    }
+
+    /// Sella el instante de reloj en que deberia sonar cada nota todavia sin juzgar.
+    ///
+    /// **Es lo que traduce entre los dos ejes.** Las notas viven en posiciones de cancion y
+    /// las pulsaciones llegan en instantes de reloj; sin esta traduccion, en cuanto la
+    /// cancion no arranca con el reloj a cero —al reanudar, al repetir un pasaje— el
+    /// emparejamiento compara peras con manzanas y no empareja nada.
+    ///
+    /// Se proyecta la NOTA hacia el reloj y no la pulsacion hacia la cancion: `posicion_en`
+    /// recorta por el tope, asi que una nota tocada mas alla del final se proyectaria al
+    /// final y su tardanza se truncaria en silencio.
+    pub fn sellar(&mut self, ancla: &Ancla) {
+        for n in &mut self.notas {
+            if !n.tomada {
+                n.esperado = instante_de(ancla, n.onset);
+            }
         }
     }
 
@@ -115,15 +155,16 @@ impl Evaluador {
     }
 
     /// La practica llego hasta aqui: empareja lo pendiente y cierra lo que ya vencio.
-    pub fn avanzar(&mut self, hasta: Micros) {
+    pub fn avanzar(&mut self, ahora: Micros) {
         self.emparejar_pendientes();
-        self.vencer(hasta);
+        self.vencer(ahora);
     }
 
     /// El alumno salto ese pasaje: no lo intento, asi que no cuenta como fallado (FR-013).
     pub fn saltar(&mut self, desde: Micros, hasta: Micros) {
+        // El tramo saltado se da en posiciones de CANCION, que es como lo ve el alumno.
         for n in &mut self.notas {
-            if n.tomada || n.esperado.0 < desde.0 || n.esperado.0 > hasta.0 {
+            if n.tomada || n.onset.0 < desde.0 || n.onset.0 > hasta.0 {
                 continue;
             }
             n.veredicto = Veredicto::NoIntentada;
@@ -134,9 +175,9 @@ impl Evaluador {
 
     /// Cierra la interpretacion y devuelve el resumen.
     #[must_use]
-    pub fn cerrar(mut self, hasta: Micros) -> Resultado {
+    pub fn cerrar(mut self, ahora: Micros) -> Resultado {
         self.emparejar_pendientes();
-        self.vencer(hasta);
+        self.vencer(ahora);
         self.resumir()
     }
 
@@ -186,7 +227,10 @@ impl Evaluador {
                     let Some(n) = self.notas.get_mut(k) else {
                         continue;
                     };
-                    let d = desfase(p.ataque_us, n.esperado);
+                    let Some(esperado) = n.esperado else {
+                        continue;
+                    };
+                    let d = desfase(p.ataque_us, esperado);
                     n.tomada = true;
                     n.tiempo_evaluado = tiempos;
                     #[allow(clippy::cast_possible_wrap)]
@@ -228,11 +272,14 @@ impl Evaluador {
     fn mejor_candidata(&mut self, key: u8, ataque: Micros) -> Option<usize> {
         let mut mejor: Option<(usize, u64)> = None;
         for (k, n) in self.notas.iter().enumerate() {
+            let Some(esperado) = n.esperado else {
+                continue; // sin sellar: todavia no se sabe cuando deberia sonar
+            };
             if n.tomada || n.key != key {
                 continue;
             }
             self.examinadas = self.examinadas.saturating_add(1);
-            let distancia = ataque.0.abs_diff(n.esperado.0);
+            let distancia = ataque.0.abs_diff(esperado.0);
             if distancia > self.tol.ventana_emparejamiento_us {
                 continue;
             }
@@ -254,15 +301,23 @@ impl Evaluador {
             matches!(n.veredicto, Veredicto::Acertada | Veredicto::TocadaFueraDeTiempo)
                 && n.key.abs_diff(key) <= self.tol.cercania_dedo_semitonos
                 && n.key != key
-                && ataque.0.abs_diff(n.esperado.0) <= self.tol.cercania_dedo_us
+                && n
+                    .esperado
+                    .is_some_and(|e| ataque.0.abs_diff(e.0) <= self.tol.cercania_dedo_us)
         })
     }
 
-    /// Declara omitidas las notas cuya ventana ya paso.
-    fn vencer(&mut self, hasta: Micros) {
+    /// Declara omitidas las notas cuya ventana ya paso, **en el eje del reloj**.
+    ///
+    /// Una nota sin sellar no puede vencer: no se sabe cuando deberia sonar, asi que
+    /// declararla omitida seria acusar al alumno sin base.
+    fn vencer(&mut self, ahora: Micros) {
         let ventana = self.tol.ventana_emparejamiento_us;
         for n in &mut self.notas {
-            if !n.tomada && n.esperado.0.saturating_add(ventana) < hasta.0 {
+            let Some(esperado) = n.esperado else {
+                continue;
+            };
+            if !n.tomada && esperado.0.saturating_add(ventana) < ahora.0 {
                 n.tomada = true;
                 n.veredicto = Veredicto::Omitida;
             }

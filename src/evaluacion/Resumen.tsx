@@ -45,8 +45,13 @@ function ms(us: number): number {
 /** Cuánta exigencia. */
 export type NivelElegido = "permisivo" | "intermedio" | "exigente";
 
+/** Cómo fue este intento respecto al anterior del mismo tramo. */
+export type Comparacion = { mejor: boolean; igual: boolean };
+
 export type ResumenProps = {
   resultado: ResultadoPlano;
+  /** Ausente si no hay intento anterior con el que compararse. */
+  comparacion?: Comparacion;
   nivel?: NivelElegido;
   /** Sin manejador no se ofrece el selector: hay sitios donde no hay nada que ajustar. */
   onNivel?: (n: NivelElegido) => void;
@@ -76,7 +81,7 @@ function SelectorDeNivel({
   );
 }
 
-export function Resumen({ resultado: r, nivel, onNivel }: ResumenProps) {
+export function Resumen({ resultado: r, comparacion, nivel, onNivel }: ResumenProps) {
   // SC-002: no tocar nada no es tocarlo todo mal. Un 0 % dice «lo hiciste fatal»; esto no.
   if (r.sinTocar) {
     return (
@@ -90,6 +95,18 @@ export function Resumen({ resultado: r, nivel, onNivel }: ResumenProps) {
   return (
     <section className="resumen">
       <h2>Cómo te fue</h2>
+
+      {/* Solo si hay con qué comparar. Sin intento anterior, inventarse un «mejor» sería
+          decirle algo que no se sabe. */}
+      {comparacion !== undefined && (
+        <p className="comparacion">
+          {comparacion.igual
+            ? "Igual que el intento anterior."
+            : comparacion.mejor
+              ? "Mejor que el intento anterior."
+              : "Peor que el intento anterior."}
+        </p>
+      )}
 
       <ul className="recuentos">
         <li>
