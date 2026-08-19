@@ -314,3 +314,71 @@ fn de_un_acorde_a_medias_solo_se_omite_lo_que_falto() {
     let teclas: Vec<u8> = out.iter().filter_map(|i| song.notes().get(*i)).map(|n| n.key).collect();
     assert_eq!(teclas, vec![64], "solo la que no se tocó");
 }
+
+#[test]
+fn una_sola_nota_larga_no_le_cobra_peaje_al_resto_de_la_pieza() {
+    // La cota de duración es un recurso de la BÚSQUEDA BINARIA de `recolocar`, donde no se
+    // tiene la nota en la mano y hace falta un predicado monótono. En el avance por
+    // fotograma sí se tiene, así que rige el criterio exacto: se deja atrás una nota solo
+    // cuando ha terminado de verdad.
+    //
+    // Con la cota, un pedal de 30 segundos al principio dejaba el cursor treinta segundos
+    // retrasado **durante los diez minutos siguientes**, mucho después de que el pedal
+    // hubiera terminado. Medido: 118 notas examinadas por fotograma en vez de 5.
+    //
+    // T064 no puede ver esto: con duraciones uniformes los dos criterios dan exactamente
+    // el mismo número, y por eso hace falta esta prueba aparte, con una nota larga.
+    let raw = SmfBuilder::new(1000)
+        .track(|t| {
+            let mut t = t.tempo(0, 1_000_000);
+            t = t.note(0, 36, 90, 30_000); // pedal: 30 segundos
+            for i in 0..2_400u64 {
+                t = t.note(i * 250, 60 + (i % 12) as u8, 90, 200);
+            }
+            t
+        })
+        .build();
+    let song = load_smf(&raw).expect("valida");
+    let mut c = ConjuntoSonando::nuevo(&song);
+    const FOTOGRAMAS: u64 = 36_000; // diez minutos a 60 Hz
+    for f in 0..FOTOGRAMAS {
+        c.avanzar(&song, Micros(f * 16_667));
+    }
+    let por_fotograma = c.examinadas() as u64 / FOTOGRAMAS;
+    println!("  examinadas por fotograma: {por_fotograma} (total {})", c.examinadas());
+    assert!(
+        por_fotograma < 15,
+        "se examinan {por_fotograma} notas por fotograma; el pedal le está cobrando peaje \
+         a toda la pieza (total {})",
+        c.examinadas()
+    );
+}
+
+#[test]
+fn una_pulsacion_satisface_a_todas_las_notas_de_esa_tecla_que_suenan() {
+    // La misma tecla puede sonar en DOS notas a la vez: una melodía doblada en dos pistas
+    // sobrevive solapada, porque el cargador solo acorta cuando coinciden pista, canal y
+    // tecla. Como el alumno no puede pulsar dos veces la misma tecla a la vez, una sola
+    // pulsación tiene que satisfacer a las dos; si no, en modo espera la puerta no abriría
+    // jamás.
+    let raw = SmfBuilder::new(1000)
+        .track(|t| t.tempo(0, 1_000_000).note(0, 60, 90, 4_000)) // pedal 0 → 4 s
+        .track(|t| {
+            t.raw(2_000, &[0x91, 60, 90]).raw(3_000, &[0x81, 60, 0]) // 2 s → 3 s
+        })
+        .build();
+    let song = load_smf(&raw).expect("valida");
+    assert_eq!(song.notes().len(), 2, "las dos sobreviven sin acortarse");
+
+    let mut c = ConjuntoSonando::nuevo(&song);
+    let mut pulsadas = MascaraTeclas::VACIA;
+    pulsadas.poner(60);
+
+    for pos in [2_400_000u64, 2_500_000, 3_000_000, 4_000_000] {
+        c.avanzar(&song, Micros(pos));
+        c.registrar(&song, pulsadas, Micros(pos));
+    }
+    let mut out = Vec::new();
+    c.omitidas(&song, Micros(4_000_000), &mut out);
+    assert!(out.is_empty(), "una pulsación vale para las dos; omitidas: {out:?}");
+}
