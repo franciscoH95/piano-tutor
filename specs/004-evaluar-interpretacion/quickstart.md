@@ -115,3 +115,34 @@ Ninguna es automatizable, y por eso están escritas:
   diseño; que coincida con lo que siente un músico hay que comprobarlo.
 - **El tono del resumen**: que un principiante lea su resultado y no se desanime. Un motor correcto
   que desmoraliza es un motor que nadie usará dos veces, y eso no lo detecta ninguna prueba.
+
+## Añadir una interpretación de referencia
+
+Las doce que hay viven en `core/tests/tabla_test.rs` y se comprueban **todas a la vez**. Se
+añaden así:
+
+1. Un caso nuevo en `CASOS`, con su canción, lo que el alumno tocó y el nivel.
+2. **El resultado esperado, calculado a mano** a partir de la especificación y de los
+   umbrales de `tolerancias.rs`. Nunca volcado de la implementación: un resultado volcado
+   copia el fallo de quien lo generó, y la prueba pasa a confirmar el error en vez de
+   detectarlo.
+3. El campo `porque`: qué protege este caso. Un caso que no puede explicarse no aporta nada,
+   y con el tiempo nadie se atreve a tocarlo porque nadie sabe qué vigila.
+
+### Cuando un cambio de reglas altera algún resultado
+
+`FR-022` lo dice: hay que **declarar cuáles cambian y por qué** en el pull request. No se
+ajusta el número y se sigue — ese es exactamente el momento en que la red deja de serlo.
+
+La prueba lo pone fácil: lista cada discrepancia con el caso, el campo, lo obtenido, lo
+esperado y el motivo por el que ese caso existe.
+
+### Verificado que es una red de verdad
+
+No basta con que la tabla pase; hay que haberla visto fallar. Comprobado el 2026-08-19
+saboteando dos umbrales:
+
+| Sabotaje | Casos que lo cazaron |
+|---|---|
+| Ventana intermedia de 60 → 20 ms | «adelanto uniforme», en `acertadas` y `fuera_de_tiempo` |
+| Umbral de desfase sistemático de 30 → 60 ms | «retraso uniforme dentro de tolerancia» y «adelanto uniforme», en `desfase` |

@@ -216,9 +216,9 @@ coherentes.
 
 ### Los fixtures de referencia (FR-022)
 
-- [ ] T071 Grabar al menos 10 interpretaciones de referencia en `core/tests/fixtures/interpretaciones/`, con su resultado esperado **escrito a mano**. Volcarlo de la implementación copiaría su fallo al fichero y la prueba pasaría a confirmar el error en vez de detectarlo
-- [ ] T072 Prueba en `core/tests/evaluacion_test.rs`: **la tabla entera**, todas las interpretaciones contra su resultado esperado de una vez. Existe como tabla y no como pruebas sueltas por la lección de la 003: un ajuste que arregla un caso rompe otro, y solo se ve comprobándolos juntos
-- [ ] T073 Documentar en `specs/004-evaluar-interpretacion/quickstart.md` el procedimiento para añadir una interpretación de referencia y qué declarar cuando un ajuste cambia el resultado de alguna
+- [X] T071 Grabar al menos 10 interpretaciones de referencia en `core/tests/fixtures/interpretaciones/`, con su resultado esperado **escrito a mano**. Volcarlo de la implementación copiaría su fallo al fichero y la prueba pasaría a confirmar el error en vez de detectarlo
+- [X] T072 Prueba en `core/tests/evaluacion_test.rs`: **la tabla entera**, todas las interpretaciones contra su resultado esperado de una vez. Existe como tabla y no como pruebas sueltas por la lección de la 003: un ajuste que arregla un caso rompe otro, y solo se ve comprobándolos juntos
+- [X] T073 Documentar en `specs/004-evaluar-interpretacion/quickstart.md` el procedimiento para añadir una interpretación de referencia y qué declarar cuando un ajuste cambia el resultado de alguna
 
 ### Medir lo que el plan dejó pendiente
 
