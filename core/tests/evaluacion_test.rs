@@ -566,3 +566,62 @@ fn el_resultado_no_depende_del_perfil_de_compilacion() {
     assert_eq!(r.acertadas, 20);
     assert_eq!(r.desfase.expect("hay desfase").mediana_us, -37_000, "adelantado, con signo");
 }
+
+// ---------------------------------------------------------------- T031d, T031e
+
+#[test]
+fn en_modo_espera_se_evaluan_las_notas_pero_no_los_tiempos() {
+    // T031d (FR-009a). No se puede llegar tarde a algo que te espera: publicar un desfase
+    // en modo espera sería inventarlo.
+    let song = escala(20);
+
+    let por_reloj = {
+        let mut e = evaluador(&song, Nivel::Exigente);
+        tocar_desplazada(&mut e, &song, 120_000); // muy tarde
+        e.cerrar(Micros(20_000_000))
+    };
+    let esperando = {
+        let mut e = evaluador(&song, Nivel::Exigente);
+        e.evaluar_tiempos(false);
+        tocar_desplazada(&mut e, &song, 120_000);
+        e.cerrar(Micros(20_000_000))
+    };
+
+    // Las notas: las mismas se emparejan en los dos casos.
+    assert_eq!(
+        esperando.acertadas + esperando.fuera_de_tiempo,
+        por_reloj.acertadas + por_reloj.fuera_de_tiempo,
+        "se emparejan las mismas"
+    );
+    assert_eq!(esperando.omitidas, por_reloj.omitidas);
+    // Los tiempos: en modo espera no se juzgan ni se resumen.
+    assert_eq!(esperando.acertadas, 20, "en espera, llegar tarde no es un fallo de tiempo");
+    assert_eq!(esperando.fuera_de_tiempo, 0);
+    assert!(esperando.desfase.is_none(), "no se publica un desfase inventado");
+    assert!(esperando.parcial, "y se DECLARA que el resultado es parcial");
+    assert!(!por_reloj.parcial, "por reloj el resultado es completo");
+}
+
+#[test]
+fn cambiar_de_modo_a_mitad_evalua_cada_nota_segun_su_regimen() {
+    // T031e. Cada nota se juzga según el régimen vigente **cuando se emparejó**, no según
+    // un único indicador del intento entero. Es lo que FR-004 obliga: una nota ya juzgada
+    // no se recalcula.
+    let song = escala(20);
+    let mut e = evaluador(&song, Nivel::Exigente);
+    e.evaluar_tiempos(false); // empieza en modo espera
+    for (i, n) in song.notes().iter().enumerate() {
+        if i == 10 {
+            e.evaluar_tiempos(true); // a mitad pasa a tempo
+        }
+        let t = n.onset_us.0 + 120_000; // siempre 120 ms tarde
+        e.observar(ataque(t, n.key, 90));
+        e.observar(suelta(t + 100_000, n.key));
+        e.avanzar(Micros(t + 150_000));
+    }
+    let r = e.cerrar(Micros(20_000_000));
+
+    assert_eq!(r.acertadas, 10, "las diez de modo espera: el tiempo no se juzgó");
+    assert_eq!(r.fuera_de_tiempo, 10, "las diez de tempo: 120 ms es fuera de la ventana");
+    assert!(r.parcial, "hubo notas sin tiempo evaluado, así que el resultado es parcial");
+}

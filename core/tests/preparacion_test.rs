@@ -282,3 +282,56 @@ fn cargar_otra_cancion_reinicia_el_modo_y_las_puertas() {
     p.cargar(cancion_b());
     assert_eq!(p.avance(), Avance::PorReloj, "la canción nueva empieza por reloj");
 }
+
+// ------------------------------------------------- evaluación
+
+#[test]
+fn pausar_cierra_la_interpretacion_y_reanudar_abre_otra() {
+    // T035a (FR-014a). Es la misma frontera que el cursor ya usa para cambiar de régimen,
+    // así que se comprueba contra ella y no contra un concepto nuevo.
+    let mut p = Preparacion::nueva(una_voz());
+    p.poner_en_marcha(Micros::ZERO);
+    assert!(p.resultado().is_none(), "en marcha todavía no hay resultado");
+
+    p.pausar(Micros(500_000));
+    assert!(p.resultado().is_some(), "pausar cierra la interpretación");
+
+    p.poner_en_marcha(Micros(600_000));
+    assert!(p.resultado().is_none(), "reanudar abre otra, y todavía no ha cerrado");
+}
+
+#[test]
+fn saltar_cierra_la_interpretacion() {
+    let mut p = Preparacion::nueva(una_voz());
+    p.poner_en_marcha(Micros::ZERO);
+    p.saltar_a(Micros::ZERO, Micros(500_000));
+    assert!(p.resultado().is_some(), "saltar también la cierra");
+}
+
+#[test]
+fn una_interpretacion_que_no_llega_al_final_se_evalua_igual() {
+    // T035b (FR-014b). Exigir un recorrido completo dejaría sin retorno al principiante,
+    // que casi nunca termina.
+    let mut p = Preparacion::nueva(una_voz());
+    p.poner_en_marcha(Micros::ZERO);
+    let mut m = MascaraTeclas::VACIA;
+    m.poner(60);
+    p.observar_tecla(60, true, Micros(10_000));
+    p.avanzar_con(Micros(300_000), m);
+    p.pausar(Micros(400_000)); // se para a mitad
+
+    let r = p.resultado().expect("hay resultado");
+    assert!(!r.sin_tocar, "sí tocó");
+    assert_eq!(r.acertadas, 1, "se evalúa el tramo recorrido");
+}
+
+#[test]
+fn cargar_otra_cancion_tira_el_resultado_anterior() {
+    // FR-005 otra vez: el resultado de la canción anterior no puede sobrevivir a la carga.
+    let mut p = Preparacion::nueva(una_voz());
+    p.poner_en_marcha(Micros::ZERO);
+    p.pausar(Micros(500_000));
+    assert!(p.resultado().is_some());
+    p.cargar(cancion_b());
+    assert!(p.resultado().is_none(), "la canción nueva empieza sin resultado");
+}

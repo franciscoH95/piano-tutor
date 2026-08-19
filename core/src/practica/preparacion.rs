@@ -6,7 +6,9 @@
 
 use crate::digitacion::{digitar, Dedo, Digitacion};
 use crate::practica::cursor::{Ancla, Avance, Cursor, Paso, Velocidad};
+use crate::evaluacion::{Evaluador, Nivel, Resultado};
 use crate::practica::sonando::MascaraTeclas;
+use crate::capture::{Observacion, TipoEvento};
 use crate::practica::manos::{repartir, Mano, RepartoDeManos};
 use crate::practica::nombres::NombreDeNota;
 use crate::practica::vista::{vista, EstadoNota, Vista};
@@ -50,6 +52,15 @@ pub struct Preparacion {
     cursor: Cursor,
     /// Que mano practica el alumno. `None` son las dos.
     practicada: Option<Mano>,
+    nivel: Nivel,
+    /// La interpretacion en curso, si la hay.
+    ///
+    /// Existe entre poner en marcha y parar: pausar, saltar y llegar al final la cierran, y
+    /// reanudar abre otra (FR-014a). Es la misma frontera que el cursor ya usa para cambiar
+    /// de regimen, asi que no hay concepto nuevo que inventar.
+    evaluando: Option<Evaluador>,
+    /// El resultado de la ultima interpretacion cerrada.
+    ultimo: Option<Resultado>,
 }
 
 impl Preparacion {
@@ -70,6 +81,9 @@ impl Preparacion {
             digitacion,
             cursor,
             practicada: None,
+            nivel: Nivel::Intermedio,
+            evaluando: None,
+            ultimo: None,
             cancion,
             posicion: Micros(0),
             vista: Vista::nueva(),
@@ -146,13 +160,61 @@ impl Preparacion {
     }
 
     /// Pone la canción en marcha. Devuelve ancla si cambió el régimen.
+    ///
+    /// **Abre una interpretación** (FR-014a).
     pub fn poner_en_marcha(&mut self, ahora: Micros) -> Option<Ancla> {
-        self.cursor.poner_en_marcha(ahora)
+        let ancla = self.cursor.poner_en_marcha(ahora);
+        if ancla.is_some() {
+            self.abrir_interpretacion();
+        }
+        ancla
     }
 
-    /// Detiene el avance sin perder la posición.
+    /// Detiene el avance sin perder la posición. **Cierra la interpretación.**
     pub fn pausar(&mut self, ahora: Micros) -> Option<Ancla> {
-        self.cursor.pausar(ahora)
+        let ancla = self.cursor.pausar(ahora);
+        if ancla.is_some() {
+            self.cerrar_interpretacion();
+        }
+        ancla
+    }
+
+    /// El resultado de la última interpretación cerrada, si la hay.
+    #[must_use]
+    pub const fn resultado(&self) -> Option<&Resultado> {
+        self.ultimo.as_ref()
+    }
+
+    /// Cuánta exigencia. Afecta a la interpretación siguiente.
+    pub fn cambiar_nivel(&mut self, nivel: Nivel) {
+        self.nivel = nivel;
+    }
+
+    /// Una tecla que el alumno pulsó o soltó.
+    pub fn observar_tecla(&mut self, key: u8, pulsada: bool, ahora: Micros) {
+        if let Some(e) = self.evaluando.as_mut() {
+            e.observar(Observacion {
+                at: ahora,
+                key,
+                velocity: if pulsada { 90 } else { 0 },
+                kind: if pulsada { TipoEvento::Ataque } else { TipoEvento::Suelta },
+                channel: 0,
+            });
+        }
+    }
+
+    fn abrir_interpretacion(&mut self) {
+        let manos: Vec<Mano> = (0..self.reparto.len()).map(|i| self.reparto.mano(i)).collect();
+        let mut e = Evaluador::nuevo(&self.cancion, &manos, self.practicada, self.nivel);
+        e.evaluar_tiempos(self.cursor.avance() == Avance::PorReloj);
+        self.evaluando = Some(e);
+        self.ultimo = None;
+    }
+
+    fn cerrar_interpretacion(&mut self) {
+        if let Some(e) = self.evaluando.take() {
+            self.ultimo = Some(e.cerrar(self.posicion));
+        }
     }
 
     /// Cambia la velocidad de práctica.
@@ -163,6 +225,9 @@ impl Preparacion {
     /// Lleva la práctica a una posición concreta.
     pub fn saltar_a(&mut self, posicion: Micros, ahora: Micros) -> Option<Ancla> {
         let ancla = self.cursor.saltar_a(posicion, ahora);
+        if ancla.is_some() {
+            self.cerrar_interpretacion();
+        }
         self.avanzar_a(self.cursor.posicion().0);
         ancla
     }
@@ -176,12 +241,25 @@ impl Preparacion {
     pub fn avanzar_con(&mut self, ahora: Micros, pulsadas: MascaraTeclas) -> Paso {
         let paso = self.cursor.avanzar_con(ahora, pulsadas);
         self.avanzar_a(paso.posicion.0);
+        if let Some(e) = self.evaluando.as_mut() {
+            e.avanzar(paso.posicion);
+        }
+        // Llegar al final tambien cierra la interpretacion (FR-014a).
+        if paso.terminada {
+            self.cerrar_interpretacion();
+        }
         paso
     }
 
     /// Cambia entre reproducir y esperar, conservando la posición (FR-021).
     pub fn cambiar_avance(&mut self, avance: Avance, ahora: Micros) -> Option<Ancla> {
-        self.cursor.cambiar_avance(avance, ahora)
+        let ancla = self.cursor.cambiar_avance(avance, ahora);
+        // El regimen manda POR NOTA: las que se emparejen a partir de ahora se juzgan con
+        // el nuevo, y las ya juzgadas no se tocan (FR-004).
+        if let Some(e) = self.evaluando.as_mut() {
+            e.evaluar_tiempos(avance == Avance::PorReloj);
+        }
+        ancla
     }
 
     /// Elige qué mano se practica. `None` son las dos.
@@ -192,7 +270,15 @@ impl Preparacion {
 
     /// Salta la puerta pendiente sin acertarla (FR-020).
     pub fn saltar_puerta(&mut self, ahora: Micros) -> Option<Ancla> {
-        self.cursor.saltar_puerta(ahora)
+        let antes = self.cursor.posicion();
+        let ancla = self.cursor.saltar_puerta(ahora);
+        if ancla.is_some() {
+            // Lo saltado no se intento, asi que no cuenta como fallado (FR-013).
+            if let Some(e) = self.evaluando.as_mut() {
+                e.saltar(antes, self.cursor.posicion());
+            }
+        }
+        ancla
     }
 
     /// El modo de avance vigente.

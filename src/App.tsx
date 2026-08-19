@@ -5,6 +5,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import "./App.css";
 import { Selector, type DispositivoPlano } from "./dispositivos/Selector";
+import { Resumen, type ResultadoPlano } from "./evaluacion/Resumen";
 import { Controles } from "./practica/controles";
 import { Lienzo } from "./practica/Lienzo";
 import { construirEscena, VENTANA_US } from "./practica/escena";
@@ -29,6 +30,7 @@ import {
   practicarMano,
   saltarA,
   saltarPuerta,
+  ultimoResultado,
   vistaActual,
   type AnclaDelNucleo,
   type EstadoDelTeclado,
@@ -52,6 +54,7 @@ export default function App() {
   const [canal, setCanal] = useState(ESTADO_INICIAL);
   const [teclado, setTeclado] = useState<EstadoDelTeclado | undefined>(undefined);
   const [modo, setModo] = useState<Modo>("porReloj");
+  const [resultado, setResultado] = useState<ResultadoPlano | null>(null);
   const [mano, setMano] = useState<ManoElegida>("ambas");
   const notasRef = useRef(notas);
   notasRef.current = notas;
@@ -117,6 +120,7 @@ export default function App() {
       setVelocidad(VELOCIDAD_NORMAL);
       setAncla(null);
       setPosicion(0);
+      setResultado(null);
       setModo("porReloj");
       setMano("ambas");
       // El aviso viejo se retira: no se acumulan errores de intentos anteriores.
@@ -142,11 +146,15 @@ export default function App() {
   const poner = useCallback(async () => {
     recibirAncla(await marcha());
     setEnMarcha(true);
+    // Empezar de nuevo retira el resumen anterior: es de otra interpretación.
+    setResultado(null);
   }, [recibirAncla]);
 
   const parar = useCallback(async () => {
     recibirAncla(await pausa());
     setEnMarcha(false);
+    // Pausar cierra la interpretación, así que ya hay resumen que enseñar (FR-014a).
+    setResultado(await ultimoResultado());
   }, [recibirAncla]);
 
   const alPrincipio = useCallback(async () => {
@@ -230,6 +238,8 @@ export default function App() {
 
       {/* Siempre visibles, haya canción o no y haya fallado la carga o no: es lo que
           mantiene la aplicación utilizable después de un error (FR-004). */}
+      {resultado !== null && <Resumen resultado={resultado} />}
+
       <Controles
         corte={corte}
         vocesDelArchivo={resumen?.vocesDelArchivo ?? false}

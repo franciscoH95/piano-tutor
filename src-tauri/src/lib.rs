@@ -51,7 +51,9 @@ pub fn run() {
             comandos::elegir_teclado,
             comandos::transporte_modo,
             comandos::ajustar_mano,
-            comandos::transporte_saltar_puerta
+            comandos::transporte_saltar_puerta,
+            comandos::evaluacion_ultimo,
+            comandos::evaluacion_nivel
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

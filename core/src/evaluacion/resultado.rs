@@ -80,6 +80,11 @@ pub struct Resultado {
     pub desfase: Option<Sistematico>,
     /// **No se toco ni una tecla.** Distinto de tocarlo todo mal (FR-019).
     pub sin_tocar: bool,
+    /// Los tiempos **no** se evaluaron, porque se practico en modo espera (FR-015a).
+    ///
+    /// Hay que decirlo: un resultado incompleto que no se declara incompleto se lee como
+    /// completo.
+    pub parcial: bool,
     /// Recuento de la izquierda y de la derecha (FR-018).
     pub por_mano: [Recuento; 2],
     /// El veredicto de cada nota, por su indice en `Song::notes` (FR-017).

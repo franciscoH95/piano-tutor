@@ -116,15 +116,15 @@ interpretaciones grabadas y sin nada enchufado.
 - [X] T031b [US1] Prueba en `core/tests/evaluacion_test.rs`: la cercanía del dedo que se escapa **no se traga notas legítimas**. Si la contigua es una nota que la canción sí pide en ese instante, se empareja con ella y se cuenta como acierto, no como dedo escapado
 - [X] T031c [US1] Implementar la clasificación del dedo que se escapa en `core/src/evaluacion/mod.rs`, con su tolerancia en tiempo y en semitonos leída de `tolerancias.rs` (FR-010a, FR-011a)
 - [X] T032 [US1] Prueba en `core/tests/evaluacion_test.rs`: la omisión es un **vencimiento del cursor**, no un temporizador. En modo espera, una nota que el cursor está esperando **no vence** por mucho que pase el reloj real: es la nota que el alumno está a punto de acertar
-- [ ] T031d [US1] Prueba en `core/tests/evaluacion_test.rs`: FR-009a, en **modo espera** las notas se evalúan y **los tiempos no**. La misma interpretación en modo espera y por reloj da los mismos recuentos de acertadas y omitidas, pero en modo espera **no** produce desfase ni medidas de ataque: no se puede llegar tarde a algo que te espera, y publicar ese número sería inventarlo
-- [ ] T031e [US1] Prueba en `core/tests/evaluacion_test.rs`: si el alumno **cambia de modo a mitad** del intento, cada nota se evalúa según el régimen vigente **cuando se selló**, no según un único indicador del intento entero. Es lo que FR-004 obliga: una nota ya juzgada no se recalcula
+- [X] T031d [US1] Prueba en `core/tests/evaluacion_test.rs`: FR-009a, en **modo espera** las notas se evalúan y **los tiempos no**. La misma interpretación en modo espera y por reloj da los mismos recuentos de acertadas y omitidas, pero en modo espera **no** produce desfase ni medidas de ataque: no se puede llegar tarde a algo que te espera, y publicar ese número sería inventarlo
+- [X] T031e [US1] Prueba en `core/tests/evaluacion_test.rs`: si el alumno **cambia de modo a mitad** del intento, cada nota se evalúa según el régimen vigente **cuando se selló**, no según un único indicador del intento entero. Es lo que FR-004 obliga: una nota ya juzgada no se recalcula
 - [X] T032a [US1] Prueba en `core/tests/evaluacion_test.rs`: FR-013, un pasaje saltado con la salida del modo espera queda **no intentado** y **no** cuenta como fallado. Ejercita `Evaluador::saltar`
 - [X] T032b [US1] Prueba en `core/tests/evaluacion_test.rs`: SC-009, el porcentaje de aciertos se calcula **sobre lo que el alumno intentó**. Las no intentadas y las fuera de alcance quedan fuera del denominador; con 20 notas de las que 5 se saltaron, el 100 % de las 15 restantes da 100 %, no 75 %
 - [X] T033 [US1] Implementar el vencimiento, la clasificación y `Evaluador::saltar` en `core/src/evaluacion/mod.rs`
 - [X] T034 [US1] Prueba en `core/tests/evaluacion_test.rs`: SC-001, la interpretación perfecta da 20 acertadas, 0 omitidas y 0 de más **en los tres niveles**
 - [X] T035 [US1] Prueba en `core/tests/evaluacion_test.rs`: SC-002, cero observaciones se comunica como «no se tocó nada» y **no** como 0 % de aciertos
-- [ ] T035a [US1] Prueba en `core/tests/evaluacion_test.rs`: FR-014a, **pausar, saltar y llegar al final cierran** la interpretación, y reanudar abre otra. Es la misma frontera que el cursor ya usa para cambiar de régimen, así que se comprueba contra ella y no contra un concepto nuevo
-- [ ] T035b [US1] Prueba en `core/tests/evaluacion_test.rs`: FR-014b, una interpretación que **no llega al final** se evalúa igualmente sobre el tramo recorrido. Exigir un recorrido completo dejaría sin retorno al principiante, que casi nunca termina
+- [X] T035a [US1] Prueba en `core/tests/evaluacion_test.rs`: FR-014a, **pausar, saltar y llegar al final cierran** la interpretación, y reanudar abre otra. Es la misma frontera que el cursor ya usa para cambiar de régimen, así que se comprueba contra ella y no contra un concepto nuevo
+- [X] T035b [US1] Prueba en `core/tests/evaluacion_test.rs`: FR-014b, una interpretación que **no llega al final** se evalúa igualmente sobre el tramo recorrido. Exigir un recorrido completo dejaría sin retorno al principiante, que casi nunca termina
 - [X] T036 [US1] Implementar `Resultado`, los recuentos y los límites de la interpretación en `core/src/evaluacion/resultado.rs`
 
 ### El desfase sistemático
@@ -143,12 +143,12 @@ interpretaciones grabadas y sin nada enchufado.
 
 ### El puente y la pantalla
 
-- [ ] T042 [US1] Prueba en `src-tauri/tests/contrato_canal_test.rs`: la forma exacta del JSON del resultado, con los nombres en **camello**, igual que el resto del puente
-- [ ] T043 [US1] Implementar `evaluacion_ultimo` y el aplanado en `src-tauri/src/comandos.rs`. **Ninguna tolerancia cruza**: si la interfaz supiera lo que es una ventana de 60 ms, esa constante estaría en dos sitios
-- [ ] T044 [US1] Prueba en `src/evaluacion/Resumen.test.tsx`: se muestran los tres recuentos; «no se tocó nada» se muestra como tal y nunca como 0 %
-- [ ] T045 [US1] Prueba en `src/evaluacion/Resumen.test.tsx`: un resultado marcado como **parcial lo declara** (FR-015a, SC-011). Un resumen que calla que no se midieron los tiempos se lee como completo
-- [ ] T046 [US1] Implementar `src/evaluacion/Resumen.tsx`
-- [ ] T047 [US1] Conectar el resumen en `src/App.tsx` al cerrar una interpretación
+- [X] T042 [US1] Prueba en `src-tauri/tests/contrato_canal_test.rs`: la forma exacta del JSON del resultado, con los nombres en **camello**, igual que el resto del puente
+- [X] T043 [US1] Implementar `evaluacion_ultimo` y el aplanado en `src-tauri/src/comandos.rs`. **Ninguna tolerancia cruza**: si la interfaz supiera lo que es una ventana de 60 ms, esa constante estaría en dos sitios
+- [X] T044 [US1] Prueba en `src/evaluacion/Resumen.test.tsx`: se muestran los tres recuentos; «no se tocó nada» se muestra como tal y nunca como 0 %
+- [X] T045 [US1] Prueba en `src/evaluacion/Resumen.test.tsx`: un resultado marcado como **parcial lo declara** (FR-015a, SC-011). Un resumen que calla que no se midieron los tiempos se lee como completo
+- [X] T046 [US1] Implementar `src/evaluacion/Resumen.tsx`
+- [X] T047 [US1] Conectar el resumen en `src/App.tsx` al cerrar una interpretación
 
 **Checkpoint**: el alumno toca una pieza entera y ve cuántas acertó. **Es el MVP.**
 

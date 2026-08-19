@@ -24,6 +24,12 @@ struct EnJuego {
     duracion: u64,
     mano: Mano,
     tomada: bool,
+    /// Si el tiempo de ESTA nota se juzga.
+    ///
+    /// Por nota y no por intento: el alumno puede cambiar de modo a mitad, y con un
+    /// indicador del intento entero habria que descartarlo todo o evaluarlo todo, y las dos
+    /// son falsas. Se fija **al emparejar** y no se recalcula (FR-004).
+    tiempo_evaluado: bool,
     veredicto: Veredicto,
     medida: Option<Medida>,
 }
@@ -46,6 +52,11 @@ pub struct Evaluador {
     fuera_de_alcance: usize,
     no_intentadas: usize,
     examinadas: usize,
+    /// Si el regimen actual permite juzgar los tiempos.
+    ///
+    /// En modo espera **no**: la cancion aguarda al alumno, asi que no se puede llegar
+    /// tarde y publicar un desfase seria inventarlo (FR-009a).
+    tiempos: bool,
 }
 
 impl Evaluador {
@@ -64,6 +75,7 @@ impl Evaluador {
                     duracion: n.end_us.0.saturating_sub(n.onset_us.0),
                     mano,
                     tomada: false,
+                    tiempo_evaluado: true,
                     veredicto: Veredicto::Omitida,
                     medida: None,
                 });
@@ -82,7 +94,16 @@ impl Evaluador {
             fuera_de_alcance,
             no_intentadas: 0,
             examinadas: 0,
+            tiempos: true,
         }
+    }
+
+    /// Dice si a partir de ahora se juzgan los tiempos.
+    ///
+    /// `false` en modo espera. Afecta a las notas que se emparejen **desde ahora**; las ya
+    /// juzgadas no se tocan (FR-004).
+    pub const fn evaluar_tiempos(&mut self, si: bool) {
+        self.tiempos = si;
     }
 
     /// Un ataque o una suelta del alumno.
@@ -143,6 +164,8 @@ impl Evaluador {
 
     /// Empareja cada pulsacion nueva con su nota, o la declara suelta.
     fn emparejar_pendientes(&mut self) {
+        let tiempos = self.tiempos;
+        let ventana_ataque = self.tol.ventana_ataque_us;
         let vistas = self.entrada.vistas().len();
         for i in self.siguiente..vistas {
             let Some(p) = self.entrada.vistas().get(i).copied() else {
@@ -155,6 +178,7 @@ impl Evaluador {
                     };
                     let d = desfase(p.ataque_us, n.esperado);
                     n.tomada = true;
+                    n.tiempo_evaluado = tiempos;
                     #[allow(clippy::cast_possible_wrap)]
                     let escrita = n.duracion as i64;
                     n.medida = Some(Medida {
@@ -167,8 +191,10 @@ impl Evaluador {
                     // **Aqui manda el nivel, y solo aqui.** El emparejamiento de arriba no
                     // lo mira: por eso el permisivo no puede dar menos aciertos (SC-006).
                     #[allow(clippy::cast_possible_wrap)]
-                    let ventana = self.tol.ventana_ataque_us as i64;
-                    n.veredicto = if d.abs() <= ventana {
+                    let ventana = ventana_ataque as i64;
+                    // Sin tiempos que juzgar, emparejada es acertada: en modo espera la
+                    // cancion aguardo a que el alumno tocase esa nota, y la toco.
+                    n.veredicto = if !tiempos || d.abs() <= ventana {
                         Veredicto::Acertada
                     } else {
                         Veredicto::TocadaFueraDeTiempo
@@ -255,7 +281,10 @@ impl Evaluador {
                 Veredicto::Omitida => omitidas += 1,
                 Veredicto::FueraDeAlcance | Veredicto::NoIntentada => {}
             }
-            if let Some(m) = n.medida {
+            // Solo entran en la estadistica las notas cuyo tiempo se juzgo: mezclar las
+            // de modo espera daria una mediana calculada sobre desfases que no significan
+            // nada.
+            if let (Some(m), true) = (n.medida, n.tiempo_evaluado) {
                 desfases.push(m.desfase_us);
             }
         }
@@ -269,6 +298,10 @@ impl Evaluador {
             no_intentadas: self.no_intentadas,
             desfase: sistematico(&desfases, &self.tol),
             sin_tocar: self.entrada.vistas().is_empty(),
+            // Se DECLARA parcial. Un resultado incompleto que no se declara incompleto se
+            // lee como completo, y el alumno creeria que su ritmo esta bien cuando nadie lo
+            // ha mirado (FR-015a).
+            parcial: self.notas.iter().any(|n| n.tomada && !n.tiempo_evaluado),
             por_mano,
             por_nota,
         }
