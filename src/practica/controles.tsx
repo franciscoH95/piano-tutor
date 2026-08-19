@@ -21,6 +21,11 @@ function mismaVelocidad(a: Velocidad, b: Velocidad): boolean {
   return a.num * b.den === b.num * a.den;
 }
 
+/** Cómo avanza la práctica. */
+export type Modo = "porReloj" | "porAcierto";
+/** Qué mano se practica. `ambas` es no elegir. */
+export type ManoElegida = "ambas" | "izquierda" | "derecha";
+
 export type ControlesProps = {
   /** Punto de corte vigente, en altura MIDI. */
   corte: number;
@@ -34,6 +39,12 @@ export type ControlesProps = {
   onPausa: () => void;
   onVolverAlPrincipio: () => void;
   onVelocidad: (v: Velocidad) => void;
+  modo: Modo;
+  mano: ManoElegida;
+  onModo: (m: Modo) => void;
+  /** `null` son las dos manos. */
+  onMano: (m: "izquierda" | "derecha" | null) => void;
+  onSaltarPuerta: () => void;
 };
 
 export function Controles({
@@ -46,6 +57,11 @@ export function Controles({
   onPausa,
   onVolverAlPrincipio,
   onVelocidad,
+  modo,
+  mano,
+  onModo,
+  onMano,
+  onSaltarPuerta,
 }: ControlesProps) {
   return (
     <section className="controles">
@@ -72,6 +88,45 @@ export function Controles({
             {etiqueta}
           </button>
         ))}
+      </div>
+
+      <div className="practica-modo">
+        <label>
+          <input
+            type="checkbox"
+            checked={modo === "porAcierto"}
+            onChange={(e) => onModo(e.target.checked ? "porAcierto" : "porReloj")}
+          />
+          Modo espera: la canción te espera en cada nota
+        </label>
+
+        <label>
+          Mano que practicas
+          <select
+            value={mano}
+            onChange={(e) =>
+              onMano(e.target.value === "ambas" ? null : (e.target.value as "izquierda" | "derecha"))
+            }
+          >
+            <option value="ambas">Las dos</option>
+            <option value="izquierda">Izquierda</option>
+            <option value="derecha">Derecha</option>
+          </select>
+        </label>
+
+        {/* Solo en modo espera: por reloj no hay nada que saltar, y un botón que no hace
+            nada deja al alumno preguntándose por qué. */}
+        {modo === "porAcierto" && (
+          <div className="salida">
+            <button type="button" onClick={onSaltarPuerta}>
+              Saltar esta nota
+            </button>
+            <p className="nota-salida">
+              Úsalo si tu teclado no tiene la nota que se pide y la práctica se queda
+              parada.
+            </p>
+          </div>
+        )}
       </div>
 
       <label className="control-corte">

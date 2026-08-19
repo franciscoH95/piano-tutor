@@ -5,7 +5,8 @@
 //! dedos deja digitaciones de la mano contraria (FR-003c).
 
 use crate::digitacion::{digitar, Dedo, Digitacion};
-use crate::practica::cursor::{Ancla, Cursor, Paso, Velocidad};
+use crate::practica::cursor::{Ancla, Avance, Cursor, Paso, Velocidad};
+use crate::practica::sonando::MascaraTeclas;
 use crate::practica::manos::{repartir, Mano, RepartoDeManos};
 use crate::practica::nombres::NombreDeNota;
 use crate::practica::vista::{vista, EstadoNota, Vista};
@@ -47,6 +48,8 @@ pub struct Preparacion {
     posicion: Micros,
     vista: Vista,
     cursor: Cursor,
+    /// Que mano practica el alumno. `None` son las dos.
+    practicada: Option<Mano>,
 }
 
 impl Preparacion {
@@ -59,11 +62,14 @@ impl Preparacion {
     pub fn nueva(cancion: Song) -> Self {
         let corte = Self::CORTE_POR_DEFECTO;
         let (reparto, digitacion) = Self::repartir_y_digitar(&cancion, corte);
+        let manos: Vec<Mano> = (0..reparto.len()).map(|i| reparto.mano(i)).collect();
+        let cursor = Cursor::nuevo_con_puertas(&cancion, &manos, None);
         Self {
             corte,
             reparto,
             digitacion,
-            cursor: Cursor::nuevo(&cancion),
+            cursor,
+            practicada: None,
             cancion,
             posicion: Micros(0),
             vista: Vista::nueva(),
@@ -89,6 +95,10 @@ impl Preparacion {
         let (reparto, digitacion) = Self::repartir_y_digitar(&self.cancion, corte);
         self.reparto = reparto;
         self.digitacion = digitacion;
+        // Y las puertas: el corte cambia de qué mano es cada nota, así que con una mano
+        // practicada cambia qué puertas existen. Sin rehacerlas, el alumno esperaría en
+        // notas que ya no son suyas.
+        self.rehacer_puertas(self.posicion);
     }
 
     /// Coloca la posición de reproducción en un instante concreto.
@@ -159,9 +169,48 @@ impl Preparacion {
 
     /// Adelanta la práctica hasta el instante del reloj.
     pub fn avanzar(&mut self, ahora: Micros) -> Paso {
-        let paso = self.cursor.avanzar(ahora);
+        self.avanzar_con(ahora, MascaraTeclas::VACIA)
+    }
+
+    /// Adelanta la práctica sabiendo qué teclas tiene pulsadas el alumno.
+    pub fn avanzar_con(&mut self, ahora: Micros, pulsadas: MascaraTeclas) -> Paso {
+        let paso = self.cursor.avanzar_con(ahora, pulsadas);
         self.avanzar_a(paso.posicion.0);
         paso
+    }
+
+    /// Cambia entre reproducir y esperar, conservando la posición (FR-021).
+    pub fn cambiar_avance(&mut self, avance: Avance, ahora: Micros) -> Option<Ancla> {
+        self.cursor.cambiar_avance(avance, ahora)
+    }
+
+    /// Elige qué mano se practica. `None` son las dos.
+    pub fn practicar_mano(&mut self, mano: Option<Mano>, ahora: Micros) -> Option<Ancla> {
+        self.practicada = mano;
+        self.rehacer_puertas(ahora)
+    }
+
+    /// Salta la puerta pendiente sin acertarla (FR-020).
+    pub fn saltar_puerta(&mut self, ahora: Micros) -> Option<Ancla> {
+        self.cursor.saltar_puerta(ahora)
+    }
+
+    /// El modo de avance vigente.
+    #[must_use]
+    pub const fn avance(&self) -> Avance {
+        self.cursor.avance()
+    }
+
+    /// Las teclas que hay que pulsar para seguir, si el cursor espera.
+    #[must_use]
+    pub fn pendiente(&self) -> Option<MascaraTeclas> {
+        self.cursor.pendiente()
+    }
+
+    fn rehacer_puertas(&mut self, ahora: Micros) -> Option<Ancla> {
+        let manos: Vec<Mano> = (0..self.reparto.len()).map(|i| self.reparto.mano(i)).collect();
+        self.cursor
+            .practicar_mano(&self.cancion, &manos, self.practicada, ahora)
     }
 
     /// El ancla vigente, la que interpola la pantalla.

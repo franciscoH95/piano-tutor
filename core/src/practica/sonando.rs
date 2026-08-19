@@ -69,6 +69,16 @@ impl MascaraTeclas {
         self.0[0].count_ones() + self.0[1].count_ones()
     }
 
+    /// Si **todas** las teclas de `otra` estan tambien en esta.
+    ///
+    /// Es lo que hace que un acorde exija sus notas **a la vez** (FR-022): con un `and` de
+    /// mascaras, acertarlas una tras otra soltando entre medias nunca las hace coincidir.
+    /// Tocar de mas no estorba: se exige que esten todas las suyas, no que no haya otras.
+    #[must_use]
+    pub const fn contiene_todas(&self, otra: Self) -> bool {
+        self.0[0] & otra.0[0] == otra.0[0] && self.0[1] & otra.0[1] == otra.0[1]
+    }
+
     /// Si no hay ninguna.
     #[must_use]
     pub const fn esta_vacia(&self) -> bool {

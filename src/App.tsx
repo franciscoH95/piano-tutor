@@ -17,19 +17,22 @@ import {
 import {
   abrirCancion,
   ajustarCorte,
+  cambiarModo,
   cambiarVelocidad,
   conectarTeclado,
   elegirArchivo,
   escucharCanal,
   marcha,
   pausa,
+  practicarMano,
   saltarA,
+  saltarPuerta,
   vistaActual,
   type AnclaDelNucleo,
   type NotaVisiblePlana,
   type ResumenCancion,
 } from "./practica/puente";
-import type { Velocidad } from "./practica/controles";
+import type { ManoElegida, Modo, Velocidad } from "./practica/controles";
 
 const CORTE_POR_DEFECTO = 60;
 const VELOCIDAD_NORMAL: Velocidad = { num: 1, den: 1 };
@@ -45,6 +48,8 @@ export default function App() {
   const [posicion, setPosicion] = useState(0);
   const [canal, setCanal] = useState(ESTADO_INICIAL);
   const [teclado, setTeclado] = useState<string | null | undefined>(undefined);
+  const [modo, setModo] = useState<Modo>("porReloj");
+  const [mano, setMano] = useState<ManoElegida>("ambas");
   const notasRef = useRef(notas);
   notasRef.current = notas;
 
@@ -109,6 +114,8 @@ export default function App() {
       setVelocidad(VELOCIDAD_NORMAL);
       setAncla(null);
       setPosicion(0);
+      setModo("porReloj");
+      setMano("ambas");
       // El aviso viejo se retira: no se acumulan errores de intentos anteriores.
       setError(null);
       await refrescar();
@@ -153,6 +160,23 @@ export default function App() {
     [recibirAncla],
   );
 
+  const ponerModo = useCallback(async (m: Modo) => {
+    recibirAncla(await cambiarModo(m));
+    setModo(m);
+  }, [recibirAncla]);
+
+  const ponerMano = useCallback(
+    async (m: "izquierda" | "derecha" | null) => {
+      recibirAncla(await practicarMano(m));
+      setMano(m ?? "ambas");
+    },
+    [recibirAncla],
+  );
+
+  const saltarLaNota = useCallback(async () => {
+    recibirAncla(await saltarPuerta());
+  }, [recibirAncla]);
+
   return (
     <main className="practica">
       <h1>Piano Tutor</h1>
@@ -188,7 +212,7 @@ export default function App() {
         </p>
       )}
 
-      <Lienzo escena={construirEscena(notas, posicion, canal.pulsadas)} />
+      <Lienzo escena={construirEscena(notas, posicion, canal.pulsadas, canal.esperando)} />
 
       {/* Siempre visibles, haya canción o no y haya fallado la carga o no: es lo que
           mantiene la aplicación utilizable después de un error (FR-004). */}
@@ -202,6 +226,11 @@ export default function App() {
         onPausa={parar}
         onVolverAlPrincipio={alPrincipio}
         onVelocidad={ponerVelocidad}
+        modo={modo}
+        mano={mano}
+        onModo={ponerModo}
+        onMano={ponerMano}
+        onSaltarPuerta={saltarLaNota}
       />
     </main>
   );

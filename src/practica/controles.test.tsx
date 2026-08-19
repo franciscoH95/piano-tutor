@@ -18,6 +18,11 @@ function props(p: Partial<ControlesProps> = {}): ControlesProps {
     onPausa: () => {},
     onVolverAlPrincipio: () => {},
     onVelocidad: () => {},
+    modo: "porReloj",
+    mano: "ambas",
+    onModo: () => {},
+    onMano: () => {},
+    onSaltarPuerta: () => {},
     ...p,
   };
 }
@@ -176,5 +181,72 @@ describe("el control de velocidad", () => {
       "aria-pressed",
       "true",
     );
+  });
+});
+
+describe("el modo de práctica", () => {
+  it("cambia entre reproducir y esperar", async () => {
+    const onModo = vi.fn();
+    render(<Controles {...props({ modo: "porReloj", onModo })} />);
+    await userEvent.click(screen.getByRole("checkbox", { name: /espera/i }));
+    expect(onModo).toHaveBeenLastCalledWith("porAcierto");
+  });
+
+  it("y vuelve a desactivarse", async () => {
+    const onModo = vi.fn();
+    render(<Controles {...props({ modo: "porAcierto", onModo })} />);
+    await userEvent.click(screen.getByRole("checkbox", { name: /espera/i }));
+    expect(onModo).toHaveBeenLastCalledWith("porReloj");
+  });
+
+  it("refleja el modo vigente", () => {
+    render(<Controles {...props({ modo: "porAcierto" })} />);
+    expect(screen.getByRole("checkbox", { name: /espera/i })).toBeChecked();
+  });
+});
+
+describe("la mano que se practica", () => {
+  it("emite la mano elegida, y las dos como ausencia de elección", async () => {
+    const onMano = vi.fn();
+    render(<Controles {...props({ onMano })} />);
+    const selector = screen.getByRole("combobox", { name: /mano/i });
+
+    await userEvent.selectOptions(selector, "izquierda");
+    expect(onMano).toHaveBeenLastCalledWith("izquierda");
+    await userEvent.selectOptions(selector, "derecha");
+    expect(onMano).toHaveBeenLastCalledWith("derecha");
+    await userEvent.selectOptions(selector, "ambas");
+    expect(onMano).toHaveBeenLastCalledWith(null);
+  });
+
+  it("refleja la mano vigente", () => {
+    render(<Controles {...props({ mano: "izquierda" })} />);
+    expect(screen.getByRole("combobox", { name: /mano/i })).toHaveValue("izquierda");
+  });
+});
+
+describe("la salida del atasco", () => {
+  it("está disponible solo en modo espera", () => {
+    // T082a. En modo reloj no hay nada que saltar: ofrecerla sería un botón que no hace
+    // nada, y el alumno no sabría por qué.
+    const { rerender } = render(<Controles {...props({ modo: "porReloj" })} />);
+    expect(screen.queryByRole("button", { name: /saltar/i })).not.toBeInTheDocument();
+
+    rerender(<Controles {...props({ modo: "porAcierto" })} />);
+    expect(screen.getByRole("button", { name: /saltar/i })).toBeInTheDocument();
+  });
+
+  it("emite la orden de saltar la nota pendiente", async () => {
+    const onSaltarPuerta = vi.fn();
+    render(<Controles {...props({ modo: "porAcierto", onSaltarPuerta })} />);
+    await userEvent.click(screen.getByRole("button", { name: /saltar/i }));
+    expect(onSaltarPuerta).toHaveBeenCalledTimes(1);
+  });
+
+  it("explica para qué sirve, porque no es evidente", () => {
+    // FR-020: existe para cuando la canción pide una nota que el teclado no tiene. Sin
+    // explicación, parece un botón de hacer trampa.
+    render(<Controles {...props({ modo: "porAcierto" })} />);
+    expect(screen.getByText(/no tienes|no puedes tocar|teclado/i)).toBeInTheDocument();
   });
 });

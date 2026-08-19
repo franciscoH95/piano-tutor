@@ -25,6 +25,7 @@ const COLOR = {
   blanca: "#fff",
   negra: "#222",
   blancaPulsada: "#4a9eff",
+  pendiente: "#ffd24a",
   negraPulsada: "#1f6fbf",
   derecha: "#4a9eff",
   izquierda: "#ff9a4a",
@@ -68,7 +69,10 @@ function sitio(key: number): { x: number; ancho: number } {
   return { x, ancho };
 }
 
-function teclado(pulsadas: ReadonlySet<number>): Rect[] {
+function teclado(
+  pulsadas: ReadonlySet<number>,
+  pendientes: ReadonlySet<number>,
+): Rect[] {
   const blancas: Rect[] = [];
   const negras: Rect[] = [];
   for (let key = TECLA_MAS_GRAVE; key <= TECLA_MAS_AGUDA; key += 1) {
@@ -76,14 +80,19 @@ function teclado(pulsadas: ReadonlySet<number>): Rect[] {
     const negra = esNegra(key);
     // Una negra pulsada y una blanca pulsada llevan colores distintos: con el mismo, sobre
     // fondo oscuro, dejarían de distinguirse justo cuando importa verlas.
+    // Tres estados: lo que el alumno pulsa, lo que la canción le pide y todavía no ha
+    // pulsado, y el resto. Una tecla pendiente que ya está pulsada se ve como pulsada: ya
+    // la acertó, y lo que tiene que destacar es lo que le falta.
     const pulsada = pulsadas.has(key);
     const color = pulsada
       ? negra
         ? COLOR.negraPulsada
         : COLOR.blancaPulsada
-      : negra
-        ? COLOR.negra
-        : COLOR.blanca;
+      : pendientes.has(key)
+        ? COLOR.pendiente
+        : negra
+          ? COLOR.negra
+          : COLOR.blanca;
     (negra ? negras : blancas).push({
       x,
       y: ALTO - ALTO_TECLADO,
@@ -116,6 +125,7 @@ export function construirEscena(
   notas: NotaVisiblePlana[],
   posicionUs = 0,
   pulsadas: ReadonlySet<number> = new Set(),
+  pendientes: ReadonlySet<number> = new Set(),
 ): Escena {
   const rects: Rect[] = [];
   const etiquetas: Etiqueta[] = [];
@@ -146,7 +156,7 @@ export function construirEscena(
     ancho: ANCHO,
     alto: ALTO,
     fondo: COLOR.fondo,
-    teclas: teclado(pulsadas),
+    teclas: teclado(pulsadas, pendientes),
     notas: rects,
     etiquetas,
   };

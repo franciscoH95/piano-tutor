@@ -178,21 +178,21 @@ renderizador de componentes (T004a).
 
 **Prueba independiente**: `cargo test -p piano-core espera` en verde, con fuente guionizada.
 
-- [ ] T071 [US4] Prueba en `core/tests/espera_test.rs`: con `PorAcierto`, el cursor avanza **a tempo** entre notas y se detiene al llegar a una pendiente. El tiempo entre notas transcurre de verdad (FR-018a)
-- [ ] T072 [US4] Implementar `ProgramaDePuertas` precalculado en `core/src/practica/puertas.rs`, recorrido con cursor monótono
-- [ ] T073 [US4] Implementar el techo móvil del avance en `core/src/practica/cursor.rs`: en `PorAcierto` el reloj gobierna hasta la puerta pendiente
-- [ ] T074 [US4] Prueba en `core/tests/espera_test.rs`: una nota equivocada **no** hace avanzar el cursor, y se comunica sin interrumpir (FR-019)
-- [ ] T075 [US4] Prueba en `core/tests/espera_test.rs`: un acorde avanza solo con **todas** sus notas pulsadas a la vez; acertarlas una tras otra soltando entre medias **no** basta (FR-022)
-- [ ] T076 [US4] Implementar `MascaraTeclas` y la comprobación de acorde completo en `core/src/practica/cursor.rs`, con `and` de máscaras
-- [ ] T077 [US4] Prueba en `core/tests/espera_test.rs`: con una mano elegida, tocar notas de la otra **no** hace avanzar el cursor (SC-012)
-- [ ] T078 [US4] Implementar el filtrado por mano practicada en `core/src/practica/puertas.rs`
-- [ ] T079 [US4] Prueba en `core/tests/espera_test.rs`: cambiar de modo a mitad de canción conserva la posición y no deja notas colgando (FR-021)
-- [ ] T080 [US4] Implementar el cambio de modo en caliente en `core/src/practica/sesion.rs`
-- [ ] T081 [US4] Prueba en `core/tests/espera_test.rs`: si la canción pide una nota que el teclado no tiene, existe una salida y el modo espera no se queda atascado para siempre (FR-020)
-- [ ] T082 [US4] Implementar la salida del atasco en `core/src/practica/cursor.rs` y su control en `src/practica/controles.tsx`
-- [ ] T082a [US4] Prueba en `src/practica/controles.test.tsx`: cambiar de modo y de mano emite el ajuste correcto; la salida del atasco está disponible **solo** en modo espera
-- [ ] T083 [US4] Implementar el selector de modo y de mano en `src/practica/controles.tsx`
-- [ ] T084 [US4] Implementar el indicador visual de nota pendiente en `src/practica/Lienzo.tsx`
+- [X] T071 [US4] Prueba en `core/tests/espera_test.rs`: con `PorAcierto`, el cursor avanza **a tempo** entre notas y se detiene al llegar a una pendiente. El tiempo entre notas transcurre de verdad (FR-018a)
+- [X] T072 [US4] Implementar `ProgramaDePuertas` precalculado en `core/src/practica/puertas.rs`, recorrido con cursor monótono
+- [X] T073 [US4] Implementar el techo móvil del avance en `core/src/practica/cursor.rs`: en `PorAcierto` el reloj gobierna hasta la puerta pendiente
+- [X] T074 [US4] Prueba en `core/tests/espera_test.rs`: una nota equivocada **no** hace avanzar el cursor, y se comunica sin interrumpir (FR-019)
+- [X] T075 [US4] Prueba en `core/tests/espera_test.rs`: un acorde avanza solo con **todas** sus notas pulsadas a la vez; acertarlas una tras otra soltando entre medias **no** basta (FR-022)
+- [X] T076 [US4] Implementar `MascaraTeclas` y la comprobación de acorde completo en `core/src/practica/cursor.rs`, con `and` de máscaras
+- [X] T077 [US4] Prueba en `core/tests/espera_test.rs`: con una mano elegida, tocar notas de la otra **no** hace avanzar el cursor (SC-012)
+- [X] T078 [US4] Implementar el filtrado por mano practicada en `core/src/practica/puertas.rs`
+- [X] T079 [US4] Prueba en `core/tests/espera_test.rs`: cambiar de modo a mitad de canción conserva la posición y no deja notas colgando (FR-021)
+- [X] T080 [US4] Implementar el cambio de modo en caliente en `core/src/practica/sesion.rs`
+- [X] T081 [US4] Prueba en `core/tests/espera_test.rs`: si la canción pide una nota que el teclado no tiene, existe una salida y el modo espera no se queda atascado para siempre (FR-020)
+- [X] T082 [US4] Implementar la salida del atasco en `core/src/practica/cursor.rs` y su control en `src/practica/controles.tsx`
+- [X] T082a [US4] Prueba en `src/practica/controles.test.tsx`: cambiar de modo y de mano emite el ajuste correcto; la salida del atasco está disponible **solo** en modo espera
+- [X] T083 [US4] Implementar el selector de modo y de mano en `src/practica/controles.tsx`
+- [X] T084 [US4] Implementar el indicador visual de nota pendiente en `src/practica/Lienzo.tsx`
 
 **Checkpoint**: un principiante puede recorrer entera una pieza que no domina.
 

@@ -58,7 +58,10 @@ fn las_variantes_sin_campos_llevan_su_etiqueta() {
         perdido.contains("\"tipo\":\"dispositivoPerdido\""),
         "la variante compuesta se renombra a camello: {perdido}"
     );
-    assert!(json(&MensajeAlFrontend::Esperando { key: 72 }).contains("\"tipo\":\"esperando\""));
+    let esperando = json(&MensajeAlFrontend::Esperando { teclas: vec![60, 64, 67] });
+    assert!(esperando.contains("\"tipo\":\"esperando\""), "{esperando}");
+    // Un acorde entero, no una sola tecla: con una sola el alumno no ve que le falta.
+    assert!(esperando.contains("[60,64,67]"), "{esperando}");
 }
 
 #[test]

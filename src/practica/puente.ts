@@ -127,3 +127,22 @@ export async function escucharCanal(
 export async function conectarTeclado(): Promise<string | null> {
   return invoke<string | null>("conectar_teclado");
 }
+
+/** Cambia entre reproducir y esperar. Conserva la posición (FR-021). */
+export async function cambiarModo(
+  m: "porReloj" | "porAcierto",
+): Promise<AnclaDelNucleo | null> {
+  return invoke<AnclaDelNucleo | null>("transporte_modo", { espera: m === "porAcierto" });
+}
+
+/** Elige qué mano se practica. `null` son las dos. */
+export async function practicarMano(
+  m: "izquierda" | "derecha" | null,
+): Promise<AnclaDelNucleo | null> {
+  return invoke<AnclaDelNucleo | null>("ajustar_mano", { mano: m });
+}
+
+/** Salta la nota pendiente sin acertarla (FR-020). */
+export async function saltarPuerta(): Promise<AnclaDelNucleo | null> {
+  return invoke<AnclaDelNucleo | null>("transporte_saltar_puerta");
+}

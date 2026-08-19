@@ -7,7 +7,7 @@
 mod fixtures;
 use fixtures::SmfBuilder;
 use piano_core::load_smf;
-use piano_core::practica::{Mano, Preparacion, Reparto};
+use piano_core::practica::{Avance, Mano, MascaraTeclas, Preparacion, Reparto};
 use piano_core::time::{Micros, Ticks};
 use piano_core::Song;
 
@@ -234,4 +234,51 @@ fn saltar_hacia_atras_recoloca_la_vista() {
     p.detallar(0, 1, &mut cerca);
     assert!(!cerca.is_empty(), "tras volver al principio se ve la primera nota");
     assert_ne!(cerca.first().map(|n| n.indice), lejos.first().map(|n| n.indice));
+}
+
+// ------------------------------------------------- modo espera
+
+#[test]
+fn la_preparacion_espera_en_la_primera_nota_y_avanza_al_acertarla() {
+    let mut p = Preparacion::nueva(una_voz());
+    p.cambiar_avance(Avance::PorAcierto, Micros::ZERO);
+    p.poner_en_marcha(Micros::ZERO);
+
+    let paso = p.avanzar_con(Micros(900_000), MascaraTeclas::VACIA);
+    assert_eq!(paso.posicion, Micros::ZERO, "espera en la primera");
+    assert!(paso.esperando);
+
+    let mut m = MascaraTeclas::VACIA;
+    m.poner(60);
+    p.avanzar_con(Micros(900_000), m);
+    let paso = p.avanzar_con(Micros(1_000_000), m);
+    assert!(paso.posicion > Micros::ZERO, "acertada, avanza");
+}
+
+#[test]
+fn mover_el_corte_rehace_tambien_las_puertas() {
+    // El corte cambia de qué mano es cada nota, y con una mano practicada eso cambia qué
+    // puertas existen. Sin rehacerlas, el alumno esperaría en notas que ya no son suyas.
+    let mut p = Preparacion::nueva(una_voz());
+    p.practicar_mano(Some(Mano::Izquierda), Micros::ZERO);
+    p.cambiar_avance(Avance::PorAcierto, Micros::ZERO);
+    p.poner_en_marcha(Micros::ZERO);
+    // Con el corte por defecto (60) las tres notas (60, 64, 67) son de la derecha, así que
+    // practicando la izquierda no hay ninguna puerta y el cursor corre libre.
+    let suelto = p.avanzar_con(Micros(500_000), MascaraTeclas::VACIA).posicion;
+    assert_eq!(suelto, Micros(500_000), "sin puertas de la izquierda, avanza");
+
+    // Se sube el corte: ahora las tres son de la izquierda y sí hay puertas.
+    p.saltar_a(Micros::ZERO, Micros(500_000));
+    p.ajustar_corte(96);
+    let parado = p.avanzar_con(Micros(1_500_000), MascaraTeclas::VACIA).posicion;
+    assert_eq!(parado, Micros::ZERO, "ahora sí espera: las puertas se rehicieron");
+}
+
+#[test]
+fn cargar_otra_cancion_reinicia_el_modo_y_las_puertas() {
+    let mut p = Preparacion::nueva(una_voz());
+    p.cambiar_avance(Avance::PorAcierto, Micros::ZERO);
+    p.cargar(cancion_b());
+    assert_eq!(p.avance(), Avance::PorReloj, "la canción nueva empieza por reloj");
 }

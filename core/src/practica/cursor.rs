@@ -18,8 +18,21 @@
 //! cuando el regimen cambia de verdad**— y se comprueba contra la implementacion de la
 //! pantalla en `fixtures/paridad-cursor.json`.
 
+use crate::practica::manos::Mano;
+use crate::practica::puertas::ProgramaDePuertas;
+use crate::practica::sonando::MascaraTeclas;
 use crate::time::Micros;
 use crate::Song;
+
+/// Como avanza la practica. Un **dato**, no un comportamiento.
+#[derive(Clone, Copy, PartialEq, Eq, Debug, Default)]
+pub enum Avance {
+    /// El reloj manda: la cancion suena aunque el alumno no toque.
+    #[default]
+    PorReloj,
+    /// El alumno manda: la cancion espera en cada nota pendiente.
+    PorAcierto,
+}
 
 /// Proporcion respecto al tempo original.
 ///
@@ -136,6 +149,8 @@ pub struct Paso {
     pub ancla: Option<Ancla>,
     /// La cancion acaba de llegar al final. Es un **flanco**, no un nivel.
     pub terminada: bool,
+    /// El cursor esta detenido en una puerta, esperando a que el alumno acierte.
+    pub esperando: bool,
 }
 
 /// El regimen: la quintupla que determina por completo donde estara el cursor.
@@ -161,6 +176,10 @@ pub struct Cursor {
     /// volver al principio y llegar otra vez al final no avisaria.
     estaba_al_final: bool,
     regimen_emitido: Regimen,
+    avance: Avance,
+    puertas: ProgramaDePuertas,
+    /// La puerta pendiente. Solo avanza, salvo al saltar hacia atras.
+    puerta: usize,
 }
 
 impl Cursor {
@@ -179,14 +198,41 @@ impl Cursor {
             // posicion cero: asi el flanco se emite en el primer `avanzar()`, una vez.
             estaba_al_final: false,
             regimen_emitido: (Micros::ZERO, Micros::ZERO, 0, 1, fin),
+            avance: Avance::PorReloj,
+            puertas: ProgramaDePuertas::default(),
+            puerta: 0,
         };
         c.regimen_emitido = c.regimen();
         c
     }
 
-    /// El techo del avance. Incluye **siempre** el final de la cancion.
-    const fn techo(&self) -> Micros {
-        self.fin
+    /// Un cursor con el programa de puertas del modo espera.
+    #[must_use]
+    pub fn nuevo_con_puertas(cancion: &Song, manos: &[Mano], practicada: Option<Mano>) -> Self {
+        let mut c = Self::nuevo(cancion);
+        c.puertas = ProgramaDePuertas::nuevo(cancion, manos, practicada);
+        c.regimen_emitido = c.regimen();
+        c
+    }
+
+    /// El techo del avance. Incluye **siempre** el final de la cancion, y en modo espera
+    /// tambien la puerta pendiente.
+    ///
+    /// La ausencia de puerta es el infinito, **jamas el cero**: con cero el cursor se
+    /// congelaria para siempre en cuanto se acabasen las puertas.
+    fn techo(&self) -> Micros {
+        let puerta = match self.avance {
+            Avance::PorAcierto => self
+                .puertas
+                .get(self.puerta)
+                .map_or(Micros(u64::MAX), |p| p.onset_us),
+            Avance::PorReloj => Micros(u64::MAX),
+        };
+        if puerta.0 < self.fin.0 {
+            puerta
+        } else {
+            self.fin
+        }
     }
 
     fn regimen(&self) -> Regimen {
@@ -249,12 +295,103 @@ impl Cursor {
 
     /// Adelanta la practica hasta el instante del reloj.
     pub fn avanzar(&mut self, ahora: Micros) -> Paso {
+        self.avanzar_con(ahora, MascaraTeclas::VACIA)
+    }
+
+    /// Adelanta la practica sabiendo que teclas tiene pulsadas el alumno.
+    ///
+    /// En `PorAcierto`, si el cursor esta en la puerta pendiente y **todas** sus teclas
+    /// estan pulsadas a la vez, la puerta se abre y el ancla se rebasa **en este instante**.
+    /// Rebasarla en el de llegada a la puerta convertiria la duda del alumno en avance de
+    /// cancion: treinta segundos pensandolo serian treinta segundos de musica de golpe.
+    pub fn avanzar_con(&mut self, ahora: Micros, pulsadas: MascaraTeclas) -> Paso {
         let t = self.instante(ahora);
-        let posicion = self.proyectar(t);
+        let mut posicion = self.proyectar(t);
+
+        if self.avance == Avance::PorAcierto {
+            // Se abren todas las puertas satisfechas de golpe: dos notas simultaneas de la
+            // misma mano son una sola puerta, pero un acorde muy rapido puede dejar dos
+            // seguidas en el mismo instante.
+            while let Some(p) = self.puertas.get(self.puerta) {
+                if posicion.0 < p.onset_us.0 || !pulsadas.contiene_todas(p.teclas) {
+                    break;
+                }
+                self.puerta = self.puerta.saturating_add(1);
+                self.ancla_cancion = posicion;
+                self.ancla_real = t;
+                posicion = self.proyectar(t);
+            }
+        }
+
         let al_final = posicion.0 >= self.fin.0;
         let flanco = al_final && !self.estaba_al_final;
         self.estaba_al_final = al_final;
-        Paso { posicion, ancla: self.emitir(), terminada: flanco }
+        let esperando = self.avance == Avance::PorAcierto
+            && self
+                .puertas
+                .get(self.puerta)
+                .is_some_and(|p| posicion.0 >= p.onset_us.0);
+        Paso { posicion, ancla: self.emitir(), terminada: flanco, esperando }
+    }
+
+    /// Cambia entre reproducir y esperar. **Conserva la posicion** (FR-021).
+    pub fn cambiar_avance(&mut self, avance: Avance, ahora: Micros) -> Option<Ancla> {
+        if avance == self.avance {
+            return None;
+        }
+        let t = self.instante(ahora);
+        self.rebasar(t);
+        self.avance = avance;
+        // La puerta pendiente es la siguiente **por delante**, no una ya pasada: al activar
+        // el modo espera a mitad de cancion, volver a una puerta anterior seria retroceder.
+        self.puerta = self.puertas.desde(self.ancla_cancion);
+        self.emitir()
+    }
+
+    /// Salta la puerta pendiente sin acertarla (FR-020).
+    ///
+    /// Es la salida para cuando el modo espera no puede satisfacerse: una nota que el
+    /// teclado del alumno no tiene dejaria la practica atascada para siempre. Salta **una**
+    /// puerta, no todas: saltarlas todas equivaldria a apagar el modo sin decirlo.
+    pub fn saltar_puerta(&mut self, ahora: Micros) -> Option<Ancla> {
+        if self.avance != Avance::PorAcierto || self.puertas.get(self.puerta).is_none() {
+            return None;
+        }
+        let t = self.instante(ahora);
+        self.rebasar(t);
+        self.puerta = self.puerta.saturating_add(1);
+        self.emitir()
+    }
+
+    /// Rehace el programa de puertas, por ejemplo al elegir otra mano.
+    pub fn practicar_mano(
+        &mut self,
+        cancion: &Song,
+        manos: &[Mano],
+        practicada: Option<Mano>,
+        ahora: Micros,
+    ) -> Option<Ancla> {
+        let t = self.instante(ahora);
+        self.rebasar(t);
+        self.puertas = ProgramaDePuertas::nuevo(cancion, manos, practicada);
+        self.puerta = self.puertas.desde(self.ancla_cancion);
+        self.emitir()
+    }
+
+    /// El modo de avance vigente.
+    #[must_use]
+    pub const fn avance(&self) -> Avance {
+        self.avance
+    }
+
+    /// Las teclas que hay que pulsar para pasar, si el cursor esta esperando.
+    #[must_use]
+    pub fn pendiente(&self) -> Option<MascaraTeclas> {
+        if self.avance != Avance::PorAcierto {
+            return None;
+        }
+        let p = self.puertas.get(self.puerta)?;
+        (self.posicion().0 >= p.onset_us.0).then_some(p.teclas)
     }
 
     /// Pone la cancion en marcha a la velocidad de practica.

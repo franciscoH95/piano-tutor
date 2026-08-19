@@ -223,3 +223,39 @@ describe("las teclas que el alumno pulsa", () => {
     expect(construirEscena([], 0, new Set())).toEqual(construirEscena([], 0));
   });
 });
+
+describe("la nota que la canción está esperando", () => {
+  it("se distingue de una tecla pulsada y de una suelta", () => {
+    // T084. Son tres estados distintos y el alumno tiene que poder leerlos de un vistazo:
+    // lo que la canción pide, lo que él está tocando, y el resto.
+    const sin = construirEscena([], 0);
+    const pulsada = construirEscena([], 0, new Set([60]));
+    const pendiente = construirEscena([], 0, new Set(), new Set([60]));
+
+    const i = sin.teclas.findIndex((t, n) => t.color !== pendiente.teclas[n]?.color);
+    expect(i).toBeGreaterThanOrEqual(0);
+    expect(pendiente.teclas[i]?.color).not.toBe(pulsada.teclas[i]?.color);
+    expect(pendiente.teclas[i]?.color).not.toBe(sin.teclas[i]?.color);
+  });
+
+  it("un acorde pendiente ilumina todas sus teclas", () => {
+    // Con una sola no se vería qué falta, y un acorde solo abre con todas a la vez.
+    const sin = construirEscena([], 0);
+    const con = construirEscena([], 0, new Set(), new Set([60, 64, 67]));
+    const cambiadas = con.teclas.filter((t, i) => t.color !== sin.teclas[i]?.color);
+    expect(cambiadas).toHaveLength(3);
+  });
+
+  it("una tecla pendiente que el alumno ya está pulsando se ve como pulsada", () => {
+    // Ya la ha acertado: lo que le falta es lo OTRO, y eso es lo que tiene que destacar.
+    const e = construirEscena([], 0, new Set([60]), new Set([60, 64]));
+    const sin = construirEscena([], 0);
+    const soloPulsada = construirEscena([], 0, new Set([60]));
+    const i = sin.teclas.findIndex((t, n) => t.color !== soloPulsada.teclas[n]?.color);
+    expect(e.teclas[i]?.color).toBe(soloPulsada.teclas[i]?.color);
+  });
+
+  it("sin nada pendiente se comporta como antes", () => {
+    expect(construirEscena([], 0, new Set(), new Set())).toEqual(construirEscena([], 0));
+  });
+});

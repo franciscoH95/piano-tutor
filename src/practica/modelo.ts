@@ -71,7 +71,7 @@ export type MensajeDelNucleo =
       den: number;
       topeUs: number | null;
     }
-  | { tipo: "esperando"; key: number }
+  | { tipo: "esperando"; teclas: number[] }
   | { tipo: "terminada" }
   | { tipo: "dispositivoPerdido" };
 
@@ -81,8 +81,8 @@ export interface EstadoDeCanal {
   readonly pulsadas: ReadonlySet<number>;
   /** Desde dónde interpolar, ya reanclado en el reloj local. */
   readonly ancla: Ancla | null;
-  /** La nota que el modo espera está esperando, si hay alguna. */
-  readonly esperando: number | null;
+  /** Las teclas que el modo espera aguarda. Vacío si no espera nada. */
+  readonly esperando: ReadonlySet<number>;
   readonly terminada: boolean;
   readonly dispositivoPerdido: boolean;
 }
@@ -90,7 +90,7 @@ export interface EstadoDeCanal {
 export const ESTADO_INICIAL: EstadoDeCanal = {
   pulsadas: new Set(),
   ancla: null,
-  esperando: null,
+  esperando: new Set(),
   terminada: false,
   dispositivoPerdido: false,
 };
@@ -119,7 +119,7 @@ export function aplicar(
     case "ancla":
       return { ...estado, ancla: anclarEnRelojLocal(m, llegadaUs) };
     case "esperando":
-      return { ...estado, esperando: m.key };
+      return { ...estado, esperando: new Set(m.teclas) };
     case "terminada":
       return { ...estado, terminada: true };
     case "dispositivoPerdido":

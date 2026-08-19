@@ -6,7 +6,7 @@
 
 use piano_core::clock::Clock;
 use piano_core::practica::{
-    Alteracion, Ancla, Base, NotaDetallada, Preparacion, Reparto, Velocidad,
+    Alteracion, Ancla, Avance, Base, Mano, NotaDetallada, Preparacion, Reparto, Velocidad,
 };
 use piano_core::time::Micros;
 use serde::Serialize;
@@ -36,8 +36,12 @@ pub enum MensajeAlFrontend {
         den: u32,
         tope_us: Option<u64>,
     },
-    /// El cursor espera a que se toque esta nota.
-    Esperando { key: u8 },
+    /// El cursor espera a que se toquen **estas** notas, todas a la vez.
+    ///
+    /// El contrato original traia una sola tecla. No basta: una puerta puede ser un acorde
+    /// y FR-022 exige que esten todas pulsadas simultaneamente, asi que con una sola el
+    /// alumno no podria ver que le falta.
+    Esperando { teclas: Vec<u8> },
     /// La cancion llego a su fin.
     Terminada,
     /// El teclado desaparecio a mitad de practica.
@@ -371,4 +375,39 @@ pub fn conectar_teclado(
         Err(_) => compartido.enviar(MensajeAlFrontend::DispositivoPerdido),
     });
     Some(nombre)
+}
+
+/// Cambia entre reproducir y esperar. Conserva la posicion (FR-021).
+#[tauri::command]
+pub fn transporte_modo(
+    estado: tauri::State<'_, std::sync::Arc<Estado>>,
+    reloj: tauri::State<'_, crate::RelojDeSesion>,
+    espera: bool,
+) -> Option<AnclaPlana> {
+    let avance = if espera { Avance::PorAcierto } else { Avance::PorReloj };
+    transportar(&estado, &reloj, |p, ahora| p.cambiar_avance(avance, ahora))
+}
+
+/// Elige que mano se practica. `None` son las dos.
+#[tauri::command]
+pub fn ajustar_mano(
+    estado: tauri::State<'_, std::sync::Arc<Estado>>,
+    reloj: tauri::State<'_, crate::RelojDeSesion>,
+    mano: Option<String>,
+) -> Option<AnclaPlana> {
+    let elegida = match mano.as_deref() {
+        Some("izquierda") => Some(Mano::Izquierda),
+        Some("derecha") => Some(Mano::Derecha),
+        _ => None,
+    };
+    transportar(&estado, &reloj, |p, ahora| p.practicar_mano(elegida, ahora))
+}
+
+/// Salta la nota pendiente sin acertarla (FR-020).
+#[tauri::command]
+pub fn transporte_saltar_puerta(
+    estado: tauri::State<'_, std::sync::Arc<Estado>>,
+    reloj: tauri::State<'_, crate::RelojDeSesion>,
+) -> Option<AnclaPlana> {
+    transportar(&estado, &reloj, Preparacion::saltar_puerta)
 }
