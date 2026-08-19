@@ -155,18 +155,18 @@ renderizador de componentes (T004a).
 
 **Prueba independiente**: `cargo test -p piano-core sonando` en verde, con fuente guionizada.
 
-- [ ] T060 [US3] Prueba en `core/tests/sonando_test.rs`: una nota está sonando si la posición cae entre su ataque y su final, **sin ninguna ventana de tolerancia** (FR-014b)
-- [ ] T061 [US3] Implementar `ConjuntoSonando` en `core/src/practica/sonando.rs`, con cursor de entrada y cota superior de duración, porque la línea temporal está ordenada por ataque y no por final
-- [ ] T062 [US3] Prueba en `core/tests/sonando_test.rs`: las tres situaciones de FR-014a se distinguen — acierto, nota extra y nota omitida. A tempo fijo, barriendo **las 128 teclas** en varios instantes de una pieza, el 100 % de las que suenan se clasifica como acierto y el 100 % de las que no, como extra (SC-005a)
-- [ ] T063 [US3] Implementar la clasificación de las tres situaciones en `core/src/practica/sonando.rs`
-- [ ] T064 [US3] Prueba en `core/tests/sonando_test.rs`: el coste de la consulta no crece con el tamaño de la canción; se cuentan notas examinadas
-- [ ] T065 [US3] Conectar la captura a la sesión en `src-tauri/src/lib.rs`, pasando **el mismo reloj de sesión** que ya se crea una sola vez (FR-012a)
-- [ ] T066 [US3] Implementar el reflejo de teclas pulsadas en `src/practica/Lienzo.tsx`
-- [ ] T067 [US3] Prueba en `src/practica/modelo.test.ts`: el estado de teclas pulsadas que llega por el canal se aplica en orden y una tecla soltada deja de estar marcada
-- [ ] T068 [US3] Implementar el manejo de mensajes del canal en `src/practica/modelo.ts`
-- [ ] T068a [US3] Prueba en `src/App.test.tsx`: sin teclado se muestra el aviso **y la canción sigue viéndose y reproduciéndose** (FR-015); al perderse el dispositivo a mitad de práctica se avisa sin detener la reproducción (FR-016)
-- [ ] T069 [US3] Implementar el aviso de «sin teclado» en `src/App.tsx`, que **no debe bloquear** ver ni reproducir la canción (FR-015)
-- [ ] T070 [US3] Implementar el aviso de dispositivo perdido a mitad de práctica en `src/App.tsx` (FR-016)
+- [X] T060 [US3] Prueba en `core/tests/sonando_test.rs`: una nota está sonando si la posición cae entre su ataque y su final, **sin ninguna ventana de tolerancia** (FR-014b)
+- [X] T061 [US3] Implementar `ConjuntoSonando` en `core/src/practica/sonando.rs`, con cursor de entrada y cota superior de duración, porque la línea temporal está ordenada por ataque y no por final
+- [X] T062 [US3] Prueba en `core/tests/sonando_test.rs`: las tres situaciones de FR-014a se distinguen — acierto, nota extra y nota omitida. A tempo fijo, barriendo **las 128 teclas** en varios instantes de una pieza, el 100 % de las que suenan se clasifica como acierto y el 100 % de las que no, como extra (SC-005a)
+- [X] T063 [US3] Implementar la clasificación de las tres situaciones en `core/src/practica/sonando.rs`
+- [X] T064 [US3] Prueba en `core/tests/sonando_test.rs`: el coste de la consulta no crece con el tamaño de la canción; se cuentan notas examinadas
+- [X] T065 [US3] Conectar la captura a la sesión en `src-tauri/src/lib.rs`, pasando **el mismo reloj de sesión** que ya se crea una sola vez (FR-012a)
+- [X] T066 [US3] Implementar el reflejo de teclas pulsadas en `src/practica/Lienzo.tsx`
+- [X] T067 [US3] Prueba en `src/practica/modelo.test.ts`: el estado de teclas pulsadas que llega por el canal se aplica en orden y una tecla soltada deja de estar marcada
+- [X] T068 [US3] Implementar el manejo de mensajes del canal en `src/practica/modelo.ts`
+- [X] T068a [US3] Prueba en `src/App.test.tsx`: sin teclado se muestra el aviso **y la canción sigue viéndose y reproduciéndose** (FR-015); al perderse el dispositivo a mitad de práctica se avisa sin detener la reproducción (FR-016)
+- [X] T069 [US3] Implementar el aviso de «sin teclado» en `src/App.tsx`, que **no debe bloquear** ver ni reproducir la canción (FR-015)
+- [X] T070 [US3] Implementar el aviso de dispositivo perdido a mitad de práctica en `src/App.tsx` (FR-016)
 
 **Checkpoint**: el instrumento y la aplicación están conectados.
 

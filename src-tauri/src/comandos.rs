@@ -18,7 +18,12 @@ use tauri::ipc::Channel;
 /// **Un solo canal** para todo, discriminado por etiqueta: asi el orden entre las teclas y
 /// las anclas queda garantizado por construccion. Con dos canales no lo estaria.
 #[derive(Clone, Debug, Serialize)]
-#[serde(tag = "tipo", rename_all = "camelCase")]
+// `rename_all` sobre un enum renombra **las variantes**, no los campos de dentro; hace
+// falta `rename_all_fields` para eso. Sin el, este canal enviaba `posicion_us` mientras
+// `AnclaPlana` —que devuelven los mandos— enviaba `posicionUs`: dos convenciones para el
+// mismo dato en el mismo puente, y ninguna de las dos falla ruidosamente. El campo llegaria
+// como `undefined` y el cursor se quedaria clavado sin ningun error.
+#[serde(tag = "tipo", rename_all = "camelCase", rename_all_fields = "camelCase")]
 pub enum MensajeAlFrontend {
     /// Una tecla se pulso o se solto.
     Tecla { key: u8, pulsada: bool },
@@ -118,6 +123,8 @@ impl From<&NotaDetallada> for NotaVisiblePlana {
 pub struct Estado {
     canal: Mutex<Option<Channel<MensajeAlFrontend>>>,
     preparacion: Mutex<Option<Preparacion>>,
+    /// Se levanta al cerrar para que el hilo de captura salga de su bucle.
+    pub parar: std::sync::Arc<std::sync::atomic::AtomicBool>,
 }
 
 impl Estado {
@@ -328,4 +335,40 @@ pub fn transporte_posicion(
         Err(envenenado) => envenenado.into_inner(),
     };
     guarda.as_mut().map_or(0, |p| p.avanzar(ahora).posicion.0)
+}
+
+/// Conecta el primer teclado MIDI que haya. Devuelve su nombre, o `None` si no hay ninguno.
+///
+/// `None` **no es un error**: la aplicacion funciona sin teclado y solo lo comunica
+/// (FR-015). Por eso no devuelve `Result`.
+///
+/// # El mismo reloj
+///
+/// A la captura se le pasa **el reloj de sesion**, el mismo que gobierna la reproduccion
+/// (FR-012a). `MonotonicClock` es `Copy` y guarda su origen, asi que copiarlo no crea un
+/// reloj nuevo: sigue siendo el mismo cero. Con dos relojes distintos, los instantes de lo
+/// tocado y los de lo esperado no serian comparables y el desfase entre ambos crecería con
+/// la sesion, sin que ninguna prueba de un solo lado lo notase.
+///
+/// # Por que abre el hilo y no esta funcion
+///
+/// `Captura` retiene el puerto y el cliente de CoreMIDI, que no son `Send`. Abrir aqui y
+/// mandar la captura al hilo no compila; abrir **dentro** del hilo evita el problema de
+/// raiz y ademas libera el dispositivo al terminar (FR-006).
+#[tauri::command]
+pub fn conectar_teclado(
+    estado: tauri::State<'_, std::sync::Arc<Estado>>,
+    reloj: tauri::State<'_, crate::RelojDeSesion>,
+) -> Option<String> {
+    let dispositivo = piano_midi_io::dispositivos().ok()?.into_iter().next()?;
+    let nombre = dispositivo.nombre.clone();
+    let clock = reloj.0;
+    let compartido = std::sync::Arc::clone(&estado);
+    let parar = std::sync::Arc::clone(&estado.parar);
+    std::thread::spawn(move || match piano_midi_io::abrir(&dispositivo, clock) {
+        Ok(mut captura) => crate::reenviador::bucle(captura.receptor(), &compartido, &parar),
+        // Estaba en la lista y no se pudo abrir: para el alumno es lo mismo que perderlo.
+        Err(_) => compartido.enviar(MensajeAlFrontend::DispositivoPerdido),
+    });
+    Some(nombre)
 }

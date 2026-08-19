@@ -3,7 +3,14 @@
 // No forma parte de la excepción del Principio II: decide dónde está la práctica, y eso
 // es una decisión. Solo `Lienzo.tsx` está exento, y solo mientras se limite a pintar.
 import { describe, expect, it } from "vitest";
-import { posicionEn, type Ancla, anclarEnRelojLocal } from "./modelo";
+import {
+  anclarEnRelojLocal,
+  aplicar,
+  ESTADO_INICIAL,
+  posicionEn,
+  type Ancla,
+  type MensajeDelNucleo,
+} from "./modelo";
 
 const ancla = (p: Partial<Ancla> = {}): Ancla => ({
   posicionUs: 0,
@@ -114,5 +121,91 @@ describe("los dos relojes", () => {
   it("el tope se sigue respetando tras reanclar", () => {
     const local = anclarEnRelojLocal(ancla, 0);
     expect(posicionEn(local, 10_000_000_000)).toBe(600_000_000);
+  });
+});
+
+describe("los mensajes del canal", () => {
+  const LLEGADA = 1_000_000;
+
+  it("una tecla pulsada se marca y una soltada deja de estarlo", () => {
+    // T067/FR-013.
+    let e = ESTADO_INICIAL;
+    e = aplicar(e, { tipo: "tecla", key: 60, pulsada: true }, LLEGADA);
+    expect([...e.pulsadas]).toEqual([60]);
+    e = aplicar(e, { tipo: "tecla", key: 64, pulsada: true }, LLEGADA);
+    expect([...e.pulsadas].sort((a, b) => a - b)).toEqual([60, 64]);
+    e = aplicar(e, { tipo: "tecla", key: 60, pulsada: false }, LLEGADA);
+    expect([...e.pulsadas]).toEqual([64]);
+  });
+
+  it("se aplican en orden y el último mensaje de una tecla manda", () => {
+    // Pulsar, soltar y volver a pulsar deja la tecla pulsada; el orden importa.
+    let e = ESTADO_INICIAL;
+    for (const pulsada of [true, false, true]) {
+      e = aplicar(e, { tipo: "tecla", key: 60, pulsada }, LLEGADA);
+    }
+    expect(e.pulsadas.has(60)).toBe(true);
+
+    for (const pulsada of [true, true, false]) {
+      e = aplicar(e, { tipo: "tecla", key: 72, pulsada }, LLEGADA);
+    }
+    expect(e.pulsadas.has(72)).toBe(false);
+  });
+
+  it("soltar una tecla que nunca se pulsó no rompe nada", () => {
+    // Puede pasar de verdad: si la aplicación arranca con una tecla ya hundida, el primer
+    // mensaje que llega de ella es el de soltarla.
+    const e = aplicar(ESTADO_INICIAL, { tipo: "tecla", key: 60, pulsada: false }, LLEGADA);
+    expect(e.pulsadas.size).toBe(0);
+  });
+
+  it("el ancla que llega se reancla en el reloj local", () => {
+    const e = aplicar(
+      ESTADO_INICIAL,
+      { tipo: "ancla", posicionUs: 5_000_000, instanteUs: 900_000_000, num: 1, den: 2, topeUs: null },
+      LLEGADA,
+    );
+    expect(e.ancla?.instanteUs).toBe(LLEGADA);
+    expect(e.ancla?.posicionUs).toBe(5_000_000);
+  });
+
+  it("el fin de la canción y la pérdida del teclado se recogen", () => {
+    let e = aplicar(ESTADO_INICIAL, { tipo: "terminada" }, LLEGADA);
+    expect(e.terminada).toBe(true);
+    e = aplicar(e, { tipo: "dispositivoPerdido" }, LLEGADA);
+    expect(e.dispositivoPerdido).toBe(true);
+    // Y perder el teclado NO borra lo demás: la canción sigue donde estaba.
+    expect(e.terminada).toBe(true);
+  });
+
+  it("perder el teclado no suelta las teclas ni mueve el ancla", () => {
+    // FR-016: se comunica, no se detiene. Si al perder el dispositivo se limpiara el
+    // estado, la canción daría un salto visible justo cuando el alumno menos lo espera.
+    let e = ESTADO_INICIAL;
+    e = aplicar(e, { tipo: "tecla", key: 60, pulsada: true }, LLEGADA);
+    e = aplicar(
+      e,
+      { tipo: "ancla", posicionUs: 7_000_000, instanteUs: 0, num: 1, den: 1, topeUs: null },
+      LLEGADA,
+    );
+    const antes = e.ancla;
+    e = aplicar(e, { tipo: "dispositivoPerdido" }, LLEGADA + 5);
+    expect(e.ancla).toEqual(antes);
+    expect(e.pulsadas.has(60)).toBe(true);
+  });
+
+  it("no muta el estado que recibe", () => {
+    // Sin esto, React no volvería a pintar: compara por identidad.
+    const antes = ESTADO_INICIAL;
+    const despues = aplicar(antes, { tipo: "tecla", key: 60, pulsada: true }, LLEGADA);
+    expect(despues).not.toBe(antes);
+    expect(antes.pulsadas.size).toBe(0);
+  });
+
+  it("un mensaje desconocido se ignora sin romper el estado", () => {
+    // El puente puede añadir variantes antes de que la interfaz las conozca.
+    const raro = { tipo: "todaviaNoExiste" } as unknown as MensajeDelNucleo;
+    const e = aplicar(ESTADO_INICIAL, raro, LLEGADA);
+    expect(e).toBe(ESTADO_INICIAL);
   });
 });

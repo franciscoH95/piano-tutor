@@ -24,6 +24,8 @@ const COLOR = {
   fondo: "#111",
   blanca: "#fff",
   negra: "#222",
+  blancaPulsada: "#4a9eff",
+  negraPulsada: "#1f6fbf",
   derecha: "#4a9eff",
   izquierda: "#ff9a4a",
   sonandoDerecha: "#b3d9ff",
@@ -66,18 +68,28 @@ function sitio(key: number): { x: number; ancho: number } {
   return { x, ancho };
 }
 
-function teclado(): Rect[] {
+function teclado(pulsadas: ReadonlySet<number>): Rect[] {
   const blancas: Rect[] = [];
   const negras: Rect[] = [];
   for (let key = TECLA_MAS_GRAVE; key <= TECLA_MAS_AGUDA; key += 1) {
     const { x, ancho } = sitio(key);
     const negra = esNegra(key);
+    // Una negra pulsada y una blanca pulsada llevan colores distintos: con el mismo, sobre
+    // fondo oscuro, dejarían de distinguirse justo cuando importa verlas.
+    const pulsada = pulsadas.has(key);
+    const color = pulsada
+      ? negra
+        ? COLOR.negraPulsada
+        : COLOR.blancaPulsada
+      : negra
+        ? COLOR.negra
+        : COLOR.blanca;
     (negra ? negras : blancas).push({
       x,
       y: ALTO - ALTO_TECLADO,
       ancho,
       alto: negra ? ALTO_TECLADO * 0.6 : ALTO_TECLADO,
-      color: negra ? COLOR.negra : COLOR.blanca,
+      color,
     });
   }
   // Las negras van después: pintadas en el orden natural, la blanca siguiente taparía a
@@ -103,6 +115,7 @@ function colorDeNota(n: NotaVisiblePlana): string {
 export function construirEscena(
   notas: NotaVisiblePlana[],
   posicionUs = 0,
+  pulsadas: ReadonlySet<number> = new Set(),
 ): Escena {
   const rects: Rect[] = [];
   const etiquetas: Etiqueta[] = [];
@@ -133,7 +146,7 @@ export function construirEscena(
     ancho: ANCHO,
     alto: ALTO,
     fondo: COLOR.fondo,
-    teclas: teclado(),
+    teclas: teclado(pulsadas),
     notas: rects,
     etiquetas,
   };

@@ -7,12 +7,20 @@ import "./App.css";
 import { Controles } from "./practica/controles";
 import { Lienzo } from "./practica/Lienzo";
 import { construirEscena, VENTANA_US } from "./practica/escena";
-import { anclarEnRelojLocal, posicionEn, type Ancla } from "./practica/modelo";
+import {
+  anclarEnRelojLocal,
+  aplicar,
+  ESTADO_INICIAL,
+  posicionEn,
+  type Ancla,
+} from "./practica/modelo";
 import {
   abrirCancion,
   ajustarCorte,
   cambiarVelocidad,
+  conectarTeclado,
   elegirArchivo,
+  escucharCanal,
   marcha,
   pausa,
   saltarA,
@@ -35,6 +43,8 @@ export default function App() {
   const [error, setError] = useState<string | null>(null);
   const [ancla, setAncla] = useState<Ancla | null>(null);
   const [posicion, setPosicion] = useState(0);
+  const [canal, setCanal] = useState(ESTADO_INICIAL);
+  const [teclado, setTeclado] = useState<string | null | undefined>(undefined);
   const notasRef = useRef(notas);
   notasRef.current = notas;
 
@@ -51,6 +61,21 @@ export default function App() {
     if (a === null) return;
     setAncla(anclarEnRelojLocal(a, ahoraLocal()));
   }, []);
+
+  // El canal y el teclado se piden una sola vez, al montar.
+  useEffect(() => {
+    void escucharCanal((m) => {
+      setCanal((previo) => aplicar(previo, m, performance.now() * 1000));
+    });
+    void conectarTeclado().then(setTeclado);
+  }, []);
+
+  // Un ancla que llega por el canal manda igual que la que devuelve un mando: la emite el
+  // núcleo por su cuenta al llegar a una puerta, y sin esto el cursor se congelaría sin que
+  // la pantalla se enterase.
+  useEffect(() => {
+    if (canal.ancla !== null) setAncla(canal.ancla);
+  }, [canal.ancla]);
 
   // El bucle de dibujo. La posición sale **del reloj, nunca del número de fotograma**: la
   // cadencia de la pantalla afecta a la suavidad, no a la corrección. Un contador de
@@ -142,6 +167,19 @@ export default function App() {
         </p>
       )}
 
+      {/* FR-015 y FR-016: se comunican, y no bloquean nada. Ni la canción ni los mandos
+          dependen de que haya teclado. */}
+      {teclado === null && (
+        <p role="status" className="aviso">
+          No se detecta ningún teclado MIDI. Puedes ver y reproducir la canción igual.
+        </p>
+      )}
+      {canal.dispositivoPerdido && (
+        <p role="status" className="aviso">
+          Se perdió la conexión con el teclado. La canción sigue.
+        </p>
+      )}
+
       {resumen === null ? (
         <p>Abre una canción para empezar a practicar.</p>
       ) : (
@@ -150,7 +188,7 @@ export default function App() {
         </p>
       )}
 
-      <Lienzo escena={construirEscena(notas, posicion)} />
+      <Lienzo escena={construirEscena(notas, posicion, canal.pulsadas)} />
 
       {/* Siempre visibles, haya canción o no y haya fallado la carga o no: es lo que
           mantiene la aplicación utilizable después de un error (FR-004). */}

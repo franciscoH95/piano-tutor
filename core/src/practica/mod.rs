@@ -7,6 +7,7 @@
 mod cursor;
 mod manos;
 mod preparacion;
+mod sonando;
 mod nombres;
 mod vista;
 
@@ -14,4 +15,5 @@ pub use manos::{repartir, Mano, Reparto, RepartoDeManos};
 pub use cursor::{posicion_en, Ancla, Cursor, Paso, Velocidad};
 pub use preparacion::{NotaDetallada, Preparacion};
 pub use nombres::{Alteracion, Base, MapaDeArmaduras, NombreDeNota};
+pub use sonando::{ConjuntoSonando, MascaraTeclas, Situacion};
 pub use vista::{vista, EstadoNota, NotaVisible, Vista};

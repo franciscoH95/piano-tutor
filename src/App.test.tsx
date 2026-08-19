@@ -27,6 +27,8 @@ beforeEach(() => {
   vi.mocked(puente.pausa).mockResolvedValue(null);
   vi.mocked(puente.saltarA).mockResolvedValue(null);
   vi.mocked(puente.cambiarVelocidad).mockResolvedValue(null);
+  vi.mocked(puente.conectarTeclado).mockResolvedValue("Piano de pruebas");
+  vi.mocked(puente.escucharCanal).mockResolvedValue();
 });
 
 afterEach(() => {
@@ -164,5 +166,78 @@ describe("el bucle de dibujo", () => {
 
     expect(trasUnFotograma).toBe(500_000);
     expect(trasOnceFotogramas).toBe(500_000);
+  });
+});
+
+describe("el teclado", () => {
+  async function abrirUna() {
+    vi.mocked(puente.elegirArchivo).mockResolvedValue("/musica/a.mid");
+    vi.mocked(puente.abrirCancion).mockResolvedValue(RESUMEN);
+    render(<App />);
+    await userEvent.click(screen.getByRole("button", { name: /abrir/i }));
+    await waitFor(() => expect(puente.abrirCancion).toHaveBeenCalled());
+  }
+
+  it("sin teclado avisa, pero la canción se ve y se reproduce igual", async () => {
+    // FR-015. Lo importante no es el aviso: es que NADA quede desactivado por su culpa.
+    vi.mocked(puente.conectarTeclado).mockResolvedValue(null);
+    await abrirUna();
+
+    expect(await screen.findByText(/sin teclado|no se detect/i)).toBeInTheDocument();
+    // La canción está cargada y los mandos siguen vivos.
+    expect(screen.getByText(/3 notas/)).toBeInTheDocument();
+    const reproducir = screen.getByRole("button", { name: /reproducir/i });
+    expect(reproducir).toBeEnabled();
+    await userEvent.click(reproducir);
+    expect(puente.marcha).toHaveBeenCalled();
+    expect(screen.getByRole("slider", { name: /corte/i })).toBeEnabled();
+  });
+
+  it("con teclado no muestra el aviso", async () => {
+    vi.mocked(puente.conectarTeclado).mockResolvedValue("Piano de pruebas");
+    await abrirUna();
+    await waitFor(() => expect(puente.conectarTeclado).toHaveBeenCalled());
+    expect(screen.queryByText(/sin teclado|no se detect/i)).not.toBeInTheDocument();
+  });
+
+  it("perder el teclado a mitad avisa sin detener la reproducción", async () => {
+    // FR-016. La prueba que importa: que la canción NO se pare.
+    vi.mocked(puente.conectarTeclado).mockResolvedValue("Piano de pruebas");
+    let emitir: ((m: puente.MensajeDelNucleo) => void) | null = null;
+    vi.mocked(puente.escucharCanal).mockImplementation((cb) => {
+      emitir = cb;
+      return Promise.resolve();
+    });
+
+    await abrirUna();
+    await userEvent.click(screen.getByRole("button", { name: /reproducir/i }));
+    await waitFor(() => expect(emitir).not.toBeNull());
+
+    await act(async () => {
+      emitir?.({ tipo: "dispositivoPerdido" });
+    });
+
+    expect(await screen.findByText(/se perdió|desconect/i)).toBeInTheDocument();
+    // Sigue en marcha: el botón ofrece pausar, no reproducir.
+    expect(screen.getByRole("button", { name: /pausar/i })).toBeInTheDocument();
+    expect(puente.pausa).not.toHaveBeenCalled();
+  });
+
+  it("las teclas que llegan por el canal se pintan", async () => {
+    vi.mocked(puente.conectarTeclado).mockResolvedValue("Piano de pruebas");
+    let emitir: ((m: puente.MensajeDelNucleo) => void) | null = null;
+    vi.mocked(puente.escucharCanal).mockImplementation((cb) => {
+      emitir = cb;
+      return Promise.resolve();
+    });
+
+    await abrirUna();
+    await waitFor(() => expect(emitir).not.toBeNull());
+    await act(async () => {
+      emitir?.({ tipo: "tecla", key: 60, pulsada: true });
+    });
+
+    const pulsadas = vi.mocked(escena.construirEscena).mock.lastCall?.[2];
+    expect(pulsadas?.has(60)).toBe(true);
   });
 });

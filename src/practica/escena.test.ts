@@ -178,3 +178,48 @@ describe("la escena se desplaza con la posición", () => {
     expect(construirEscena([n])).toEqual(construirEscena([n], 0));
   });
 });
+
+describe("las teclas que el alumno pulsa", () => {
+  it("se ven distintas de las que no", () => {
+    // FR-013.
+    const sinNada = construirEscena([], 0);
+    const con60 = construirEscena([], 0, new Set([60]));
+    const indice = 60 - TECLA_MAS_GRAVE;
+    // Las teclas se pintan en dos tandas (blancas y luego negras), así que se localiza por
+    // posición y no por índice.
+    const original = sinNada.teclas.find((t) => t.x === con60.teclas[indice]?.x);
+    expect(original).toBeDefined();
+    const cambiadas = con60.teclas.filter(
+      (t, i) => t.color !== sinNada.teclas[i]?.color,
+    );
+    expect(cambiadas).toHaveLength(1);
+  });
+
+  it("varias teclas a la vez se iluminan todas", () => {
+    const sin = construirEscena([], 0);
+    const con = construirEscena([], 0, new Set([60, 64, 67]));
+    const cambiadas = con.teclas.filter((t, i) => t.color !== sin.teclas[i]?.color);
+    expect(cambiadas).toHaveLength(3);
+  });
+
+  it("una negra pulsada se distingue de una blanca pulsada", () => {
+    // Sobre fondo oscuro, el mismo color en las dos las volvería indistinguibles.
+    const blanca = construirEscena([], 0, new Set([60]));
+    const negra = construirEscena([], 0, new Set([61]));
+    const sin = construirEscena([], 0);
+    const colorBlanca = blanca.teclas.find((t, i) => t.color !== sin.teclas[i]?.color)?.color;
+    const colorNegra = negra.teclas.find((t, i) => t.color !== sin.teclas[i]?.color)?.color;
+    expect(colorBlanca).toBeDefined();
+    expect(colorNegra).toBeDefined();
+    expect(colorBlanca).not.toBe(colorNegra);
+  });
+
+  it("una tecla fuera del piano no rompe el teclado", () => {
+    const e = construirEscena([], 0, new Set([0, 127, 200]));
+    expect(e.teclas).toHaveLength(88);
+  });
+
+  it("sin teclas pulsadas se comporta como antes", () => {
+    expect(construirEscena([], 0, new Set())).toEqual(construirEscena([], 0));
+  });
+});

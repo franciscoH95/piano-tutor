@@ -3,7 +3,7 @@
 // Está aislado a propósito: las pruebas de `App` sustituyen este módulo entero y así
 // comprueban el comportamiento de la interfaz sin levantar Tauri ni tocar el disco.
 
-import { invoke } from "@tauri-apps/api/core";
+import { Channel, invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
 
 /** Lo que el núcleo cuenta de una canción recién abierta. */
@@ -99,4 +99,31 @@ export async function cambiarVelocidad(v: {
   den: number;
 }): Promise<AnclaDelNucleo | null> {
   return invoke<AnclaDelNucleo | null>("transporte_velocidad", { num: v.num, den: v.den });
+}
+
+/** Un mensaje del núcleo, tal como llega por el canal. */
+import type { MensajeDelNucleo } from "./modelo";
+export type { MensajeDelNucleo };
+
+/**
+ * Abre el canal por el que el núcleo empuja teclas, anclas y avisos.
+ *
+ * **Un solo canal para todo**, discriminado por etiqueta: así el orden entre las teclas y
+ * las anclas queda garantizado por construcción. Con dos canales no lo estaría.
+ */
+export async function escucharCanal(
+  alRecibir: (m: MensajeDelNucleo) => void,
+): Promise<void> {
+  const canal = new Channel<MensajeDelNucleo>();
+  canal.onmessage = alRecibir;
+  return invoke<void>("registrar_canal", { canal });
+}
+
+/**
+ * Conecta el teclado MIDI. Devuelve su nombre, o `null` si no hay ninguno.
+ *
+ * `null` **no es un error**: la aplicación funciona sin teclado (FR-015), solo lo dice.
+ */
+export async function conectarTeclado(): Promise<string | null> {
+  return invoke<string | null>("conectar_teclado");
 }
