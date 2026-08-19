@@ -122,7 +122,17 @@ export default function App() {
    * tierra.
    */
   const pedidoHasta = useRef(0);
-  const pidiendo = useRef(false);
+  /**
+   * Testigo de la última petición lanzada.
+   *
+   * Dos peticiones de notas pueden convivir —al saltar al principio, el bucle de dibujo
+   * sigue vivo con la posición vieja hasta que el efecto se rehace—, y **nada garantiza el
+   * orden en que resuelven**. Sin este testigo, la vieja llegaba la última, pisaba las
+   * notas buenas y dejaba `pedidoHasta` en un punto lejano: ya nunca se volvía a pedir
+   * cerca de cero, así que tras «volver al principio» no se veía ninguna nota. Silencioso
+   * y permanente, que es la peor combinación.
+   */
+  const ultimaPeticion = useRef(0);
 
   /** Cuánta canción se pide de una vez. Dos ventanas: una para ver y otra de reserva. */
   const TRAMO_US = VENTANA_US * 2;
@@ -132,13 +142,14 @@ export default function App() {
       // Un poco antes de la posición, para no perder una nota larga que empezó justo antes.
       const inicio = Math.max(0, desde - VENTANA_US);
       const fin = desde + TRAMO_US;
-      pidiendo.current = true;
-      try {
-        setNotas(await vistaActual(inicio, fin));
-        pedidoHasta.current = fin;
-      } finally {
-        pidiendo.current = false;
-      }
+      ultimaPeticion.current += 1;
+      const mia = ultimaPeticion.current;
+      const notas = await vistaActual(inicio, fin);
+      // Si mientras tanto se pidió otra cosa, esta respuesta ya no vale. Aplicarla sería
+      // pintar el pasado.
+      if (mia !== ultimaPeticion.current) return;
+      setNotas(notas);
+      pedidoHasta.current = fin;
     },
     [TRAMO_US],
   );
@@ -155,14 +166,17 @@ export default function App() {
       // Cuando lo que queda por delante baja de una ventana, se pide el tramo siguiente.
       // Sin esto, las notas dejaban de verse en cuanto la reproducción pasaba de los
       // primeros segundos: se pedían una vez, al abrir, y nunca más.
-      if (!pidiendo.current && p + VENTANA_US > pedidoHasta.current) {
+      if (p + VENTANA_US > pedidoHasta.current) {
+        // `pedidoHasta` se adelanta ya, no al resolver: sin eso el bucle dispararía una
+        // petición por fotograma hasta que llegara la primera respuesta.
+        pedidoHasta.current = p + TRAMO_US;
         void refrescar(p);
       }
       id = requestAnimationFrame(fotograma);
     };
     id = requestAnimationFrame(fotograma);
     return () => cancelAnimationFrame(id);
-  }, [ancla, refrescar]);
+  }, [ancla, TRAMO_US, refrescar]);
 
   const abrir = useCallback(async () => {
     // El diálogo va DENTRO del try. Estaba fuera, y por eso un fallo suyo —el permiso

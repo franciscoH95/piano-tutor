@@ -464,3 +464,54 @@ describe("la ventana de notas sigue a la reproducción", () => {
     expect(despues - antes).toBeLessThan(5);
   });
 });
+
+describe("peticiones de notas que se cruzan", () => {
+  it("una petición vieja que llega tarde no pisa a la nueva", async () => {
+    // Encontrado usando la app: al volver al principio las notas ya no aparecían.
+    //
+    // Al saltar al principio conviven dos peticiones: la que dispara el bucle de dibujo con
+    // la posición VIEJA —el bucle sigue vivo hasta que el efecto se rehace— y la que lanza
+    // el propio salto con la posición nueva. Si la vieja resuelve la última, pisa las notas
+    // buenas y deja la marca de «hasta dónde he pedido» en un punto lejano, así que ya nunca
+    // se vuelve a pedir cerca de cero. Silencioso y permanente.
+    vi.mocked(puente.elegirArchivo).mockResolvedValue("/a.mid");
+    vi.mocked(puente.abrirCancion).mockResolvedValue(RESUMEN);
+
+    const nota = (indice: number, onsetUs: number) => ({
+      indice,
+      key: 60,
+      onsetUs,
+      endUs: onsetUs + 100_000,
+      derecha: true,
+      dedo: 1,
+      base: 0,
+      alteracion: 0,
+      estado: "pendiente" as const,
+    });
+    const lejanas = [nota(99, 90_000_000)];
+    const cercanas = [nota(0, 0)];
+
+    // La primera petición (la vieja, lejana) resuelve DESPUÉS de la segunda.
+    let resolverVieja: ((v: typeof lejanas) => void) | null = null;
+    vi.mocked(puente.vistaActual)
+      .mockImplementationOnce(
+        () => new Promise((r) => { resolverVieja = r; }),
+      )
+      .mockResolvedValue(cercanas);
+
+    render(<App />);
+    await userEvent.click(screen.getByRole("button", { name: /abrir/i }));
+    await waitFor(() => expect(puente.vistaActual).toHaveBeenCalled());
+
+    // Llega la nueva y después, tarde, la vieja.
+    await userEvent.click(screen.getByRole("button", { name: /al principio/i }));
+    await waitFor(() => expect(puente.vistaActual).toHaveBeenCalledTimes(2));
+    await act(async () => {
+      resolverVieja?.(lejanas);
+    });
+
+    // Lo que se pinta tiene que ser lo último que se pidió, no lo que llegó el último.
+    const pintadas = vi.mocked(escena.construirEscena).mock.lastCall?.[0];
+    expect(pintadas).toEqual(cercanas);
+  });
+});

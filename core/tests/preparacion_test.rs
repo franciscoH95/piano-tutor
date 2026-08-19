@@ -454,3 +454,36 @@ fn empeorar_tambien_se_dice() {
     let c = p.comparacion().expect("hay comparación");
     assert!(!c.mejor, "el segundo fue peor y se dice");
 }
+
+#[test]
+fn tras_volver_al_principio_se_vuelven_a_ver_las_notas() {
+    // Encontrado usando la app: al darle a «volver al principio» las notas ya no aparecían.
+    let mut p = Preparacion::nueva(una_voz());
+    p.poner_en_marcha(Micros::ZERO);
+
+    // Se reproduce hasta pasado el final.
+    p.avanzar_con(Micros(3_000_000), MascaraTeclas::VACIA);
+    let mut lejos = Vec::new();
+    p.detallar(0, 4_000_000, &mut lejos);
+
+    // Se vuelve al principio y se pide la misma ventana.
+    p.saltar_a(Micros::ZERO, Micros(3_100_000));
+    let mut cerca = Vec::new();
+    p.detallar(0, 4_000_000, &mut cerca);
+
+    assert!(!cerca.is_empty(), "tras volver al principio tiene que haber notas que pintar");
+    assert_eq!(cerca.len(), p.cancion().notes().len(), "todas, no algunas");
+    let _ = lejos;
+}
+
+#[test]
+fn se_puede_pedir_la_misma_ventana_dos_veces_seguidas() {
+    // La interfaz pide la ventana en cada refresco; pedir dos veces lo mismo no puede dar
+    // resultados distintos.
+    let mut p = Preparacion::nueva(una_voz());
+    let mut a = Vec::new();
+    p.detallar(0, 4_000_000, &mut a);
+    let mut b = Vec::new();
+    p.detallar(0, 4_000_000, &mut b);
+    assert_eq!(a.len(), b.len(), "la segunda vez trajo {} y la primera {}", b.len(), a.len());
+}
