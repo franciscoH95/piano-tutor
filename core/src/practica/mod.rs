@@ -14,8 +14,8 @@ mod vista;
 
 pub use manos::{repartir, Mano, Reparto, RepartoDeManos};
 pub use cursor::{posicion_en, Ancla, Avance, Cursor, Paso, Velocidad};
-pub use preparacion::{NotaDetallada, Preparacion};
+pub use preparacion::{Comparacion, NotaDetallada, Preparacion};
 pub use nombres::{Alteracion, Base, MapaDeArmaduras, NombreDeNota};
 pub use puertas::{ProgramaDePuertas, Puerta};
-pub use sonando::{ConjuntoSonando, MascaraTeclas, Situacion};
+pub use sonando::{ConjuntoSonando, MascaraTeclas};
 pub use vista::{vista, EstadoNota, NotaVisible, Vista};

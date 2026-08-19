@@ -5,6 +5,12 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import "./App.css";
 import { Selector, type DispositivoPlano } from "./dispositivos/Selector";
+import {
+  Resumen,
+  type Comparacion,
+  type NivelElegido,
+  type ResultadoPlano,
+} from "./evaluacion/Resumen";
 import { Controles } from "./practica/controles";
 import { Lienzo } from "./practica/Lienzo";
 import { construirEscena, VENTANA_US } from "./practica/escena";
@@ -19,6 +25,8 @@ import {
   abrirCancion,
   ajustarCorte,
   cambiarModo,
+  cambiarNivel,
+  compararConAnterior,
   cambiarVelocidad,
   conectarTeclado,
   elegirArchivo,
@@ -29,6 +37,7 @@ import {
   practicarMano,
   saltarA,
   saltarPuerta,
+  ultimoResultado,
   vistaActual,
   type AnclaDelNucleo,
   type EstadoDelTeclado,
@@ -52,6 +61,9 @@ export default function App() {
   const [canal, setCanal] = useState(ESTADO_INICIAL);
   const [teclado, setTeclado] = useState<EstadoDelTeclado | undefined>(undefined);
   const [modo, setModo] = useState<Modo>("porReloj");
+  const [resultado, setResultado] = useState<ResultadoPlano | null>(null);
+  const [nivel, setNivel] = useState<NivelElegido>("intermedio");
+  const [comparacion, setComparacion] = useState<Comparacion | undefined>(undefined);
   const [mano, setMano] = useState<ManoElegida>("ambas");
   const notasRef = useRef(notas);
   notasRef.current = notas;
@@ -85,6 +97,63 @@ export default function App() {
     if (canal.ancla !== null) setAncla(canal.ancla);
   }, [canal.ancla]);
 
+
+  /**
+   * Ejecuta una llamada al puente y **muestra el motivo si falla**.
+   *
+   * Existe porque ninguna lo hacía: cada mando era un `await` suelto, así que un error del
+   * núcleo quedaba en un rechazo sin capturar y la aplicación parecía rota sin decir de qué.
+   * Lo descubrí ejecutándola: pulsar «abrir» no hacía absolutamente nada.
+   */
+  const intentar = useCallback(async (accion: () => Promise<void>) => {
+    try {
+      await accion();
+    } catch (motivo) {
+      setError(String(motivo));
+    }
+  }, []);
+
+  /**
+   * Hasta dónde llegan las notas ya pedidas.
+   *
+   * Se pide **por delante** de la posición y se vuelve a pedir cuando la reproducción se
+   * acerca al borde, no en cada fotograma: el ancla existe precisamente para que el cursor
+   * no cruce el puente sesenta veces por segundo, y pedir las notas ahí tiraría eso por
+   * tierra.
+   */
+  const pedidoHasta = useRef(0);
+  /**
+   * Testigo de la última petición lanzada.
+   *
+   * Dos peticiones de notas pueden convivir —al saltar al principio, el bucle de dibujo
+   * sigue vivo con la posición vieja hasta que el efecto se rehace—, y **nada garantiza el
+   * orden en que resuelven**. Sin este testigo, la vieja llegaba la última, pisaba las
+   * notas buenas y dejaba `pedidoHasta` en un punto lejano: ya nunca se volvía a pedir
+   * cerca de cero, así que tras «volver al principio» no se veía ninguna nota. Silencioso
+   * y permanente, que es la peor combinación.
+   */
+  const ultimaPeticion = useRef(0);
+
+  /** Cuánta canción se pide de una vez. Dos ventanas: una para ver y otra de reserva. */
+  const TRAMO_US = VENTANA_US * 2;
+
+  const refrescar = useCallback(
+    async (desde = 0) => {
+      // Un poco antes de la posición, para no perder una nota larga que empezó justo antes.
+      const inicio = Math.max(0, desde - VENTANA_US);
+      const fin = desde + TRAMO_US;
+      ultimaPeticion.current += 1;
+      const mia = ultimaPeticion.current;
+      const notas = await vistaActual(inicio, fin);
+      // Si mientras tanto se pidió otra cosa, esta respuesta ya no vale. Aplicarla sería
+      // pintar el pasado.
+      if (mia !== ultimaPeticion.current) return;
+      setNotas(notas);
+      pedidoHasta.current = fin;
+    },
+    [TRAMO_US],
+  );
+
   // El bucle de dibujo. La posición sale **del reloj, nunca del número de fotograma**: la
   // cadencia de la pantalla afecta a la suavidad, no a la corrección. Un contador de
   // fotogramas se desincronizaría en cuanto el navegador saltase uno.
@@ -92,22 +161,32 @@ export default function App() {
     if (ancla === null || ancla.num === 0) return undefined;
     let id = 0;
     const fotograma = () => {
-      setPosicion(posicionEn(ancla, ahoraLocal()));
+      const p = posicionEn(ancla, ahoraLocal());
+      setPosicion(p);
+      // Cuando lo que queda por delante baja de una ventana, se pide el tramo siguiente.
+      // Sin esto, las notas dejaban de verse en cuanto la reproducción pasaba de los
+      // primeros segundos: se pedían una vez, al abrir, y nunca más.
+      if (p + VENTANA_US > pedidoHasta.current) {
+        // `pedidoHasta` se adelanta ya, no al resolver: sin eso el bucle dispararía una
+        // petición por fotograma hasta que llegara la primera respuesta.
+        pedidoHasta.current = p + TRAMO_US;
+        void refrescar(p);
+      }
       id = requestAnimationFrame(fotograma);
     };
     id = requestAnimationFrame(fotograma);
     return () => cancelAnimationFrame(id);
-  }, [ancla]);
-
-  const refrescar = useCallback(async () => {
-    setNotas(await vistaActual(0, VENTANA_US));
-  }, []);
+  }, [ancla, TRAMO_US, refrescar]);
 
   const abrir = useCallback(async () => {
-    const ruta = await elegirArchivo();
-    // Cancelar es lo normal, no un error: ni se abre nada ni se avisa de nada.
-    if (ruta === null) return;
+    // El diálogo va DENTRO del try. Estaba fuera, y por eso un fallo suyo —el permiso
+    // `dialog:default` que faltaba en las capacidades de Tauri— dejaba un rechazo sin
+    // capturar: al pulsar «abrir» no pasaba absolutamente nada. Ni archivo, ni error, ni
+    // pista de dónde mirar. Un fallo silencioso es peor que uno ruidoso.
     try {
+      const ruta = await elegirArchivo();
+      // Cancelar es lo normal, no un error: ni se abre nada ni se avisa de nada.
+      if (ruta === null) return;
       const nuevo = await abrirCancion(ruta);
       setResumen(nuevo);
       setCorte(nuevo.corte);
@@ -117,15 +196,17 @@ export default function App() {
       setVelocidad(VELOCIDAD_NORMAL);
       setAncla(null);
       setPosicion(0);
+      setResultado(null);
       setModo("porReloj");
       setMano("ambas");
       // El aviso viejo se retira: no se acumulan errores de intentos anteriores.
       setError(null);
-      await refrescar();
+      pedidoHasta.current = 0;
+      await refrescar(0);
     } catch (motivo) {
-      // FR-004. Se muestra el motivo **tal cual lo da el núcleo**, sin sustituirlo por un
-      // mensaje genérico: el núcleo sabe mejor qué ha pasado. Y no se toca nada más, así
-      // que la aplicación sigue en pie con lo que ya tuviera.
+      // FR-004. Se muestra el motivo **tal cual**, sin sustituirlo por un mensaje genérico:
+      // quien falló sabe mejor qué pasó. Y no se toca nada más, así que la aplicación sigue
+      // en pie con lo que ya tuviera.
       setError(String(motivo));
     }
   }, [refrescar]);
@@ -133,52 +214,85 @@ export default function App() {
   const moverCorte = useCallback(
     async (nuevo: number) => {
       setCorte(nuevo);
-      await ajustarCorte(nuevo);
-      await refrescar();
+      await intentar(async () => {
+        await ajustarCorte(nuevo);
+        await refrescar(posicion);
+      });
     },
-    [refrescar],
+    [intentar, posicion, refrescar],
   );
 
   const poner = useCallback(async () => {
-    recibirAncla(await marcha());
-    setEnMarcha(true);
-  }, [recibirAncla]);
+    await intentar(async () => {
+      recibirAncla(await marcha());
+      setEnMarcha(true);
+      // Empezar de nuevo retira el resumen anterior: es de otra interpretación.
+      setResultado(null);
+      setComparacion(undefined);
+    });
+  }, [intentar, recibirAncla]);
 
   const parar = useCallback(async () => {
-    recibirAncla(await pausa());
-    setEnMarcha(false);
-  }, [recibirAncla]);
+    await intentar(async () => {
+      recibirAncla(await pausa());
+      setEnMarcha(false);
+      // Pausar cierra la interpretación, así que ya hay resumen que enseñar (FR-014a).
+      setResultado(await ultimoResultado());
+      setComparacion((await compararConAnterior()) ?? undefined);
+    });
+  }, [intentar, recibirAncla]);
 
   const alPrincipio = useCallback(async () => {
-    recibirAncla(await saltarA(0));
-    setPosicion(0);
-    await refrescar();
-  }, [recibirAncla, refrescar]);
+    await intentar(async () => {
+      recibirAncla(await saltarA(0));
+      setPosicion(0);
+      await refrescar(0);
+    });
+  }, [intentar, recibirAncla, refrescar]);
 
   const ponerVelocidad = useCallback(
     async (v: Velocidad) => {
-      recibirAncla(await cambiarVelocidad(v));
-      setVelocidad(v);
+      await intentar(async () => {
+        recibirAncla(await cambiarVelocidad(v));
+        setVelocidad(v);
+      });
     },
-    [recibirAncla],
+    [intentar, recibirAncla],
   );
 
-  const ponerModo = useCallback(async (m: Modo) => {
-    recibirAncla(await cambiarModo(m));
-    setModo(m);
-  }, [recibirAncla]);
+  const ponerModo = useCallback(
+    async (m: Modo) => {
+      await intentar(async () => {
+        recibirAncla(await cambiarModo(m));
+        setModo(m);
+      });
+    },
+    [intentar, recibirAncla],
+  );
 
   const ponerMano = useCallback(
     async (m: "izquierda" | "derecha" | null) => {
-      recibirAncla(await practicarMano(m));
-      setMano(m ?? "ambas");
+      await intentar(async () => {
+        recibirAncla(await practicarMano(m));
+        setMano(m ?? "ambas");
+      });
     },
-    [recibirAncla],
+    [intentar, recibirAncla],
+  );
+
+  const ponerNivel = useCallback(
+    async (n: NivelElegido) => {
+      await intentar(async () => {
+        await cambiarNivel(n);
+        setNivel(n);
+      });
+    },
+    [intentar],
   );
 
   const saltarLaNota = useCallback(async () => {
-    recibirAncla(await saltarPuerta());
-  }, [recibirAncla]);
+    await intentar(async () => recibirAncla(await saltarPuerta()));
+  }, [intentar, recibirAncla]);
 
   return (
     <main className="practica">
@@ -230,6 +344,15 @@ export default function App() {
 
       {/* Siempre visibles, haya canción o no y haya fallado la carga o no: es lo que
           mantiene la aplicación utilizable después de un error (FR-004). */}
+      {resultado !== null && (
+        <Resumen
+          resultado={resultado}
+          comparacion={comparacion}
+          nivel={nivel}
+          onNivel={ponerNivel}
+        />
+      )}
+
       <Controles
         corte={corte}
         vocesDelArchivo={resumen?.vocesDelArchivo ?? false}

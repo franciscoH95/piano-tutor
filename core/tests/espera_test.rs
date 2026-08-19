@@ -315,3 +315,82 @@ fn la_velocidad_sigue_mandando_entre_puertas() {
     c.avanzar_con(reloj.now(), teclas(&[60]));
     assert_eq!(c.posicion(), Micros(1_000_000), "a mitad de velocidad, mitad de canción");
 }
+
+#[test]
+fn la_percusion_no_genera_puertas() {
+    // El comentario de `ProgramaDePuertas::nuevo` afirma que la percusión no genera puertas.
+    // No lo hacía: solo filtraba por mano practicada. Un archivo con batería en el canal 9
+    // producía una puerta por cada golpe, y en modo espera la práctica se quedaba atascada
+    // para siempre esperando una caja que no se toca con las manos.
+    //
+    // `is_on_88_keys()` no salva del problema: una caja en la tecla 38 está dentro de las 88.
+    let raw = SmfBuilder::new(1000)
+        .track(|t| t.tempo(0, 1_000_000).note(0, 60, 90, 500).note(2_000, 64, 90, 500))
+        .track(|t| {
+            // Canal 9: percusión.
+            let mut t = t;
+            for i in 0..8u64 {
+                t = t.raw(i * 250, &[0x99, 38, 100]).raw(i * 250 + 100, &[0x89, 38, 0]);
+            }
+            t
+        })
+        .build();
+    let song = load_smf(&raw).expect("valida");
+    let manos = vec![Mano::Derecha; song.notes().len()];
+    let mut c = Cursor::nuevo_con_puertas(&song, &manos, None);
+    let mut reloj = VirtualClock::new();
+    c.cambiar_avance(Avance::PorAcierto, reloj.now());
+    c.poner_en_marcha(reloj.now());
+
+    // Se acierta la primera nota de piano; el cursor debe llegar hasta la segunda (2 s) sin
+    // detenerse en ninguna puerta de percusión intermedia.
+    c.avanzar_con(reloj.now(), teclas(&[60]));
+    reloj.set(Micros(1_500_000));
+    c.avanzar_con(reloj.now(), MascaraTeclas::VACIA);
+    assert_eq!(
+        c.posicion(),
+        Micros(1_500_000),
+        "la batería no debe detener el cursor"
+    );
+}
+
+#[test]
+fn las_puertas_y_el_evaluador_coinciden_en_que_es_evaluable() {
+    // T021. El criterio vive en un solo sitio; esta prueba lo comprueba **nota por nota**
+    // sobre una pieza con percusión, notas fuera de las 88 y dos manos. Si algún día alguien
+    // vuelve a poner un filtro propio en las puertas, aquí se ve.
+    use piano_core::evaluacion::es_evaluable;
+
+    let raw = SmfBuilder::new(1000)
+        .track(|t| {
+            t.tempo(0, 1_000_000)
+                .note(0, 60, 90, 500)    // normal
+                .note(500, 20, 90, 500)  // por debajo del piano
+                .note(1_000, 109, 90, 500) // por encima
+                .note(1_500, 40, 90, 500)
+        })
+        .track(|t| t.raw(0, &[0x99, 38, 100]).raw(100, &[0x89, 38, 0]))
+        .build();
+    let song = load_smf(&raw).expect("valida");
+    let manos = vec![Mano::Derecha; song.notes().len()];
+
+    for practicada in [None, Some(Mano::Derecha), Some(Mano::Izquierda)] {
+        let p = piano_core::practica::ProgramaDePuertas::nuevo(&song, &manos, practicada);
+        let esperadas: Vec<u8> = song
+            .notes()
+            .iter()
+            .zip(&manos)
+            .filter(|(n, m)| es_evaluable(n.channel, n.key, **m, practicada))
+            .map(|(n, _)| n.key)
+            .collect();
+        let en_puertas: usize = (0..p.len())
+            .filter_map(|i| p.get(i))
+            .map(|g| g.teclas.cuenta() as usize)
+            .sum();
+        assert_eq!(
+            en_puertas,
+            esperadas.len(),
+            "con mano {practicada:?}: las puertas y el evaluador no coinciden"
+        );
+    }
+}

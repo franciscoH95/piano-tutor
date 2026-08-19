@@ -5,6 +5,7 @@
 //! con un cursor monotono: durante la practica no se busca nada, solo se mira la pendiente.
 
 use crate::practica::manos::Mano;
+use crate::evaluacion::es_evaluable;
 use crate::practica::sonando::MascaraTeclas;
 use crate::time::Micros;
 use crate::Song;
@@ -32,15 +33,22 @@ impl ProgramaDePuertas {
     /// abran solas; es que no estan. Si estuvieran, el cursor se detendria en ellas a
     /// esperar algo que el alumno no tiene que tocar (SC-012).
     ///
-    /// La percusion no genera puertas: no se toca con las manos en el teclado.
+    /// La percusion **no genera puertas**: no se toca con las manos en el teclado, asi que
+    /// esperar a que el alumno la acierte deja la practica atascada para siempre.
+    ///
+    /// `is_on_88_keys` no basta para descartarla: una caja esta en la tecla 38, dentro del
+    /// piano. Hay que mirar el canal.
     #[must_use]
     pub fn nuevo(cancion: &Song, manos: &[Mano], practicada: Option<Mano>) -> Self {
         let mut puertas: Vec<Puerta> = Vec::new();
         for (i, n) in cancion.notes().iter().enumerate() {
-            if let (Some(quiero), Some(suya)) = (practicada, manos.get(i).copied()) {
-                if quiero != suya {
-                    continue;
-                }
+            // El MISMO criterio que usa el evaluador. Tenerlo en dos sitios es como se
+            // coló el fallo de la percusion: el comentario decia una cosa y el codigo otra.
+            let Some(suya) = manos.get(i).copied() else {
+                continue;
+            };
+            if !es_evaluable(n.channel, n.key, suya, practicada) {
+                continue;
             }
             // Las notas vienen ordenadas por ataque, asi que las simultaneas caen seguidas
             // y basta mirar la ultima puerta.

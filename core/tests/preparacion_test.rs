@@ -7,7 +7,7 @@
 mod fixtures;
 use fixtures::SmfBuilder;
 use piano_core::load_smf;
-use piano_core::practica::{Avance, Mano, MascaraTeclas, Preparacion, Reparto};
+use piano_core::practica::{Avance, EstadoNota, Mano, MascaraTeclas, Preparacion, Reparto};
 use piano_core::time::{Micros, Ticks};
 use piano_core::Song;
 
@@ -281,4 +281,209 @@ fn cargar_otra_cancion_reinicia_el_modo_y_las_puertas() {
     p.cambiar_avance(Avance::PorAcierto, Micros::ZERO);
     p.cargar(cancion_b());
     assert_eq!(p.avance(), Avance::PorReloj, "la canción nueva empieza por reloj");
+}
+
+// ------------------------------------------------- evaluación
+
+#[test]
+fn pausar_cierra_la_interpretacion_y_reanudar_abre_otra() {
+    // T035a (FR-014a). Es la misma frontera que el cursor ya usa para cambiar de régimen,
+    // así que se comprueba contra ella y no contra un concepto nuevo.
+    let mut p = Preparacion::nueva(una_voz());
+    p.poner_en_marcha(Micros::ZERO);
+    assert!(p.resultado().is_none(), "en marcha todavía no hay resultado");
+
+    p.pausar(Micros(500_000));
+    assert!(p.resultado().is_some(), "pausar cierra la interpretación");
+
+    p.poner_en_marcha(Micros(600_000));
+    // El resultado del intento anterior **sigue ahí**: `resultado()` es «el último cerrado»,
+    // y es lo que permite comparar un intento con el anterior. Quien pinta decide si lo
+    // enseña mientras se toca; el núcleo no lo tira.
+    assert!(p.resultado().is_some(), "el último cerrado sobrevive a abrir otro");
+}
+
+#[test]
+fn saltar_cierra_la_interpretacion() {
+    let mut p = Preparacion::nueva(una_voz());
+    p.poner_en_marcha(Micros::ZERO);
+    p.saltar_a(Micros::ZERO, Micros(500_000));
+    assert!(p.resultado().is_some(), "saltar también la cierra");
+}
+
+#[test]
+fn una_interpretacion_que_no_llega_al_final_se_evalua_igual() {
+    // T035b (FR-014b). Exigir un recorrido completo dejaría sin retorno al principiante,
+    // que casi nunca termina.
+    let mut p = Preparacion::nueva(una_voz());
+    p.poner_en_marcha(Micros::ZERO);
+    let mut m = MascaraTeclas::VACIA;
+    m.poner(60);
+    p.observar_tecla(60, true, Micros(10_000));
+    p.avanzar_con(Micros(300_000), m);
+    p.pausar(Micros(400_000)); // se para a mitad
+
+    let r = p.resultado().expect("hay resultado");
+    assert!(!r.sin_tocar, "sí tocó");
+    assert_eq!(r.acertadas, 1, "se evalúa el tramo recorrido");
+}
+
+#[test]
+fn cargar_otra_cancion_tira_el_resultado_anterior() {
+    // FR-005 otra vez: el resultado de la canción anterior no puede sobrevivir a la carga.
+    let mut p = Preparacion::nueva(una_voz());
+    p.poner_en_marcha(Micros::ZERO);
+    p.pausar(Micros(500_000));
+    assert!(p.resultado().is_some());
+    p.cargar(cancion_b());
+    assert!(p.resultado().is_none(), "la canción nueva empieza sin resultado");
+}
+
+#[test]
+fn el_pentagrama_y_el_resumen_no_pueden_discrepar() {
+    // T051. Si el veredicto se decidiera en dos sitios, el pentagrama pintaría una cosa y
+    // el resumen diría otra, y discreparían **en silencio**. El Principio I exige un solo
+    // criterio, así que la vista pregunta al evaluador y no juzga por su cuenta.
+    let mut p = Preparacion::nueva(una_voz());
+    p.poner_en_marcha(Micros::ZERO);
+
+    // Mientras suena y nadie la ha juzgado, la vista no puede afirmar nada del alumno: la
+    // pinta sonando, que es un hecho de la canción, no un veredicto sobre él.
+    let mut out = Vec::new();
+    p.detallar(0, 100, &mut out);
+    assert_eq!(out[0].estado, EstadoNota::Sonando, "aún no hay veredicto");
+
+    // Se acierta la primera y se deja pasar su ventana.
+    p.observar_tecla(60, true, Micros(10_000));
+    p.observar_tecla(60, false, Micros(200_000));
+    let mut m = MascaraTeclas::VACIA;
+    m.poner(60);
+    // Sin pasarse del final: llegar al final CIERRA la interpretación, y entonces ya no hay
+    // evaluador al que preguntar. La pieza dura 750 ms.
+    p.avanzar_con(Micros(600_000), m);
+
+    let mut out = Vec::new();
+    p.detallar(0, 100, &mut out);
+    assert_eq!(out[0].estado, EstadoNota::Acertada, "el veredicto del evaluador se pinta");
+}
+
+#[test]
+fn una_nota_que_paso_sin_tocarse_se_pinta_omitida() {
+    let mut p = Preparacion::nueva(una_voz());
+    p.poner_en_marcha(Micros::ZERO);
+    p.avanzar_con(Micros(600_000), MascaraTeclas::VACIA);
+    let mut out = Vec::new();
+    p.detallar(0, 100, &mut out);
+    assert_eq!(out[0].estado, EstadoNota::Omitida);
+}
+
+#[test]
+fn sin_interpretacion_en_curso_la_vista_no_inventa_veredictos() {
+    // Parado, nadie ha juzgado nada: pintar «omitida» sería acusar al alumno de algo que no
+    // ha tenido ocasión de hacer.
+    let mut p = Preparacion::nueva(una_voz());
+    p.avanzar_a(2_000_000);
+    let mut out = Vec::new();
+    p.detallar(0, 3_000_000, &mut out);
+    assert!(
+        out.iter().all(|n| n.estado != EstadoNota::Omitida),
+        "sin interpretación no hay veredicto que pintar"
+    );
+}
+
+// ------------------------------------------------- comparar intentos
+
+#[test]
+fn dos_intentos_del_mismo_tramo_se_pueden_comparar() {
+    // T066. Repetir un pasaje es la forma normal de estudiar, y es lo que sostiene la
+    // historia 4.
+    let mut p = Preparacion::nueva(una_voz());
+    let mut m = MascaraTeclas::VACIA;
+    m.poner(60);
+
+    // Primer intento: no toca nada.
+    p.poner_en_marcha(Micros::ZERO);
+    p.avanzar_con(Micros(600_000), MascaraTeclas::VACIA);
+    p.pausar(Micros(600_000));
+    assert!(p.comparacion().is_none(), "el primer intento no tiene con qué compararse");
+
+    // Vuelve al principio y lo repite acertando.
+    p.saltar_a(Micros::ZERO, Micros(700_000));
+    p.poner_en_marcha(Micros(700_000));
+    p.observar_tecla(60, true, Micros(700_010));
+    p.observar_tecla(60, false, Micros(800_000));
+    p.avanzar_con(Micros(1_300_000), m);
+    p.pausar(Micros(1_300_000));
+
+    let c = p.comparacion().expect("ahora sí hay con qué comparar");
+    assert!(c.mejor, "el segundo intento fue mejor");
+}
+
+#[test]
+fn dos_intentos_de_tramos_distintos_no_se_comparan() {
+    // Comparar el compás 1 con el compás 9 no dice nada útil, y decirlo igualmente sería
+    // peor que callarse.
+    let mut p = Preparacion::nueva(una_voz());
+    p.poner_en_marcha(Micros::ZERO);
+    p.pausar(Micros(200_000));
+
+    p.saltar_a(Micros(500_000), Micros(300_000));
+    p.poner_en_marcha(Micros(300_000));
+    p.pausar(Micros(400_000));
+
+    assert!(p.comparacion().is_none(), "tramos distintos, nada que comparar");
+}
+
+#[test]
+fn empeorar_tambien_se_dice() {
+    let mut p = Preparacion::nueva(una_voz());
+    let mut m = MascaraTeclas::VACIA;
+    m.poner(60);
+
+    p.poner_en_marcha(Micros::ZERO);
+    p.observar_tecla(60, true, Micros(10_000));
+    p.observar_tecla(60, false, Micros(100_000));
+    p.avanzar_con(Micros(600_000), m);
+    p.pausar(Micros(600_000));
+
+    p.saltar_a(Micros::ZERO, Micros(700_000));
+    p.poner_en_marcha(Micros(700_000));
+    p.avanzar_con(Micros(1_300_000), MascaraTeclas::VACIA);
+    p.pausar(Micros(1_300_000));
+
+    let c = p.comparacion().expect("hay comparación");
+    assert!(!c.mejor, "el segundo fue peor y se dice");
+}
+
+#[test]
+fn tras_volver_al_principio_se_vuelven_a_ver_las_notas() {
+    // Encontrado usando la app: al darle a «volver al principio» las notas ya no aparecían.
+    let mut p = Preparacion::nueva(una_voz());
+    p.poner_en_marcha(Micros::ZERO);
+
+    // Se reproduce hasta pasado el final.
+    p.avanzar_con(Micros(3_000_000), MascaraTeclas::VACIA);
+    let mut lejos = Vec::new();
+    p.detallar(0, 4_000_000, &mut lejos);
+
+    // Se vuelve al principio y se pide la misma ventana.
+    p.saltar_a(Micros::ZERO, Micros(3_100_000));
+    let mut cerca = Vec::new();
+    p.detallar(0, 4_000_000, &mut cerca);
+
+    assert!(!cerca.is_empty(), "tras volver al principio tiene que haber notas que pintar");
+    assert_eq!(cerca.len(), p.cancion().notes().len(), "todas, no algunas");
+    let _ = lejos;
+}
+
+#[test]
+fn se_puede_pedir_la_misma_ventana_dos_veces_seguidas() {
+    // La interfaz pide la ventana en cada refresco; pedir dos veces lo mismo no puede dar
+    // resultados distintos.
+    let mut p = Preparacion::nueva(una_voz());
+    let mut a = Vec::new();
+    p.detallar(0, 4_000_000, &mut a);
+    let mut b = Vec::new();
+    p.detallar(0, 4_000_000, &mut b);
+    assert_eq!(a.len(), b.len(), "la segunda vez trajo {} y la primera {}", b.len(), a.len());
 }

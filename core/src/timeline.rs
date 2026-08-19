@@ -17,11 +17,16 @@ use crate::time::{Micros, Ticks};
 use std::collections::{BTreeMap, VecDeque};
 
 /// Rango de las 88 teclas de un piano, en numeros de nota MIDI.
-const PIANO_MIN: u8 = 21;
-const PIANO_MAX: u8 = 108;
+pub(crate) const PIANO_MIN: u8 = 21;
+pub(crate) const PIANO_MAX: u8 = 108;
 
 /// Indice del canal de percusion (el canal 10 del estandar, contado desde cero).
-const CANAL_PERCUSION: u8 = 9;
+/// El canal 10 del protocolo (el 9 contando desde cero) esta reservado a percusion.
+///
+/// Vive aqui y en un solo sitio: estaba definido por triplicado —cargador, emparejador y a
+/// punto de estarlo en las puertas— y tres copias de un mismo numero magico es exactamente
+/// lo que el Principio I llama constantes dispersas.
+pub(crate) const CANAL_PERCUSION: u8 = 9;
 
 /// Como llego a su fin una nota.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

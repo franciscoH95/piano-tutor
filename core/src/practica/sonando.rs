@@ -1,4 +1,13 @@
-//! Que esta sonando en la cancion, y como se compara con lo que el alumno toca.
+//! Que esta sonando en la cancion en cada instante.
+//!
+//! # Lo que este modulo NO hace
+//!
+//! **No juzga.** Tuvo una mitad que clasificaba acierto, nota extra y omitida, y se retiro
+//! al llegar la feature 004: el veredicto lo decide `piano_core::evaluacion`, y **solo el**.
+//! Dos sitios que decidan «acertada» pueden discrepar, y discreparian en silencio —el
+//! pentagrama pintaria una cosa y el resumen diria otra—, que es justo lo que el Principio I
+//! prohibe. Aquella mitad ademas no tenia ni un solo llamador de produccion: existia
+//! esperando a que alguien la usara, e invitaba a crear el segundo oraculo.
 //!
 //! # Sin ventana de tolerancia
 //!
@@ -86,19 +95,6 @@ impl MascaraTeclas {
     }
 }
 
-/// Que relacion tiene una tecla pulsada con lo que la cancion pide en ese instante.
-///
-/// La tercera situacion de FR-014a, la nota **omitida**, no esta aqui a proposito: no es una
-/// propiedad de una pulsacion sino de una nota que dejo de sonar sin que nadie la tocara, y
-/// solo puede afirmarse cuando su duracion ha pasado entera.
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
-pub enum Situacion {
-    /// La cancion tenia esa tecla sonando.
-    Acierto,
-    /// La cancion no la pedia.
-    Extra,
-}
-
 /// Que teclas de la cancion suenan en la posicion actual.
 pub struct ConjuntoSonando {
     /// Primera nota que puede seguir sonando. Solo avanza, salvo al recolocar.
@@ -114,16 +110,6 @@ pub struct ConjuntoSonando {
     ultima: Micros,
     /// Diagnostico: permite afirmar la garantia de coste **contando**, no cronometrando.
     examinadas: usize,
-    /// Por nota: si el alumno la tenia pulsada en algun momento de su duracion.
-    ///
-    /// Se reserva una vez, al construir, y no vuelve a crecer: puede vivir en la ruta
-    /// critica sin tocar el presupuesto del Principio IV.
-    tocada: Vec<bool>,
-    /// Por nota: si su omision ya se comunico. Sin esto, el puente llevaria sesenta avisos
-    /// por segundo de una nota que ya paso.
-    informada: Vec<bool>,
-    /// Primera nota que podria seguir pendiente de informar. Solo avanza.
-    cursor_omision: usize,
 }
 
 /// La cota de duracion de la cancion.
@@ -146,9 +132,6 @@ impl ConjuntoSonando {
             vigentes: MascaraTeclas::VACIA,
             ultima: Micros::ZERO,
             examinadas: 0,
-            tocada: vec![false; cancion.notes().len()],
-            informada: vec![false; cancion.notes().len()],
-            cursor_omision: 0,
         }
     }
 
@@ -227,70 +210,6 @@ impl ConjuntoSonando {
     #[must_use]
     pub const fn vigentes(&self) -> MascaraTeclas {
         self.vigentes
-    }
-
-    /// Que relacion tiene una tecla pulsada con lo que la cancion pide. `O(1)`.
-    #[must_use]
-    pub const fn clasificar(&self, key: u8) -> Situacion {
-        if self.suena(key) {
-            Situacion::Acierto
-        } else {
-            Situacion::Extra
-        }
-    }
-
-    /// Anota que teclas tenia el alumno pulsadas en este instante.
-    ///
-    /// Se llama **en cada avance**, no solo cuando llega un ataque. Es la diferencia entre
-    /// un modelo correcto y uno que declara omitida una nota que el alumno esta tocando:
-    /// en un teclado real, una tecla mantenida **no genera eventos nuevos**, asi que mirar
-    /// solo los ataques la perderia por completo.
-    pub fn registrar(&mut self, cancion: &Song, pulsadas: MascaraTeclas, posicion: Micros) {
-        if pulsadas.esta_vacia() {
-            return;
-        }
-        for (i, n) in cancion.notes().iter().enumerate().skip(self.cursor_omision) {
-            if n.onset_us.0 > posicion.0 {
-                break;
-            }
-            if posicion.0 < n.end_us.0 && pulsadas.contiene(n.key) {
-                if let Some(t) = self.tocada.get_mut(i) {
-                    *t = true;
-                }
-            }
-        }
-    }
-
-    /// Vuelca en `out` las notas que terminaron sin que nadie las tocara.
-    ///
-    /// Cada una se comunica **una sola vez**, como el final de la cancion.
-    pub fn omitidas(&mut self, cancion: &Song, posicion: Micros, out: &mut Vec<usize>) {
-        out.clear();
-        let notas = cancion.notes();
-        for (i, n) in notas.iter().enumerate().skip(self.cursor_omision) {
-            // Ordenadas por ataque: mas alla de la posicion no puede haber nada terminado.
-            if n.onset_us.0 > posicion.0 {
-                break;
-            }
-            if n.end_us.0 > posicion.0 {
-                continue; // todavia suena
-            }
-            let ya = self.informada.get(i).copied().unwrap_or(true);
-            if !ya && !self.tocada.get(i).copied().unwrap_or(true) {
-                out.push(i);
-            }
-            if let Some(f) = self.informada.get_mut(i) {
-                *f = true;
-            }
-        }
-        // Mismo criterio que en `avanzar`: la nota esta en la mano, asi que se pasa de
-        // largo cuando ha terminado **y** ya se informo, no antes.
-        while let Some(n) = notas.get(self.cursor_omision) {
-            if n.end_us.0 > posicion.0 || !self.informada.get(self.cursor_omision).copied().unwrap_or(false) {
-                break;
-            }
-            self.cursor_omision = self.cursor_omision.saturating_add(1);
-        }
     }
 
     /// Cuantas notas se han examinado desde que se creo.

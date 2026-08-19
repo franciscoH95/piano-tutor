@@ -79,3 +79,60 @@ fn muestra_el_json_real() {
     );
     println!("  PERDIDO:  {}", json(&MensajeAlFrontend::DispositivoPerdido));
 }
+
+// ---------------------------------------------------------------- T042: el resultado
+
+use piano_tutor_lib::comandos::{PorMano, RecuentoPlano, ResultadoPlano};
+
+fn recuento() -> RecuentoPlano {
+    RecuentoPlano { acertadas: 0, fuera_de_tiempo: 0, omitidas: 0 }
+}
+
+#[test]
+fn el_resultado_viaja_en_camello_como_el_resto_del_puente() {
+    // La 003 dejó fijado que los dos caminos del puente nombran igual el mismo dato. Aquí
+    // se mantiene: con nombres distintos, un lado leería `undefined` sin que nada fallase.
+    let r = ResultadoPlano {
+        acertadas: 3,
+        fuera_de_tiempo: 1,
+        omitidas: 2,
+        de_mas: 1,
+        dedos_escapados: 1,
+        fuera_de_alcance: 0,
+        no_intentadas: 0,
+        intentadas: 6,
+        desfase_mediana_us: Some(-40_000),
+        desfase_dispersion_us: Some(5_000),
+        sin_tocar: false,
+        parcial: true,
+        por_mano: PorMano { izquierda: recuento(), derecha: recuento() },
+    };
+    let s = serde_json::to_string(&r).expect("serializa");
+    assert!(s.contains("\"fueraDeTiempo\":1"), "{s}");
+    assert!(s.contains("\"dedosEscapados\":1"), "{s}");
+    assert!(s.contains("\"desfaseMedianaUs\":-40000"), "el signo viaja: {s}");
+    assert!(s.contains("\"parcial\":true"), "{s}");
+    assert!(!s.contains("fuera_de_tiempo"), "nada en serpiente: {s}");
+}
+
+#[test]
+fn sin_desfase_los_campos_viajan_como_nulos() {
+    // No se omiten: la interfaz distingue «no hay desfase» de «el campo no llegó».
+    let r = ResultadoPlano {
+        acertadas: 0,
+        fuera_de_tiempo: 0,
+        omitidas: 0,
+        de_mas: 0,
+        dedos_escapados: 0,
+        fuera_de_alcance: 0,
+        no_intentadas: 0,
+        intentadas: 0,
+        desfase_mediana_us: None,
+        desfase_dispersion_us: None,
+        sin_tocar: true,
+        parcial: false,
+        por_mano: PorMano { izquierda: recuento(), derecha: recuento() },
+    };
+    let s = serde_json::to_string(&r).expect("serializa");
+    assert!(s.contains("\"desfaseMedianaUs\":null"), "{s}");
+}

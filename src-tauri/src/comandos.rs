@@ -5,6 +5,7 @@
 //! `piano-core`, donde si esta cubierta por pruebas.
 
 use piano_core::clock::Clock;
+use piano_core::evaluacion::Nivel;
 use piano_core::practica::{
     Alteracion, Ancla, Avance, Base, Mano, NotaDetallada, Preparacion, Reparto, Velocidad,
 };
@@ -510,4 +511,132 @@ pub fn transporte_saltar_puerta(
     reloj: tauri::State<'_, crate::RelojDeSesion>,
 ) -> Option<AnclaPlana> {
     transportar(&estado, &reloj, Preparacion::saltar_puerta)
+}
+
+/// El resumen de una interpretacion, aplanado para cruzar el puente.
+///
+/// **Ninguna tolerancia cruza**, ni siquiera para mostrarla: si la interfaz supiera lo que
+/// es una ventana de 60 ms, esa constante estaria en dos sitios y el Principio I lo prohibe.
+#[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ResultadoPlano {
+    pub acertadas: usize,
+    pub fuera_de_tiempo: usize,
+    pub omitidas: usize,
+    pub de_mas: usize,
+    pub dedos_escapados: usize,
+    pub fuera_de_alcance: usize,
+    pub no_intentadas: usize,
+    /// El denominador honesto: lo que se le pidio de verdad al alumno (SC-009).
+    pub intentadas: usize,
+    /// Con signo: negativo se adelanta, positivo se atrasa. `null` si no hay desfase.
+    pub desfase_mediana_us: Option<i64>,
+    pub desfase_dispersion_us: Option<u64>,
+    /// No se toco ni una tecla. Distinto de tocarlo todo mal (FR-019).
+    pub sin_tocar: bool,
+    /// Los tiempos NO se evaluaron. **Hay que decirlo** (FR-015a).
+    pub parcial: bool,
+    /// Recuento de cada mano (FR-018).
+    pub por_mano: PorMano,
+}
+
+/// El recuento de las dos manos.
+#[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PorMano {
+    pub izquierda: RecuentoPlano,
+    pub derecha: RecuentoPlano,
+}
+
+/// Lo que le paso a una mano.
+#[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RecuentoPlano {
+    pub acertadas: usize,
+    pub fuera_de_tiempo: usize,
+    pub omitidas: usize,
+}
+
+impl From<piano_core::evaluacion::Recuento> for RecuentoPlano {
+    fn from(r: piano_core::evaluacion::Recuento) -> Self {
+        Self { acertadas: r.acertadas, fuera_de_tiempo: r.fuera_de_tiempo, omitidas: r.omitidas }
+    }
+}
+
+impl From<&piano_core::evaluacion::Resultado> for ResultadoPlano {
+    fn from(r: &piano_core::evaluacion::Resultado) -> Self {
+        Self {
+            acertadas: r.acertadas,
+            fuera_de_tiempo: r.fuera_de_tiempo,
+            omitidas: r.omitidas,
+            de_mas: r.de_mas,
+            dedos_escapados: r.dedos_escapados,
+            fuera_de_alcance: r.fuera_de_alcance,
+            no_intentadas: r.no_intentadas,
+            intentadas: r.intentadas(),
+            desfase_mediana_us: r.desfase.map(|d| d.mediana_us),
+            desfase_dispersion_us: r.desfase.map(|d| d.dispersion_us),
+            sin_tocar: r.sin_tocar,
+            parcial: r.parcial,
+            por_mano: PorMano {
+                izquierda: r.por_mano[0].into(),
+                derecha: r.por_mano[1].into(),
+            },
+        }
+    }
+}
+
+/// El resumen de la ultima interpretacion cerrada, si la hay.
+#[tauri::command]
+pub fn evaluacion_ultimo(
+    estado: tauri::State<'_, std::sync::Arc<Estado>>,
+) -> Option<ResultadoPlano> {
+    let guarda = match estado.preparacion.lock() {
+        Ok(g) => g,
+        Err(envenenado) => envenenado.into_inner(),
+    };
+    guarda.as_ref()?.resultado().map(ResultadoPlano::from)
+}
+
+/// Cuanta exigencia. Afecta a la interpretacion siguiente.
+#[tauri::command]
+pub fn evaluacion_nivel(estado: tauri::State<'_, std::sync::Arc<Estado>>, nivel: String) {
+    let elegido = match nivel.as_str() {
+        "permisivo" => Nivel::Permisivo,
+        "exigente" => Nivel::Exigente,
+        _ => Nivel::Intermedio,
+    };
+    let mut guarda = match estado.preparacion.lock() {
+        Ok(g) => g,
+        Err(envenenado) => envenenado.into_inner(),
+    };
+    if let Some(p) = guarda.as_mut() {
+        p.cambiar_nivel(elegido);
+    }
+}
+
+/// Como fue el ultimo intento respecto al anterior **del mismo tramo**.
+#[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ComparacionPlana {
+    pub mejor: bool,
+    pub igual: bool,
+}
+
+/// Compara el ultimo intento con el anterior.
+///
+/// `None` si no hay anterior, o si era de otro tramo: comparar el compas 1 con el compas 9
+/// no dice nada util, y decirlo igualmente seria peor que callarse.
+#[tauri::command]
+pub fn evaluacion_comparar_con_anterior(
+    estado: tauri::State<'_, std::sync::Arc<Estado>>,
+) -> Option<ComparacionPlana> {
+    let guarda = match estado.preparacion.lock() {
+        Ok(g) => g,
+        Err(envenenado) => envenenado.into_inner(),
+    };
+    guarda
+        .as_ref()?
+        .comparacion()
+        .map(|c| ComparacionPlana { mejor: c.mejor, igual: c.igual })
 }
