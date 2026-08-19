@@ -23,16 +23,20 @@ pub mod prioridad;
 
 #[cfg(target_os = "macos")]
 mod macos;
-#[cfg(target_os = "macos")]
+/// El vigia de reconexion. **Portable**: solo usa `piano_core` y `std`.
 pub mod vigia;
 #[cfg(target_os = "macos")]
 pub use macos::{abrir, dispositivos, reabrir, traducir, Captura};
 
-// Fuera de macOS todavia no hay backend. Sin este modulo estos nombres no existen y la
-// aplicacion entera deja de compilar: es lo que pasaba, y no se noto porque no hay ninguna
-// maquina Windows a mano. La capa de plataforma existe para absorber esto; la alternativa
-// era llenar `src-tauri` de `#[cfg]`.
-#[cfg(not(target_os = "macos"))]
+#[cfg(windows)]
+mod windows;
+#[cfg(windows)]
+pub use windows::{abrir, dispositivos, reabrir, traducir, Captura};
+
+// Ni macOS ni Windows: todavia no hay backend. Sin este modulo estos nombres no existen y
+// la aplicacion entera deja de compilar. La capa de plataforma existe para absorber esto;
+// la alternativa era llenar `src-tauri` de `#[cfg]`.
+#[cfg(not(any(target_os = "macos", windows)))]
 mod sin_backend;
-#[cfg(not(target_os = "macos"))]
+#[cfg(not(any(target_os = "macos", windows)))]
 pub use sin_backend::{abrir, dispositivos, reabrir, Captura};

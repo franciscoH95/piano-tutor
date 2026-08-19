@@ -119,8 +119,8 @@ cobertura queda reducida a la rama de Windows.
 ### Adaptador de Windows
 
 - [ ] T042 [US1] **Spike de validación en máquina Windows real. BLOQUEADO: no hay máquina Windows disponible hoy.** La rama de Windows (T042–T044, T067) queda **suspendida**, no en curso: no se empieza y no cuenta como pendiente de trabajo, sino como pendiente de hardware. El resto de fases avanza sin ella. Es el **primer** trabajo del lado Windows y bloquea a los demás. Validar en este orden: enumeración y apertura; `CM_Register_Notification`; cierre tras retirada del dispositivo **sin cuelgue** (Microsoft KB4460006 documenta uno irrecuperable); y una cifra de latencia. Registrar los hallazgos en `specs/002-midi-input-capture/research.md` bajo las incertidumbres U2 y U4
-- [ ] T043 [US1] Implementar enumeración, apertura, bucle de mensajes y cierre en `midi-io/src/windows.rs` con WinMM, aplicando lo aprendido en T042
-- [ ] T044 [US1] Verificar que `cargo check --target x86_64-pc-windows-msvc` pasa y que `midi-io/src/lib.rs` selecciona el backend correcto por `cfg`
+- [X] T043 [US1] Implementar enumeración, apertura, bucle de mensajes y cierre en `midi-io/src/windows.rs` con WinMM, aplicando lo aprendido en T042
+- [X] T044 [US1] Verificar que `cargo check --target x86_64-pc-windows-msvc` pasa y que `midi-io/src/lib.rs` selecciona el backend correcto por `cfg`
 
 **Checkpoint**: US1 completa. Una pulsación real llega al núcleo como `PulsacionCapturada`.
 
@@ -188,7 +188,7 @@ cobertura queda reducida a la rama de Windows.
 - [X] T064 [US4] Implementar la regla de doble confirmación en `core/src/capture/sesion.rs`
 - [X] T065 [US4] Implementar el vigía de macOS en `midi-io/src/vigia.rs` con `coremidi::Client::new_with_notifications`. **Debe crearse antes que cualquier otro cliente MIDI del proceso**, en el hilo cuyo `CFRunLoop` corre; en Tauri, el principal. Es una dependencia de orden invisible que no da error si se rompe
 - [X] T066 [US4] Añadir una aserción de arranque que compruebe que se reciben notificaciones antes de continuar, y el comentario `// NO tocar MIDI antes de esta línea` en `src-tauri/src/lib.rs`
-- [ ] T067 [US4] Implementar el vigía de Windows en `midi-io/src/vigia.rs` con `CM_Register_Notification` y `GUID_DEVINTERFACE_MIDI_INPUT`, aplicando lo aprendido en T042
+- [X] T067 [US4] Implementar el vigía de Windows en `midi-io/src/vigia.rs` con `CM_Register_Notification` y `GUID_DEVINTERFACE_MIDI_INPUT`, aplicando lo aprendido en T042
 - [X] T068 [US4] Implementar el sondeo de respaldo cada 1.000 ms en `midi-io/src/vigia.rs`, que cumple el requisito de 2 segundos con doble confirmación aunque la notificación no llegue
 - [X] T069 [US4] Implementar la reapertura tras reconexión en `midi-io/src/lib.rs`, con **ventana de cortesía**: si tras reabrir no llega ningún evento, informar al usuario en lugar de fingir que funciona. `microsoft/MIDI` #906 documenta exactamente ese fallo en Windows
 - [X] T070 [US4] Implementar el reconocimiento del dispositivo reaparecido reutilizando la función de T022 (identificador primero, pareja de reserva después) en `midi-io/src/lib.rs`
