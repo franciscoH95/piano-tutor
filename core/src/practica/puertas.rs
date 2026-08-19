@@ -5,6 +5,7 @@
 //! con un cursor monotono: durante la practica no se busca nada, solo se mira la pendiente.
 
 use crate::practica::manos::Mano;
+use crate::timeline::CANAL_PERCUSION;
 use crate::practica::sonando::MascaraTeclas;
 use crate::time::Micros;
 use crate::Song;
@@ -32,11 +33,18 @@ impl ProgramaDePuertas {
     /// abran solas; es que no estan. Si estuvieran, el cursor se detendria en ellas a
     /// esperar algo que el alumno no tiene que tocar (SC-012).
     ///
-    /// La percusion no genera puertas: no se toca con las manos en el teclado.
+    /// La percusion **no genera puertas**: no se toca con las manos en el teclado, asi que
+    /// esperar a que el alumno la acierte deja la practica atascada para siempre.
+    ///
+    /// `is_on_88_keys` no basta para descartarla: una caja esta en la tecla 38, dentro del
+    /// piano. Hay que mirar el canal.
     #[must_use]
     pub fn nuevo(cancion: &Song, manos: &[Mano], practicada: Option<Mano>) -> Self {
         let mut puertas: Vec<Puerta> = Vec::new();
         for (i, n) in cancion.notes().iter().enumerate() {
+            if n.channel == CANAL_PERCUSION {
+                continue;
+            }
             if let (Some(quiero), Some(suya)) = (practicada, manos.get(i).copied()) {
                 if quiero != suya {
                     continue;

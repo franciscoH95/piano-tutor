@@ -26,7 +26,7 @@ const PIANO_MIN: u8 = 21;
 const PIANO_MAX: u8 = 108;
 
 /// Canal de percusión del estándar, contado desde cero.
-const CANAL_PERCUSION: u8 = 9;
+use crate::timeline::CANAL_PERCUSION;
 
 /// Cómo terminó una nota.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]

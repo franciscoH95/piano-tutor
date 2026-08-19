@@ -315,3 +315,41 @@ fn la_velocidad_sigue_mandando_entre_puertas() {
     c.avanzar_con(reloj.now(), teclas(&[60]));
     assert_eq!(c.posicion(), Micros(1_000_000), "a mitad de velocidad, mitad de canción");
 }
+
+#[test]
+fn la_percusion_no_genera_puertas() {
+    // El comentario de `ProgramaDePuertas::nuevo` afirma que la percusión no genera puertas.
+    // No lo hacía: solo filtraba por mano practicada. Un archivo con batería en el canal 9
+    // producía una puerta por cada golpe, y en modo espera la práctica se quedaba atascada
+    // para siempre esperando una caja que no se toca con las manos.
+    //
+    // `is_on_88_keys()` no salva del problema: una caja en la tecla 38 está dentro de las 88.
+    let raw = SmfBuilder::new(1000)
+        .track(|t| t.tempo(0, 1_000_000).note(0, 60, 90, 500).note(2_000, 64, 90, 500))
+        .track(|t| {
+            // Canal 9: percusión.
+            let mut t = t;
+            for i in 0..8u64 {
+                t = t.raw(i * 250, &[0x99, 38, 100]).raw(i * 250 + 100, &[0x89, 38, 0]);
+            }
+            t
+        })
+        .build();
+    let song = load_smf(&raw).expect("valida");
+    let manos = vec![Mano::Derecha; song.notes().len()];
+    let mut c = Cursor::nuevo_con_puertas(&song, &manos, None);
+    let mut reloj = VirtualClock::new();
+    c.cambiar_avance(Avance::PorAcierto, reloj.now());
+    c.poner_en_marcha(reloj.now());
+
+    // Se acierta la primera nota de piano; el cursor debe llegar hasta la segunda (2 s) sin
+    // detenerse en ninguna puerta de percusión intermedia.
+    c.avanzar_con(reloj.now(), teclas(&[60]));
+    reloj.set(Micros(1_500_000));
+    c.avanzar_con(reloj.now(), MascaraTeclas::VACIA);
+    assert_eq!(
+        c.posicion(),
+        Micros(1_500_000),
+        "la batería no debe detener el cursor"
+    );
+}
