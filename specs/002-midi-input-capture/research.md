@@ -413,3 +413,47 @@ usuario el 2026-08-17.
 | **U3** | `DELTA_SO_USB` (el tramo que el banco no cubre) es desconocido: exige teclado e interfaz físicos. | El banco publica `SIN CALIBRAR` en su informe hasta que exista el dato. Esperado por la literatura: 1–9 ms. Si al calibrar supera los 8 ms, es hardware inadecuado y se documenta como no soportado, igual que Bluetooth. |
 | **U4** | Cuelgue irrecuperable en Windows al cerrar tras retirada PnP (Microsoft KB4460006). | Se valida en el spike U2. Si se reproduce, hay que cerrar en un hilo aparte con tiempo límite. |
 | **U5** | `microsoft/MIDI` #906: tras reconectar, el puerto abre pero no entrega nada. | Ventana de cortesía tras reabrir; si no llega ningún evento, informar en vez de fingir. |
+
+### Enmienda a la Decisión 1 — 2026-08-19: en Windows se usa WinRT, no WinMM
+
+La decisión original eligió **WinMM** (`midiInOpen` + `CM_Register_Notification`). Se cambia a
+**WinRT** (`Windows.Devices.Midi`), y conviene dejar escrito por qué, porque revertir una decisión
+en silencio es peor que no haberla tomado.
+
+**El hecho nuevo**, que no se comprobó al escribirla: **toda la API WinMM del crate `windows` es
+`pub unsafe fn`**, y su callback exige un `unsafe extern "system" fn` que recupera su estado
+desreferenciando un puntero crudo. `midi-io` tiene `#![forbid(unsafe_code)]`, y `forbid` **no se
+levanta con un `allow` local** — es la diferencia con `deny`. Usar WinMM obligaría a retirar esa
+garantía de todo el crate; una garantía que se puso ahí precisamente después de descartar `midir`
+por un fallo de memoria. Escribir nosotros el `unsafe` que no quisimos confiar a otros es el peor de
+los dos mundos.
+
+**Las dos razones que la decisión original dio para descartar WinRT no sobreviven:**
+
+1. «`midir` avisa de que su backend WinRT está peor probado» — no usamos `midir`.
+2. «`microsoft/MIDI` documenta problemas de enumeración» — los issues citados (#597, #783) son de la
+   ruta **WinMM → MidiSrv**, es decir del rival.
+
+**Verificado, no razonado**: una sonda con la implementación completa —enumeración, apertura,
+callback, cierre e identidad estable— compila con `cargo clippy --target x86_64-pc-windows-msvc
+-- -D warnings` bajo `forbid(unsafe_code)` y los cuatro `deny` del crate, **sin una sola línea
+insegura**.
+
+**No es una dependencia nueva**: el crate `windows` ya estaba declarado. Cambian las *features*.
+
+#### Lo que esto cuesta, declarado y sin medir
+
+WinRT entrega cada mensaje como un **objeto COM**: hay un `AddRef`/`Release` y un `QueryInterface`
+por nota, dentro del callback. CoreMIDI entrega un slice y no asigna nada. Eso cae en la ruta crítica
+del Principio IV y **no hay ninguna medición todavía**. Es la primera cifra que hay que tomar en una
+máquina Windows real; si resultara inaceptable, la alternativa es WinMM con `unsafe` acotado y esta
+decisión habría que volver a tomarla.
+
+#### Dos consecuencias colaterales
+
+- **`parser.rs` no se usa en Windows**: WinRT ya entrega el mensaje analizado. Ese archivo existe
+  porque `midir` rebanaba un paquete truncado; en Windows ese riesgo lo asume el sistema. Deja de
+  ser cierto que todo el análisis del proyecto viva bajo `deny(clippy::indexing_slicing)`.
+- **`Captura` sí es `Send` en Windows**, al contrario que en macOS. Se sigue abriendo dentro del
+  hilo trabajador, pero por otro motivo: allí es porque `Captura` no cruza; aquí porque abrir espera
+  a una operación asíncrona y bloquear el hilo principal congelaría la interfaz.

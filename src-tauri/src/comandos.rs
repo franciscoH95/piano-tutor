@@ -387,8 +387,14 @@ fn ruta_preferencias() -> std::path::PathBuf {
 }
 
 /// Enumera los teclados MIDI disponibles.
+///
+/// **`async` a proposito.** Un `#[tauri::command]` sincrono corre en el hilo principal, y en
+/// Windows `dispositivos()` espera a una operacion asincrona de WinRT: bloquear el hilo
+/// principal ahi congela la interfaz hasta cinco segundos en el peor caso. En macOS da igual
+/// —CoreMIDI enumera sin esperar—, pero la firma es la misma en las dos plataformas y el
+/// puente no debe saber en cual corre.
 #[tauri::command]
-pub fn listar_dispositivos() -> Vec<DispositivoPlano> {
+pub async fn listar_dispositivos() -> Vec<DispositivoPlano> {
     piano_midi_io::dispositivos()
         .unwrap_or_default()
         .iter()
@@ -407,60 +413,68 @@ pub fn listar_dispositivos() -> Vec<DispositivoPlano> {
 ///
 /// El reconocimiento por identidad ya existe y esta probado en la feature 002: aqui solo
 /// se usa.
+///
+/// **`async` por lo mismo que `listar_dispositivos`**: enumera, y en Windows enumerar espera
+/// a una operacion asincrona de WinRT que no puede bloquear el hilo principal.
 #[tauri::command]
-pub fn conectar_teclado(
+pub async fn conectar_teclado(
     estado: tauri::State<'_, std::sync::Arc<Estado>>,
     reloj: tauri::State<'_, crate::RelojDeSesion>,
-) -> EstadoDelTeclado {
+) -> Result<EstadoDelTeclado, String> {
+    // `Result` porque Tauri lo exige en los mandos `async` con referencias. No se usa para
+    // comunicar «no hay teclado», que es una situacion normal y viaja como variante.
     let disponibles = piano_midi_io::dispositivos().unwrap_or_default();
     if disponibles.is_empty() {
-        return EstadoDelTeclado::SinDispositivos;
+        return Ok(EstadoDelTeclado::SinDispositivos);
     }
     let pedir = || EstadoDelTeclado::HayQueElegir {
         dispositivos: disponibles.iter().map(DispositivoPlano::from).collect(),
     };
     let Some(recordado) = crate::preferencias::cargar(&ruta_preferencias()) else {
-        return pedir();
+        return Ok(pedir());
     };
     let buscado = piano_core::capture::Dispositivo::from(&recordado);
     match piano_core::capture::reconocer(&buscado, &disponibles) {
         piano_core::capture::Reconocimiento::Encontrado(i) => match disponibles.get(i) {
-            Some(d) => arrancar_captura(&estado, &reloj, d.clone()),
-            None => pedir(),
+            Some(d) => Ok(arrancar_captura(&estado, &reloj, d.clone())),
+            None => Ok(pedir()),
         },
-        piano_core::capture::Reconocimiento::PedirAlUsuario => pedir(),
+        piano_core::capture::Reconocimiento::PedirAlUsuario => Ok(pedir()),
     }
 }
 
 /// El alumno elige un teclado de la lista. Se recuerda y se abre.
 #[tauri::command]
-pub fn elegir_teclado(
+pub async fn elegir_teclado(
     estado: tauri::State<'_, std::sync::Arc<Estado>>,
     reloj: tauri::State<'_, crate::RelojDeSesion>,
     posicion: u16,
     nombre: String,
-) -> EstadoDelTeclado {
+) -> Result<EstadoDelTeclado, String> {
     let disponibles = piano_midi_io::dispositivos().unwrap_or_default();
     let Some(d) = disponibles
         .iter()
         .find(|d| d.posicion == posicion && d.nombre == nombre)
     else {
-        return EstadoDelTeclado::HayQueElegir {
+        return Ok(EstadoDelTeclado::HayQueElegir {
             dispositivos: disponibles.iter().map(DispositivoPlano::from).collect(),
-        };
+        });
     };
     // Guardar puede fallar; no es motivo para no practicar. Como mucho, la proxima vez
     // habra que volver a elegir.
     let _ = crate::preferencias::guardar(&ruta_preferencias(), &(d.into()));
-    arrancar_captura(&estado, &reloj, d.clone())
+    Ok(arrancar_captura(&estado, &reloj, d.clone()))
 }
 
 /// Lanza el hilo de captura sobre un dispositivo concreto.
 ///
-/// `Captura` retiene el puerto y el cliente de CoreMIDI, que no son `Send`, asi que se
-/// abre **dentro** del hilo. Se le pasa el reloj de sesion, el mismo que gobierna la
-/// reproduccion (FR-012a): `MonotonicClock` es `Copy` y guarda su origen, asi que copiarlo
-/// no crea un reloj nuevo.
+/// Se abre **dentro del hilo** por dos motivos distintos segun la plataforma: en macOS
+/// porque `Captura` retiene el puerto y el cliente de CoreMIDI, que no son `Send`; en
+/// Windows porque abrir espera a una operacion asincrona de WinRT y bloquear el hilo
+/// principal congelaria la interfaz. Alli `Captura` **si** es `Send`.
+///
+/// Se le pasa el reloj de sesion, el mismo que gobierna la reproduccion (FR-012a):
+/// `MonotonicClock` es `Copy` y guarda su origen, asi que copiarlo no crea un reloj nuevo.
 fn arrancar_captura(
     estado: &std::sync::Arc<Estado>,
     reloj: &crate::RelojDeSesion,
