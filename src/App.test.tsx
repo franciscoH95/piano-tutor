@@ -27,8 +27,12 @@ beforeEach(() => {
   vi.mocked(puente.pausa).mockResolvedValue(null);
   vi.mocked(puente.saltarA).mockResolvedValue(null);
   vi.mocked(puente.cambiarVelocidad).mockResolvedValue(null);
-  vi.mocked(puente.conectarTeclado).mockResolvedValue("Piano de pruebas");
+  vi.mocked(puente.conectarTeclado).mockResolvedValue({ tipo: "conectado", nombre: "Piano de pruebas" });
   vi.mocked(puente.escucharCanal).mockResolvedValue();
+  vi.mocked(puente.elegirTeclado).mockResolvedValue({ tipo: "sinDispositivos" });
+  vi.mocked(puente.cambiarModo).mockResolvedValue(null);
+  vi.mocked(puente.practicarMano).mockResolvedValue(null);
+  vi.mocked(puente.saltarPuerta).mockResolvedValue(null);
 });
 
 afterEach(() => {
@@ -180,7 +184,7 @@ describe("el teclado", () => {
 
   it("sin teclado avisa, pero la canción se ve y se reproduce igual", async () => {
     // FR-015. Lo importante no es el aviso: es que NADA quede desactivado por su culpa.
-    vi.mocked(puente.conectarTeclado).mockResolvedValue(null);
+    vi.mocked(puente.conectarTeclado).mockResolvedValue({ tipo: "sinDispositivos" });
     await abrirUna();
 
     expect(await screen.findByText(/sin teclado|no se detect/i)).toBeInTheDocument();
@@ -194,7 +198,7 @@ describe("el teclado", () => {
   });
 
   it("con teclado no muestra el aviso", async () => {
-    vi.mocked(puente.conectarTeclado).mockResolvedValue("Piano de pruebas");
+    vi.mocked(puente.conectarTeclado).mockResolvedValue({ tipo: "conectado", nombre: "Piano de pruebas" });
     await abrirUna();
     await waitFor(() => expect(puente.conectarTeclado).toHaveBeenCalled());
     expect(screen.queryByText(/sin teclado|no se detect/i)).not.toBeInTheDocument();
@@ -202,7 +206,7 @@ describe("el teclado", () => {
 
   it("perder el teclado a mitad avisa sin detener la reproducción", async () => {
     // FR-016. La prueba que importa: que la canción NO se pare.
-    vi.mocked(puente.conectarTeclado).mockResolvedValue("Piano de pruebas");
+    vi.mocked(puente.conectarTeclado).mockResolvedValue({ tipo: "conectado", nombre: "Piano de pruebas" });
     let emitir: ((m: puente.MensajeDelNucleo) => void) | null = null;
     vi.mocked(puente.escucharCanal).mockImplementation((cb) => {
       emitir = cb;
@@ -224,7 +228,7 @@ describe("el teclado", () => {
   });
 
   it("las teclas que llegan por el canal se pintan", async () => {
-    vi.mocked(puente.conectarTeclado).mockResolvedValue("Piano de pruebas");
+    vi.mocked(puente.conectarTeclado).mockResolvedValue({ tipo: "conectado", nombre: "Piano de pruebas" });
     let emitir: ((m: puente.MensajeDelNucleo) => void) | null = null;
     vi.mocked(puente.escucharCanal).mockImplementation((cb) => {
       emitir = cb;
@@ -239,5 +243,64 @@ describe("el teclado", () => {
 
     const pulsadas = vi.mocked(escena.construirEscena).mock.lastCall?.[2];
     expect(pulsadas?.has(60)).toBe(true);
+  });
+});
+
+describe("elegir teclado al arrancar", () => {
+  it("cuando el recordado no está, ofrece elegir y NO abre otro", async () => {
+    // FR-025. Lo que se comprueba no es solo que aparezca la lista: es que **no** se haya
+    // conectado nada por su cuenta. Abrir el primero disponible sería capturar de un
+    // aparato que el alumno no eligió, y lo notaría porque nada respondería.
+    vi.mocked(puente.conectarTeclado).mockResolvedValue({
+      tipo: "hayQueElegir",
+      dispositivos: [
+        { nombre: "Casio CDP-S110", posicion: 0, idSistema: 11 },
+        { nombre: "Casio CDP-S110", posicion: 1, idSistema: 22 },
+      ],
+    });
+    render(<App />);
+
+    expect(await screen.findByText(/elige tu teclado/i)).toBeInTheDocument();
+    expect(puente.elegirTeclado).not.toHaveBeenCalled();
+  });
+
+  it("elegir uno lo conecta y la lista desaparece", async () => {
+    vi.mocked(puente.conectarTeclado).mockResolvedValue({
+      tipo: "hayQueElegir",
+      dispositivos: [{ nombre: "Casio CDP-S110", posicion: 1, idSistema: 22 }],
+    });
+    vi.mocked(puente.elegirTeclado).mockResolvedValue({
+      tipo: "conectado",
+      nombre: "Casio CDP-S110",
+    });
+    render(<App />);
+
+    await userEvent.click(await screen.findByRole("button", { name: /Casio/ }));
+    await waitFor(() =>
+      expect(puente.elegirTeclado).toHaveBeenCalledWith({
+        nombre: "Casio CDP-S110",
+        posicion: 1,
+        idSistema: 22,
+      }),
+    );
+    await waitFor(() =>
+      expect(screen.queryByText(/elige tu teclado/i)).not.toBeInTheDocument(),
+    );
+  });
+
+  it("mientras se elige teclado, la canción se sigue pudiendo abrir", async () => {
+    // FR-015 otra vez: nada de esto puede bloquear ver y reproducir.
+    vi.mocked(puente.conectarTeclado).mockResolvedValue({
+      tipo: "hayQueElegir",
+      dispositivos: [{ nombre: "Casio", posicion: 0, idSistema: 1 }],
+    });
+    vi.mocked(puente.elegirArchivo).mockResolvedValue("/musica/a.mid");
+    vi.mocked(puente.abrirCancion).mockResolvedValue(RESUMEN);
+    render(<App />);
+
+    await screen.findByText(/elige tu teclado/i);
+    await userEvent.click(screen.getByRole("button", { name: /abrir una canción/i }));
+    await waitFor(() => expect(puente.abrirCancion).toHaveBeenCalled());
+    expect(screen.getByRole("button", { name: /reproducir/i })).toBeEnabled();
   });
 });

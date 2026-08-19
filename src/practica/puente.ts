@@ -4,6 +4,7 @@
 // comprueban el comportamiento de la interfaz sin levantar Tauri ni tocar el disco.
 
 import { Channel, invoke } from "@tauri-apps/api/core";
+import type { DispositivoPlano } from "../dispositivos/Selector";
 import { open } from "@tauri-apps/plugin-dialog";
 
 /** Lo que el núcleo cuenta de una canción recién abierta. */
@@ -104,6 +105,7 @@ export async function cambiarVelocidad(v: {
 /** Un mensaje del núcleo, tal como llega por el canal. */
 import type { MensajeDelNucleo } from "./modelo";
 export type { MensajeDelNucleo };
+export type { DispositivoPlano };
 
 /**
  * Abre el canal por el que el núcleo empuja teclas, anclas y avisos.
@@ -119,13 +121,29 @@ export async function escucharCanal(
   return invoke<void>("registrar_canal", { canal });
 }
 
+/** En qué situación está el teclado al arrancar. */
+export type EstadoDelTeclado =
+  | { tipo: "conectado"; nombre: string }
+  | { tipo: "hayQueElegir"; dispositivos: DispositivoPlano[] }
+  | { tipo: "sinDispositivos" };
+
 /**
- * Conecta el teclado MIDI. Devuelve su nombre, o `null` si no hay ninguno.
+ * Intenta conectar el teclado recordado.
  *
- * `null` **no es un error**: la aplicación funciona sin teclado (FR-015), solo lo dice.
+ * **Nunca abre "el primero que haya"**: si el recordado no está, devuelve la lista para
+ * que el alumno elija (FR-025). Abrir otro sería capturar de un aparato que no eligió, y
+ * lo notaría porque nada respondería, sin ninguna pista de por qué.
  */
-export async function conectarTeclado(): Promise<string | null> {
-  return invoke<string | null>("conectar_teclado");
+export async function conectarTeclado(): Promise<EstadoDelTeclado> {
+  return invoke<EstadoDelTeclado>("conectar_teclado");
+}
+
+/** Recuerda esta elección y empieza a capturar de ella. */
+export async function elegirTeclado(d: DispositivoPlano): Promise<EstadoDelTeclado> {
+  return invoke<EstadoDelTeclado>("elegir_teclado", {
+    posicion: d.posicion,
+    nombre: d.nombre,
+  });
 }
 
 /** Cambia entre reproducir y esperar. Conserva la posición (FR-021). */

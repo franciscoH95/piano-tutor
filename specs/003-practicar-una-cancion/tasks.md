@@ -204,11 +204,11 @@ renderizador de componentes (T004a).
 
 **Prueba independiente**: la lista muestra los dispositivos y la elección sobrevive al reinicio.
 
-- [ ] T085 [US5] Implementar el comando de enumerar dispositivos en `src-tauri/src/comandos.rs`, sobre `piano_midi_io::dispositivos()`, que ya existe y está probado
-- [ ] T085a [US5] Prueba en `src/dispositivos/Selector.test.tsx`: la lista muestra nombre y posición para distinguir homónimos; elegir uno emite la elección; cuando el recordado no está se pide elegir de nuevo y **no** se preselecciona otro (FR-025)
-- [ ] T086 [US5] Implementar el selector en `src/dispositivos/Selector.tsx`, mostrando nombre y posición para poder distinguir homónimos
-- [ ] T087 [US5] Conectar la persistencia con `src-tauri/src/preferencias.rs`, ya construido y probado en la feature 002
-- [ ] T088 [US5] Implementar en `src/dispositivos/Selector.tsx` la propuesta automática del teclado recordado al arrancar, y la petición de elegir de nuevo cuando no case (FR-025). El reconocimiento por identidad ya existe en `core/src/capture/dispositivo.rs`: aquí solo se usa
+- [X] T085 [US5] Implementar el comando de enumerar dispositivos en `src-tauri/src/comandos.rs`, sobre `piano_midi_io::dispositivos()`, que ya existe y está probado
+- [X] T085a [US5] Prueba en `src/dispositivos/Selector.test.tsx`: la lista muestra nombre y posición para distinguir homónimos; elegir uno emite la elección; cuando el recordado no está se pide elegir de nuevo y **no** se preselecciona otro (FR-025)
+- [X] T086 [US5] Implementar el selector en `src/dispositivos/Selector.tsx`, mostrando nombre y posición para poder distinguir homónimos
+- [X] T087 [US5] Conectar la persistencia con `src-tauri/src/preferencias.rs`, ya construido y probado en la feature 002
+- [X] T088 [US5] Implementar en `src/dispositivos/Selector.tsx` la propuesta automática del teclado recordado al arrancar, y la petición de elegir de nuevo cuando no case (FR-025). El reconocimiento por identidad ya existe en `core/src/capture/dispositivo.rs`: aquí solo se usa
 
 **Checkpoint**: elegir teclado es un trámite de una sola vez.
 

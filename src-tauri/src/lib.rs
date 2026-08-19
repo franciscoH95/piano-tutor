@@ -47,6 +47,8 @@ pub fn run() {
             comandos::transporte_velocidad,
             comandos::transporte_posicion,
             comandos::conectar_teclado,
+            comandos::listar_dispositivos,
+            comandos::elegir_teclado,
             comandos::transporte_modo,
             comandos::ajustar_mano,
             comandos::transporte_saltar_puerta

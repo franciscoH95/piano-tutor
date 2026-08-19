@@ -341,40 +341,140 @@ pub fn transporte_posicion(
     guarda.as_mut().map_or(0, |p| p.avanzar(ahora).posicion.0)
 }
 
-/// Conecta el primer teclado MIDI que haya. Devuelve su nombre, o `None` si no hay ninguno.
+/// Un dispositivo tal como lo ve la interfaz.
 ///
-/// `None` **no es un error**: la aplicacion funciona sin teclado y solo lo comunica
-/// (FR-015). Por eso no devuelve `Result`.
+/// Lleva la **posicion** ademas del nombre porque dos teclados del mismo modelo se llaman
+/// igual, y sin ella el alumno no podria distinguirlos en la lista.
+#[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DispositivoPlano {
+    pub nombre: String,
+    pub posicion: u16,
+    pub id_sistema: Option<u64>,
+}
+
+impl From<&piano_core::capture::Dispositivo> for DispositivoPlano {
+    fn from(d: &piano_core::capture::Dispositivo) -> Self {
+        Self {
+            nombre: d.nombre.clone(),
+            posicion: d.posicion,
+            id_sistema: d.id_sistema.map(|i| i.0),
+        }
+    }
+}
+
+/// En que situacion esta el teclado al arrancar.
+#[derive(Clone, Debug, Serialize)]
+#[serde(tag = "tipo", rename_all = "camelCase", rename_all_fields = "camelCase")]
+pub enum EstadoDelTeclado {
+    /// Se reconocio el recordado y ya esta capturando.
+    Conectado { nombre: String },
+    /// Hay teclados, pero **ninguno se abre solo**: o no habia nada recordado, o el
+    /// recordado no esta. FR-025 lo prohibe expresamente.
+    HayQueElegir { dispositivos: Vec<DispositivoPlano> },
+    /// No hay ningun teclado enchufado.
+    SinDispositivos,
+}
+
+/// Donde se recuerda la eleccion.
+fn ruta_preferencias() -> std::path::PathBuf {
+    let base = std::env::var_os("XDG_CONFIG_HOME")
+        .map(std::path::PathBuf::from)
+        .or_else(|| std::env::var_os("HOME").map(|h| std::path::PathBuf::from(h).join(".config")))
+        .unwrap_or_else(std::env::temp_dir);
+    base.join("piano-tutor").join("teclado.json")
+}
+
+/// Enumera los teclados MIDI disponibles.
+#[tauri::command]
+pub fn listar_dispositivos() -> Vec<DispositivoPlano> {
+    piano_midi_io::dispositivos()
+        .unwrap_or_default()
+        .iter()
+        .map(DispositivoPlano::from)
+        .collect()
+}
+
+/// Arranca la captura con el teclado recordado, si se reconoce.
 ///
-/// # El mismo reloj
+/// # Por que no abre "el primero que haya"
 ///
-/// A la captura se le pasa **el reloj de sesion**, el mismo que gobierna la reproduccion
-/// (FR-012a). `MonotonicClock` es `Copy` y guarda su origen, asi que copiarlo no crea un
-/// reloj nuevo: sigue siendo el mismo cero. Con dos relojes distintos, los instantes de lo
-/// tocado y los de lo esperado no serian comparables y el desfase entre ambos crecería con
-/// la sesion, sin que ninguna prueba de un solo lado lo notase.
+/// FR-025 lo prohibe: si el teclado recordado no esta, hay que **pedir que se elija de
+/// nuevo** y no abrir otro en su lugar. Abrir el primero seria capturar de un aparato que
+/// el alumno no eligio —otro teclado de la casa, un modulo de sonido— y lo notaria porque
+/// nada respondería, sin ninguna pista de por que.
 ///
-/// # Por que abre el hilo y no esta funcion
-///
-/// `Captura` retiene el puerto y el cliente de CoreMIDI, que no son `Send`. Abrir aqui y
-/// mandar la captura al hilo no compila; abrir **dentro** del hilo evita el problema de
-/// raiz y ademas libera el dispositivo al terminar (FR-006).
+/// El reconocimiento por identidad ya existe y esta probado en la feature 002: aqui solo
+/// se usa.
 #[tauri::command]
 pub fn conectar_teclado(
     estado: tauri::State<'_, std::sync::Arc<Estado>>,
     reloj: tauri::State<'_, crate::RelojDeSesion>,
-) -> Option<String> {
-    let dispositivo = piano_midi_io::dispositivos().ok()?.into_iter().next()?;
+) -> EstadoDelTeclado {
+    let disponibles = piano_midi_io::dispositivos().unwrap_or_default();
+    if disponibles.is_empty() {
+        return EstadoDelTeclado::SinDispositivos;
+    }
+    let pedir = || EstadoDelTeclado::HayQueElegir {
+        dispositivos: disponibles.iter().map(DispositivoPlano::from).collect(),
+    };
+    let Some(recordado) = crate::preferencias::cargar(&ruta_preferencias()) else {
+        return pedir();
+    };
+    let buscado = piano_core::capture::Dispositivo::from(&recordado);
+    match piano_core::capture::reconocer(&buscado, &disponibles) {
+        piano_core::capture::Reconocimiento::Encontrado(i) => match disponibles.get(i) {
+            Some(d) => arrancar_captura(&estado, &reloj, d.clone()),
+            None => pedir(),
+        },
+        piano_core::capture::Reconocimiento::PedirAlUsuario => pedir(),
+    }
+}
+
+/// El alumno elige un teclado de la lista. Se recuerda y se abre.
+#[tauri::command]
+pub fn elegir_teclado(
+    estado: tauri::State<'_, std::sync::Arc<Estado>>,
+    reloj: tauri::State<'_, crate::RelojDeSesion>,
+    posicion: u16,
+    nombre: String,
+) -> EstadoDelTeclado {
+    let disponibles = piano_midi_io::dispositivos().unwrap_or_default();
+    let Some(d) = disponibles
+        .iter()
+        .find(|d| d.posicion == posicion && d.nombre == nombre)
+    else {
+        return EstadoDelTeclado::HayQueElegir {
+            dispositivos: disponibles.iter().map(DispositivoPlano::from).collect(),
+        };
+    };
+    // Guardar puede fallar; no es motivo para no practicar. Como mucho, la proxima vez
+    // habra que volver a elegir.
+    let _ = crate::preferencias::guardar(&ruta_preferencias(), &(d.into()));
+    arrancar_captura(&estado, &reloj, d.clone())
+}
+
+/// Lanza el hilo de captura sobre un dispositivo concreto.
+///
+/// `Captura` retiene el puerto y el cliente de CoreMIDI, que no son `Send`, asi que se
+/// abre **dentro** del hilo. Se le pasa el reloj de sesion, el mismo que gobierna la
+/// reproduccion (FR-012a): `MonotonicClock` es `Copy` y guarda su origen, asi que copiarlo
+/// no crea un reloj nuevo.
+fn arrancar_captura(
+    estado: &std::sync::Arc<Estado>,
+    reloj: &crate::RelojDeSesion,
+    dispositivo: piano_core::capture::Dispositivo,
+) -> EstadoDelTeclado {
     let nombre = dispositivo.nombre.clone();
     let clock = reloj.0;
-    let compartido = std::sync::Arc::clone(&estado);
+    let compartido = std::sync::Arc::clone(estado);
     let parar = std::sync::Arc::clone(&estado.parar);
     std::thread::spawn(move || match piano_midi_io::abrir(&dispositivo, clock) {
         Ok(mut captura) => crate::reenviador::bucle(captura.receptor(), &compartido, &parar),
         // Estaba en la lista y no se pudo abrir: para el alumno es lo mismo que perderlo.
         Err(_) => compartido.enviar(MensajeAlFrontend::DispositivoPerdido),
     });
-    Some(nombre)
+    EstadoDelTeclado::Conectado { nombre }
 }
 
 /// Cambia entre reproducir y esperar. Conserva la posicion (FR-021).

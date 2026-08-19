@@ -4,6 +4,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import "./App.css";
+import { Selector, type DispositivoPlano } from "./dispositivos/Selector";
 import { Controles } from "./practica/controles";
 import { Lienzo } from "./practica/Lienzo";
 import { construirEscena, VENTANA_US } from "./practica/escena";
@@ -21,6 +22,7 @@ import {
   cambiarVelocidad,
   conectarTeclado,
   elegirArchivo,
+  elegirTeclado,
   escucharCanal,
   marcha,
   pausa,
@@ -29,6 +31,7 @@ import {
   saltarPuerta,
   vistaActual,
   type AnclaDelNucleo,
+  type EstadoDelTeclado,
   type NotaVisiblePlana,
   type ResumenCancion,
 } from "./practica/puente";
@@ -47,7 +50,7 @@ export default function App() {
   const [ancla, setAncla] = useState<Ancla | null>(null);
   const [posicion, setPosicion] = useState(0);
   const [canal, setCanal] = useState(ESTADO_INICIAL);
-  const [teclado, setTeclado] = useState<string | null | undefined>(undefined);
+  const [teclado, setTeclado] = useState<EstadoDelTeclado | undefined>(undefined);
   const [modo, setModo] = useState<Modo>("porReloj");
   const [mano, setMano] = useState<ManoElegida>("ambas");
   const notasRef = useRef(notas);
@@ -193,10 +196,21 @@ export default function App() {
 
       {/* FR-015 y FR-016: se comunican, y no bloquean nada. Ni la canción ni los mandos
           dependen de que haya teclado. */}
-      {teclado === null && (
+      {teclado?.tipo === "sinDispositivos" && (
         <p role="status" className="aviso">
           No se detecta ningún teclado MIDI. Puedes ver y reproducir la canción igual.
         </p>
+      )}
+
+      {/* FR-025: el recordado no está, o no había ninguno. Se elige, no se propone uno. */}
+      {teclado?.tipo === "hayQueElegir" && (
+        <Selector
+          dispositivos={teclado.dispositivos}
+          recordadoAusente
+          onElegir={(d: DispositivoPlano) => {
+            void elegirTeclado(d).then(setTeclado);
+          }}
+        />
       )}
       {canal.dispositivoPerdido && (
         <p role="status" className="aviso">
