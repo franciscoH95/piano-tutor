@@ -97,19 +97,6 @@ export default function App() {
     if (canal.ancla !== null) setAncla(canal.ancla);
   }, [canal.ancla]);
 
-  // El bucle de dibujo. La posición sale **del reloj, nunca del número de fotograma**: la
-  // cadencia de la pantalla afecta a la suavidad, no a la corrección. Un contador de
-  // fotogramas se desincronizaría en cuanto el navegador saltase uno.
-  useEffect(() => {
-    if (ancla === null || ancla.num === 0) return undefined;
-    let id = 0;
-    const fotograma = () => {
-      setPosicion(posicionEn(ancla, ahoraLocal()));
-      id = requestAnimationFrame(fotograma);
-    };
-    id = requestAnimationFrame(fotograma);
-    return () => cancelAnimationFrame(id);
-  }, [ancla]);
 
   /**
    * Ejecuta una llamada al puente y **muestra el motivo si falla**.
@@ -126,9 +113,56 @@ export default function App() {
     }
   }, []);
 
-  const refrescar = useCallback(async () => {
-    setNotas(await vistaActual(0, VENTANA_US));
-  }, []);
+  /**
+   * Hasta dónde llegan las notas ya pedidas.
+   *
+   * Se pide **por delante** de la posición y se vuelve a pedir cuando la reproducción se
+   * acerca al borde, no en cada fotograma: el ancla existe precisamente para que el cursor
+   * no cruce el puente sesenta veces por segundo, y pedir las notas ahí tiraría eso por
+   * tierra.
+   */
+  const pedidoHasta = useRef(0);
+  const pidiendo = useRef(false);
+
+  /** Cuánta canción se pide de una vez. Dos ventanas: una para ver y otra de reserva. */
+  const TRAMO_US = VENTANA_US * 2;
+
+  const refrescar = useCallback(
+    async (desde = 0) => {
+      // Un poco antes de la posición, para no perder una nota larga que empezó justo antes.
+      const inicio = Math.max(0, desde - VENTANA_US);
+      const fin = desde + TRAMO_US;
+      pidiendo.current = true;
+      try {
+        setNotas(await vistaActual(inicio, fin));
+        pedidoHasta.current = fin;
+      } finally {
+        pidiendo.current = false;
+      }
+    },
+    [TRAMO_US],
+  );
+
+  // El bucle de dibujo. La posición sale **del reloj, nunca del número de fotograma**: la
+  // cadencia de la pantalla afecta a la suavidad, no a la corrección. Un contador de
+  // fotogramas se desincronizaría en cuanto el navegador saltase uno.
+  useEffect(() => {
+    if (ancla === null || ancla.num === 0) return undefined;
+    let id = 0;
+    const fotograma = () => {
+      const p = posicionEn(ancla, ahoraLocal());
+      setPosicion(p);
+      // Cuando lo que queda por delante baja de una ventana, se pide el tramo siguiente.
+      // Sin esto, las notas dejaban de verse en cuanto la reproducción pasaba de los
+      // primeros segundos: se pedían una vez, al abrir, y nunca más.
+      if (!pidiendo.current && p + VENTANA_US > pedidoHasta.current) {
+        void refrescar(p);
+      }
+      id = requestAnimationFrame(fotograma);
+    };
+    id = requestAnimationFrame(fotograma);
+    return () => cancelAnimationFrame(id);
+  }, [ancla, refrescar]);
 
   const abrir = useCallback(async () => {
     // El diálogo va DENTRO del try. Estaba fuera, y por eso un fallo suyo —el permiso
@@ -153,7 +187,8 @@ export default function App() {
       setMano("ambas");
       // El aviso viejo se retira: no se acumulan errores de intentos anteriores.
       setError(null);
-      await refrescar();
+      pedidoHasta.current = 0;
+      await refrescar(0);
     } catch (motivo) {
       // FR-004. Se muestra el motivo **tal cual**, sin sustituirlo por un mensaje genérico:
       // quien falló sabe mejor qué pasó. Y no se toca nada más, así que la aplicación sigue
@@ -167,10 +202,10 @@ export default function App() {
       setCorte(nuevo);
       await intentar(async () => {
         await ajustarCorte(nuevo);
-        await refrescar();
+        await refrescar(posicion);
       });
     },
-    [intentar, refrescar],
+    [intentar, posicion, refrescar],
   );
 
   const poner = useCallback(async () => {
@@ -197,7 +232,7 @@ export default function App() {
     await intentar(async () => {
       recibirAncla(await saltarA(0));
       setPosicion(0);
-      await refrescar();
+      await refrescar(0);
     });
   }, [intentar, recibirAncla, refrescar]);
 

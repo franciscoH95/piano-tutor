@@ -372,3 +372,95 @@ describe("ningún mando falla en silencio", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent(/no se pudo saltar/);
   });
 });
+
+describe("la ventana de notas sigue a la reproducción", () => {
+  it("pide más notas a medida que la canción avanza", async () => {
+    // Encontrado usando la app: las notas dejaban de verse pasado cierto punto. `refrescar`
+    // pedía SIEMPRE los primeros cuatro segundos y solo al abrir, así que en cuanto el
+    // cursor los pasaba no quedaba nada que dibujar.
+    //
+    // Y no basta con pedir la ventana correcta una vez: hay que volver a pedirla al avanzar,
+    // sin cruzar el puente sesenta veces por segundo, que es justo lo que el ancla evita.
+    vi.mocked(puente.elegirArchivo).mockResolvedValue("/a.mid");
+    vi.mocked(puente.abrirCancion).mockResolvedValue(RESUMEN);
+    vi.mocked(puente.marcha).mockResolvedValue({
+      posicionUs: 0,
+      instanteUs: 0,
+      num: 1,
+      den: 1,
+      topeUs: null,
+    });
+
+    let ahoraMs = 0;
+    const pendientes: FrameRequestCallback[] = [];
+    vi.spyOn(performance, "now").mockImplementation(() => ahoraMs);
+    vi.stubGlobal("requestAnimationFrame", (cb: FrameRequestCallback) => {
+      pendientes.push(cb);
+      return pendientes.length;
+    });
+    vi.stubGlobal("cancelAnimationFrame", () => {});
+
+    render(<App />);
+    await userEvent.click(screen.getByRole("button", { name: /abrir/i }));
+    await waitFor(() => expect(puente.abrirCancion).toHaveBeenCalled());
+    await userEvent.click(screen.getByRole("button", { name: /reproducir/i }));
+    await waitFor(() => expect(pendientes.length).toBeGreaterThan(0));
+
+    const peticionesIniciales = vi.mocked(puente.vistaActual).mock.calls.length;
+
+    // Treinta segundos de canción: muy por delante de cualquier ventana inicial.
+    ahoraMs = 30_000;
+    await act(async () => {
+      pendientes.shift()?.(0);
+    });
+    await waitFor(() =>
+      expect(vi.mocked(puente.vistaActual).mock.calls.length).toBeGreaterThan(
+        peticionesIniciales,
+      ),
+    );
+
+    // Y la última petición cubre la posición actual, no el principio de la canción.
+    const ultima = vi.mocked(puente.vistaActual).mock.lastCall;
+    expect(ultima?.[1]).toBeGreaterThan(30_000_000);
+  });
+
+  it("no cruza el puente en cada fotograma", async () => {
+    // La razón de ser del ancla es que el cursor NO cruce sesenta veces por segundo. Pedir
+    // las notas en cada cuadro tiraría eso por tierra.
+    vi.mocked(puente.elegirArchivo).mockResolvedValue("/a.mid");
+    vi.mocked(puente.abrirCancion).mockResolvedValue(RESUMEN);
+    vi.mocked(puente.marcha).mockResolvedValue({
+      posicionUs: 0,
+      instanteUs: 0,
+      num: 1,
+      den: 1,
+      topeUs: null,
+    });
+
+    let ahoraMs = 0;
+    const pendientes: FrameRequestCallback[] = [];
+    vi.spyOn(performance, "now").mockImplementation(() => ahoraMs);
+    vi.stubGlobal("requestAnimationFrame", (cb: FrameRequestCallback) => {
+      pendientes.push(cb);
+      return pendientes.length;
+    });
+    vi.stubGlobal("cancelAnimationFrame", () => {});
+
+    render(<App />);
+    await userEvent.click(screen.getByRole("button", { name: /abrir/i }));
+    await waitFor(() => expect(puente.abrirCancion).toHaveBeenCalled());
+    await userEvent.click(screen.getByRole("button", { name: /reproducir/i }));
+    await waitFor(() => expect(pendientes.length).toBeGreaterThan(0));
+
+    const antes = vi.mocked(puente.vistaActual).mock.calls.length;
+    // Sesenta cuadros dentro del mismo segundo.
+    for (let i = 0; i < 60; i += 1) {
+      ahoraMs = i * 16;
+      await act(async () => {
+        pendientes.shift()?.(0);
+      });
+    }
+    const despues = vi.mocked(puente.vistaActual).mock.calls.length;
+    expect(despues - antes).toBeLessThan(5);
+  });
+});
