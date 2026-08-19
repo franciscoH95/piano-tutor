@@ -5,6 +5,7 @@
 //! dedos deja digitaciones de la mano contraria (FR-003c).
 
 use crate::digitacion::{digitar, Dedo, Digitacion};
+use crate::practica::cursor::{Ancla, Cursor, Paso, Velocidad};
 use crate::practica::manos::{repartir, Mano, RepartoDeManos};
 use crate::practica::nombres::NombreDeNota;
 use crate::practica::vista::{vista, EstadoNota, Vista};
@@ -45,6 +46,7 @@ pub struct Preparacion {
     digitacion: Digitacion,
     posicion: Micros,
     vista: Vista,
+    cursor: Cursor,
 }
 
 impl Preparacion {
@@ -58,10 +60,11 @@ impl Preparacion {
         let corte = Self::CORTE_POR_DEFECTO;
         let (reparto, digitacion) = Self::repartir_y_digitar(&cancion, corte);
         Self {
-            cancion,
             corte,
             reparto,
             digitacion,
+            cursor: Cursor::nuevo(&cancion),
+            cancion,
             posicion: Micros(0),
             vista: Vista::nueva(),
         }
@@ -130,6 +133,41 @@ impl Preparacion {
                 estado: v.estado,
             });
         }
+    }
+
+    /// Pone la canción en marcha. Devuelve ancla si cambió el régimen.
+    pub fn poner_en_marcha(&mut self, ahora: Micros) -> Option<Ancla> {
+        self.cursor.poner_en_marcha(ahora)
+    }
+
+    /// Detiene el avance sin perder la posición.
+    pub fn pausar(&mut self, ahora: Micros) -> Option<Ancla> {
+        self.cursor.pausar(ahora)
+    }
+
+    /// Cambia la velocidad de práctica.
+    pub fn cambiar_velocidad(&mut self, v: Velocidad, ahora: Micros) -> Option<Ancla> {
+        self.cursor.cambiar_velocidad(v, ahora)
+    }
+
+    /// Lleva la práctica a una posición concreta.
+    pub fn saltar_a(&mut self, posicion: Micros, ahora: Micros) -> Option<Ancla> {
+        let ancla = self.cursor.saltar_a(posicion, ahora);
+        self.avanzar_a(self.cursor.posicion().0);
+        ancla
+    }
+
+    /// Adelanta la práctica hasta el instante del reloj.
+    pub fn avanzar(&mut self, ahora: Micros) -> Paso {
+        let paso = self.cursor.avanzar(ahora);
+        self.avanzar_a(paso.posicion.0);
+        paso
+    }
+
+    /// El ancla vigente, la que interpola la pantalla.
+    #[must_use]
+    pub fn ancla(&self) -> Ancla {
+        self.cursor.ancla()
     }
 
     fn repartir_y_digitar(cancion: &Song, corte: u8) -> (RepartoDeManos, Digitacion) {

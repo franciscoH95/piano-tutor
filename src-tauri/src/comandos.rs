@@ -4,7 +4,11 @@
 //! Si en este archivo aparece un `if` sobre notas, tempos o manos, esa logica pertenece a
 //! `piano-core`, donde si esta cubierta por pruebas.
 
-use piano_core::practica::{Alteracion, Base, NotaDetallada, Preparacion, Reparto};
+use piano_core::clock::Clock;
+use piano_core::practica::{
+    Alteracion, Ancla, Base, NotaDetallada, Preparacion, Reparto, Velocidad,
+};
+use piano_core::time::Micros;
 use serde::Serialize;
 use std::sync::Mutex;
 use tauri::ipc::Channel;
@@ -202,4 +206,126 @@ pub fn vista_actual(
     let mut detalle = Vec::new();
     p.detallar(desde_us, hasta_us, &mut detalle);
     detalle.iter().map(NotaVisiblePlana::from).collect()
+}
+
+/// Un ancla aplanada para cruzar el puente como respuesta de un mando.
+#[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AnclaPlana {
+    pub posicion_us: u64,
+    /// Instante del **reloj de sesion de Rust**. La interfaz NO puede compararlo con su
+    /// propio reloj: lo sustituye por su lectura local al recibirlo (`anclarEnRelojLocal`).
+    pub instante_us: u64,
+    pub num: u32,
+    pub den: u32,
+    pub tope_us: Option<u64>,
+}
+
+impl From<Ancla> for AnclaPlana {
+    fn from(a: Ancla) -> Self {
+        Self {
+            posicion_us: a.posicion_us.0,
+            instante_us: a.instante_us.0,
+            num: a.num,
+            den: a.den,
+            tope_us: a.tope_us.map(|t| t.0),
+        }
+    }
+}
+
+/// Traduce un ancla del nucleo al mensaje que cruza el puente.
+fn mensaje_de(a: Ancla) -> MensajeAlFrontend {
+    MensajeAlFrontend::Ancla {
+        posicion_us: a.posicion_us.0,
+        instante_us: a.instante_us.0,
+        num: a.num,
+        den: a.den,
+        tope_us: a.tope_us.map(|t| t.0),
+    }
+}
+
+/// Aplica una operacion de transporte y empuja el ancla si cambio el regimen.
+///
+/// **El ancla solo cruza cuando cambia el regimen**, nunca en cada fotograma: es lo que
+/// mantiene el puente casi vacio. La interfaz interpola entre anclas.
+fn transportar<F>(
+    estado: &std::sync::Arc<Estado>,
+    reloj: &crate::RelojDeSesion,
+    operacion: F,
+) -> Option<AnclaPlana>
+where
+    F: FnOnce(&mut Preparacion, Micros) -> Option<Ancla>,
+{
+    let ahora = reloj.0.now();
+    let mut guarda = match estado.preparacion.lock() {
+        Ok(g) => g,
+        Err(envenenado) => envenenado.into_inner(),
+    };
+    let ancla = operacion(guarda.as_mut()?, ahora)?;
+    // Se suelta el candado antes de enviar: `send` cuesta hasta 13 ms en el peor caso y no
+    // puede quedarse con el estado bloqueado mientras tanto.
+    drop(guarda);
+    estado.enviar(mensaje_de(ancla));
+    Some(ancla.into())
+}
+
+/// Pone la cancion en marcha desde donde este.
+#[tauri::command]
+pub fn transporte_marcha(
+    estado: tauri::State<'_, std::sync::Arc<Estado>>,
+    reloj: tauri::State<'_, crate::RelojDeSesion>,
+) -> Option<AnclaPlana> {
+    transportar(&estado, &reloj, Preparacion::poner_en_marcha)
+}
+
+/// Detiene el avance sin perder la posicion.
+#[tauri::command]
+pub fn transporte_pausa(
+    estado: tauri::State<'_, std::sync::Arc<Estado>>,
+    reloj: tauri::State<'_, crate::RelojDeSesion>,
+) -> Option<AnclaPlana> {
+    transportar(&estado, &reloj, Preparacion::pausar)
+}
+
+/// Lleva el cursor a una posicion concreta.
+#[tauri::command]
+pub fn transporte_saltar(
+    estado: tauri::State<'_, std::sync::Arc<Estado>>,
+    reloj: tauri::State<'_, crate::RelojDeSesion>,
+    posicion_us: u64,
+) -> Option<AnclaPlana> {
+    transportar(&estado, &reloj, |p, ahora| p.saltar_a(Micros(posicion_us), ahora))
+}
+
+/// Cambia la velocidad. Llega como **racional**, no como decimal.
+///
+/// Un denominador cero se rechaza sin tocar nada: `Velocidad::nueva` devuelve `None` y
+/// aqui no hay decision que tomar, solo la traduccion.
+#[tauri::command]
+pub fn transporte_velocidad(
+    estado: tauri::State<'_, std::sync::Arc<Estado>>,
+    reloj: tauri::State<'_, crate::RelojDeSesion>,
+    num: u32,
+    den: u32,
+) -> Option<AnclaPlana> {
+    // Un denominador cero se rechaza sin tocar nada. Aqui no hay decision, solo traduccion.
+    let v = Velocidad::nueva(num, den)?;
+    transportar(&estado, &reloj, |p, ahora| p.cambiar_velocidad(v, ahora))
+}
+
+/// Adelanta la practica hasta el instante actual y devuelve donde esta.
+///
+/// La interfaz **no** necesita llamar a esto en cada fotograma: interpola desde el ancla.
+/// Existe para el arranque y para despues de un salto.
+#[tauri::command]
+pub fn transporte_posicion(
+    estado: tauri::State<'_, std::sync::Arc<Estado>>,
+    reloj: tauri::State<'_, crate::RelojDeSesion>,
+) -> u64 {
+    let ahora = reloj.0.now();
+    let mut guarda = match estado.preparacion.lock() {
+        Ok(g) => g,
+        Err(envenenado) => envenenado.into_inner(),
+    };
+    guarda.as_mut().map_or(0, |p| p.avanzar(ahora).posicion.0)
 }

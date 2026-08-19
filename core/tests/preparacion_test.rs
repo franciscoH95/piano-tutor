@@ -8,7 +8,7 @@ mod fixtures;
 use fixtures::SmfBuilder;
 use piano_core::load_smf;
 use piano_core::practica::{Mano, Preparacion, Reparto};
-use piano_core::time::Ticks;
+use piano_core::time::{Micros, Ticks};
 use piano_core::Song;
 
 /// Dos voces claramente separadas: agudos en una pista, graves en otra.
@@ -175,4 +175,63 @@ fn mover_el_corte_se_ve_en_el_detalle() {
     p.detallar(0, 2_000_000, &mut despues);
     assert!(antes.iter().any(|d| d.mano == Mano::Derecha), "antes había derecha");
     assert!(despues.iter().all(|d| d.mano == Mano::Izquierda), "ahora todo izquierda");
+}
+
+// ------------------------------------------------- el transporte, ya con cursor
+
+#[test]
+fn reproducir_mueve_la_posicion_y_la_vista_la_sigue() {
+    let mut p = Preparacion::nueva(una_voz());
+    p.poner_en_marcha(Micros::ZERO);
+    let paso = p.avanzar(Micros(400_000));
+    assert_eq!(paso.posicion, Micros(400_000));
+    assert_eq!(p.posicion(), 400_000, "la preparación queda donde dice el cursor");
+}
+
+#[test]
+fn cargar_otra_cancion_reinicia_tambien_el_transporte() {
+    // FR-005 otra vez, ahora con la parte que antes no existía: si el cursor sobreviviera
+    // a la carga, la canción nueva empezaría por la mitad y ya en marcha.
+    let mut p = Preparacion::nueva(cancion_a());
+    p.poner_en_marcha(Micros::ZERO);
+    p.avanzar(Micros(3_000_000));
+    assert_ne!(p.posicion(), 0, "el cursor está avanzado");
+
+    p.cargar(cancion_b());
+    assert_eq!(p.posicion(), 0, "la canción nueva empieza por el principio");
+    // Y parada: avanzar el reloj no la mueve mientras no se ponga en marcha.
+    p.avanzar(Micros(9_000_000));
+    assert_eq!(p.posicion(), 0, "y parada, no heredando la marcha de la anterior");
+}
+
+#[test]
+fn el_final_de_la_cancion_se_avisa_una_sola_vez_desde_la_preparacion() {
+    let mut p = Preparacion::nueva(cancion_b());
+    p.poner_en_marcha(Micros::ZERO);
+    let fin = p.cancion().duration_us();
+    let mut avisos = 0;
+    for i in 1..=50u64 {
+        if p.avanzar(Micros(i * fin.0 / 10)).terminada {
+            avisos += 1;
+        }
+    }
+    assert_eq!(avisos, 1);
+}
+
+#[test]
+fn saltar_hacia_atras_recoloca_la_vista() {
+    // La parte que enlaza el cursor con la vista: sin recolocar, tras saltar atrás el
+    // cursor monótono de la vista se queda por delante y no devuelve nada.
+    let mut p = Preparacion::nueva(una_voz());
+    p.poner_en_marcha(Micros::ZERO);
+    p.avanzar(Micros(700_000));
+    let mut lejos = Vec::new();
+    p.detallar(p.posicion(), p.posicion() + 1, &mut lejos);
+
+    p.saltar_a(Micros::ZERO, Micros(700_000));
+    assert_eq!(p.posicion(), 0);
+    let mut cerca = Vec::new();
+    p.detallar(0, 1, &mut cerca);
+    assert!(!cerca.is_empty(), "tras volver al principio se ve la primera nota");
+    assert_ne!(cerca.first().map(|n| n.indice), lejos.first().map(|n| n.indice));
 }

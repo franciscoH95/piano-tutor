@@ -34,3 +34,21 @@ export function posicionEn(ancla: Ancla, ahoraUs: number): number {
   const posicion = ancla.posicionUs + avance;
   return ancla.topeUs === null ? posicion : Math.min(posicion, ancla.topeUs);
 }
+
+/**
+ * Vuelve a anclar en el reloj de la pantalla.
+ *
+ * El ancla llega con `instanteUs` del **reloj de sesión de Rust**, cuyo cero es el arranque
+ * del proceso; la pantalla lee `performance.now()`, cuyo cero es otro. Mezclarlos daría una
+ * posición disparatada, y el desfase sería silencioso: no rompe ninguna prueba de un solo
+ * lado, solo pinta el cursor donde el núcleo no cree que está.
+ *
+ * Al llegar un ancla se sustituye su instante por la lectura local de ese momento. Lo que
+ * se pierde es el tiempo de tránsito por el puente, que queda absorbido como un desfase
+ * constante —del orden del milisegundo— y **se vuelve a poner a cero con cada ancla nueva**,
+ * así que no se acumula. La alternativa, preguntar la posición en cada fotograma, tiraría
+ * por tierra la razón de ser del ancla.
+ */
+export function anclarEnRelojLocal(ancla: Ancla, llegadaUs: number): Ancla {
+  return { ...ancla, instanteUs: llegadaUs };
+}

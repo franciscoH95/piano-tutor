@@ -1,11 +1,17 @@
 // T040a y T045a — abrir una canción desde la interfaz.
-import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import App from "./App";
+import * as escena from "./practica/escena";
 import * as puente from "./practica/puente";
 
 vi.mock("./practica/puente");
+// Se espía la construcción de escena para leer con qué posición se pinta cada fotograma.
+vi.mock("./practica/escena", async (real) => {
+  const m = await real<typeof escena>();
+  return { ...m, construirEscena: vi.fn(m.construirEscena) };
+});
 
 const RESUMEN = {
   notas: 3,
@@ -17,15 +23,17 @@ const RESUMEN = {
 beforeEach(() => {
   vi.mocked(puente.vistaActual).mockResolvedValue([]);
   vi.mocked(puente.ajustarCorte).mockResolvedValue();
-  vi.mocked(puente.marcha).mockResolvedValue();
-  vi.mocked(puente.pausa).mockResolvedValue();
-  vi.mocked(puente.saltarA).mockResolvedValue();
-  vi.mocked(puente.cambiarVelocidad).mockResolvedValue();
+  vi.mocked(puente.marcha).mockResolvedValue(null);
+  vi.mocked(puente.pausa).mockResolvedValue(null);
+  vi.mocked(puente.saltarA).mockResolvedValue(null);
+  vi.mocked(puente.cambiarVelocidad).mockResolvedValue(null);
 });
 
 afterEach(() => {
   cleanup();
   vi.resetAllMocks();
+  vi.unstubAllGlobals();
+  vi.restoreAllMocks();
 });
 
 describe("abrir una canción", () => {
@@ -104,5 +112,57 @@ describe("un archivo que no se puede leer", () => {
     await screen.findByRole("alert");
 
     expect(screen.getByRole("slider", { name: /corte/i })).toBeInTheDocument();
+  });
+});
+
+describe("el bucle de dibujo", () => {
+  it("deriva la posición del reloj y no del número de fotograma", async () => {
+    // T059. Es la diferencia entre una animación correcta y una que se desincroniza en
+    // cuanto el navegador salta un fotograma: si la posición viniera de contar cuadros,
+    // dos cadencias distintas darían dos posiciones distintas para el mismo instante.
+    vi.mocked(puente.elegirArchivo).mockResolvedValue("/musica/a.mid");
+    vi.mocked(puente.abrirCancion).mockResolvedValue(RESUMEN);
+    vi.mocked(puente.marcha).mockResolvedValue({
+      posicionUs: 0,
+      instanteUs: 900_000_000, // reloj de Rust: la aplicación debe reanclarlo
+      num: 1,
+      den: 1,
+      topeUs: 2_000_000,
+    });
+
+    // Reloj local controlado y un `requestAnimationFrame` que solo dispara cuando se le
+    // pide: así el número de fotogramas y el tiempo transcurrido son independientes.
+    let ahoraMs = 1_000;
+    const pendientes: FrameRequestCallback[] = [];
+    vi.spyOn(performance, "now").mockImplementation(() => ahoraMs);
+    vi.stubGlobal("requestAnimationFrame", (cb: FrameRequestCallback) => {
+      pendientes.push(cb);
+      return pendientes.length;
+    });
+    vi.stubGlobal("cancelAnimationFrame", () => {});
+
+    render(<App />);
+    await userEvent.click(screen.getByRole("button", { name: /abrir/i }));
+    await waitFor(() => expect(puente.abrirCancion).toHaveBeenCalled());
+    await userEvent.click(screen.getByRole("button", { name: /reproducir/i }));
+    await waitFor(() => expect(pendientes.length).toBeGreaterThan(0));
+
+    // Un solo fotograma, medio segundo de reloj después.
+    ahoraMs = 1_500;
+    await act(async () => {
+      pendientes.shift()?.(0);
+    });
+    const trasUnFotograma = vi.mocked(escena.construirEscena).mock.lastCall?.[1];
+
+    // Y ahora diez fotogramas SIN que el reloj avance: la posición no puede moverse.
+    for (let i = 0; i < 10; i += 1) {
+      await act(async () => {
+        pendientes.shift()?.(0);
+      });
+    }
+    const trasOnceFotogramas = vi.mocked(escena.construirEscena).mock.lastCall?.[1];
+
+    expect(trasUnFotograma).toBe(500_000);
+    expect(trasOnceFotogramas).toBe(500_000);
   });
 });

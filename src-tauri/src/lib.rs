@@ -40,7 +40,12 @@ pub fn run() {
             comandos::registrar_canal,
             comandos::abrir_cancion,
             comandos::ajustar_corte,
-            comandos::vista_actual
+            comandos::vista_actual,
+            comandos::transporte_marcha,
+            comandos::transporte_pausa,
+            comandos::transporte_saltar,
+            comandos::transporte_velocidad,
+            comandos::transporte_posicion
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

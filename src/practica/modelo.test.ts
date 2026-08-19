@@ -3,7 +3,7 @@
 // No forma parte de la excepción del Principio II: decide dónde está la práctica, y eso
 // es una decisión. Solo `Lienzo.tsx` está exento, y solo mientras se limite a pintar.
 import { describe, expect, it } from "vitest";
-import { posicionEn, type Ancla } from "./modelo";
+import { posicionEn, type Ancla, anclarEnRelojLocal } from "./modelo";
 
 const ancla = (p: Partial<Ancla> = {}): Ancla => ({
   posicionUs: 0,
@@ -62,5 +62,57 @@ describe("posicionEn", () => {
       const p = posicionEn(a, t);
       expect(Number.isInteger(p)).toBe(true);
     }
+  });
+});
+
+describe("los dos relojes", () => {
+  const ancla: Ancla = {
+    posicionUs: 4_000_000,
+    instanteUs: 900_000_000, // reloj de sesión de Rust
+    num: 1,
+    den: 2,
+    topeUs: 600_000_000,
+  };
+
+  it("el ancla se reancla en el reloj local al llegar", () => {
+    // El ancla trae `instanteUs` del reloj de sesión de Rust; la pantalla lee el suyo, con
+    // otro cero. Mezclarlos daría una posición absurda: aquí serían 900 segundos de
+    // diferencia. Al llegar, se sustituye el instante por la lectura local.
+    const local = anclarEnRelojLocal(ancla, 12_345);
+    expect(local.instanteUs).toBe(12_345);
+    expect(local.posicionUs).toBe(ancla.posicionUs);
+    expect(local.num).toBe(ancla.num);
+    expect(local.den).toBe(ancla.den);
+    expect(local.topeUs).toBe(ancla.topeUs);
+  });
+
+  it("en el instante de llegada la posición es exactamente la del ancla", () => {
+    const local = anclarEnRelojLocal(ancla, 12_345);
+    expect(posicionEn(local, 12_345)).toBe(4_000_000);
+  });
+
+  it("después avanza al ritmo del ancla, medido en el reloj local", () => {
+    const local = anclarEnRelojLocal(ancla, 12_345);
+    // Dos segundos de reloj local a media velocidad son uno de canción.
+    expect(posicionEn(local, 12_345 + 2_000_000)).toBe(5_000_000);
+  });
+
+  it("usar el instante de Rust con el reloj local da una posición disparatada", () => {
+    // Es el fallo que esto evita, y conviene tenerlo escrito: sin reanclar, el cursor se
+    // va cientos de segundos y el desfase no rompe ninguna otra prueba.
+    // Con el instante de Rust, un instante local pequeño satura la resta a cero: el
+    // cursor se queda clavado en la posición del ancla y parece que no avanza.
+    expect(posicionEn(ancla, 12_345)).toBe(4_000_000);
+    // Y en el reloj de Rust, dos segundos después de su instante son uno de canción.
+    expect(posicionEn(ancla, 902_000_000)).toBe(5_000_000);
+    // Reanclado, ese mismo número leído como reloj local da algo completamente distinto:
+    // 902 segundos locales desde la llegada, no dos.
+    const local = anclarEnRelojLocal(ancla, 12_345);
+    expect(posicionEn(local, 902_000_000)).toBe(454_993_827);
+  });
+
+  it("el tope se sigue respetando tras reanclar", () => {
+    const local = anclarEnRelojLocal(ancla, 0);
+    expect(posicionEn(local, 10_000_000_000)).toBe(600_000_000);
   });
 });

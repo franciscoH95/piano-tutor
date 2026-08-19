@@ -129,21 +129,21 @@ renderizador de componentes (T004a).
 
 **Prueba independiente**: `cargo test -p piano-core cursor` en verde, sin pantalla.
 
-- [ ] T047 [US2] Prueba en `core/tests/cursor_test.rs`: `Velocidad` es racional; reducir a la mitad y volver a normal deja la posición **exactamente** donde correspondía, sin deriva acumulada tras 10.000 pasos
-- [ ] T048 [US2] Implementar `Velocidad` y `Avance` en `core/src/practica/cursor.rs`, sin coma flotante
-- [ ] T049 [US2] Prueba en `core/tests/cursor_test.rs`: en `PorReloj` la posición avanza según reloj y velocidad; pausar la detiene y reanudar continúa sin salto
-- [ ] T050 [US2] Implementar `Cursor` con anclas (`ancla_real`, `ancla_cancion`) y el rebase al cambiar de régimen en `core/src/practica/cursor.rs`
-- [ ] T051 [US2] Prueba en `core/tests/cursor_test.rs`: cambiar de velocidad a mitad de reproducción **no** provoca salto de posición (FR-010)
-- [ ] T051a [US2] Prueba en `core/tests/cursor_test.rs`: reducir la velocidad a la mitad **duplica exactamente** la duración total de la reproducción, sin error de redondeo acumulado (SC-008). Es lo que justifica que la velocidad sea un racional y no un decimal
-- [ ] T052 [US2] Prueba en `core/tests/cursor_test.rs`: `saltar_a` deja el cursor en la posición pedida, sin notas colgando y con el modo intacto (FR-007b), **y tarda menos de 100 ms** en una canción de 10 minutos (SC-008a)
-- [ ] T053 [US2] Implementar `saltar_a` y el reinicio de estado en `core/src/practica/cursor.rs`
-- [ ] T054 [US2] Prueba en `core/tests/cursor_test.rs`: la canción termina y se comunica una sola vez (FR-011)
-- [ ] T055 [US2] Implementar `SesionDePractica<C: Clock, F: FuenteDeEventos>` y `avanzar() -> Paso` en `core/src/practica/sesion.rs`
-- [ ] T056 [US2] Prueba en `core/tests/cursor_test.rs`: el ancla solo se emite al **cambiar de régimen**, no en cada avance. Es lo que mantiene el puente vacío
-- [ ] T057 [US2] Implementar el transporte (`marcha`, `pausa`, `saltar`, `velocidad`) en `src-tauri/src/comandos.rs`
-- [ ] T057a [US2] Prueba en `src/practica/controles.test.tsx`: marcha, pausa y volver al principio emiten la acción correspondiente; el control de velocidad emite el racional esperado y **nunca un decimal**
-- [ ] T058 [US2] Implementar los controles de transporte y velocidad en `src/practica/controles.tsx`
-- [ ] T059 [US2] Implementar el bucle de dibujo con `requestAnimationFrame` en `src/practica/Lienzo.tsx`, derivando la posición **del reloj y nunca del número de fotograma**: es lo que hace que la cadencia de la pantalla afecte a la suavidad pero no a la corrección
+- [X] T047 [US2] Prueba en `core/tests/cursor_test.rs`: `Velocidad` es racional; reducir a la mitad y volver a normal deja la posición **exactamente** donde correspondía, sin deriva acumulada tras 10.000 pasos
+- [X] T048 [US2] Implementar `Velocidad` y `Avance` en `core/src/practica/cursor.rs`, sin coma flotante
+- [X] T049 [US2] Prueba en `core/tests/cursor_test.rs`: en `PorReloj` la posición avanza según reloj y velocidad; pausar la detiene y reanudar continúa sin salto
+- [X] T050 [US2] Implementar `Cursor` con anclas (`ancla_real`, `ancla_cancion`) y el rebase al cambiar de régimen en `core/src/practica/cursor.rs`
+- [X] T051 [US2] Prueba en `core/tests/cursor_test.rs`: cambiar de velocidad a mitad de reproducción **no** provoca salto de posición (FR-010)
+- [X] T051a [US2] Prueba en `core/tests/cursor_test.rs`: reducir la velocidad a la mitad **duplica exactamente** la duración total de la reproducción, sin error de redondeo acumulado (SC-008). Es lo que justifica que la velocidad sea un racional y no un decimal
+- [X] T052 [US2] Prueba en `core/tests/cursor_test.rs`: `saltar_a` deja el cursor en la posición pedida, sin notas colgando y con el modo intacto (FR-007b), **y tarda menos de 100 ms** en una canción de 10 minutos (SC-008a)
+- [X] T053 [US2] Implementar `saltar_a` y el reinicio de estado en `core/src/practica/cursor.rs`
+- [X] T054 [US2] Prueba en `core/tests/cursor_test.rs`: la canción termina y se comunica una sola vez (FR-011)
+- [X] T055 [US2] Implementar `SesionDePractica<C: Clock, F: FuenteDeEventos>` y `avanzar() -> Paso` en `core/src/practica/sesion.rs`
+- [X] T056 [US2] Prueba en `core/tests/cursor_test.rs`: el ancla solo se emite al **cambiar de régimen**, no en cada avance. Es lo que mantiene el puente vacío
+- [X] T057 [US2] Implementar el transporte (`marcha`, `pausa`, `saltar`, `velocidad`) en `src-tauri/src/comandos.rs`
+- [X] T057a [US2] Prueba en `src/practica/controles.test.tsx`: marcha, pausa y volver al principio emiten la acción correspondiente; el control de velocidad emite el racional esperado y **nunca un decimal**
+- [X] T058 [US2] Implementar los controles de transporte y velocidad en `src/practica/controles.tsx`
+- [X] T059 [US2] Implementar el bucle de dibujo con `requestAnimationFrame` en `src/practica/Lienzo.tsx`, derivando la posición **del reloj y nunca del número de fotograma**: es lo que hace que la cadencia de la pantalla afecte a la suavidad pero no a la corrección
 
 **Checkpoint**: la canción se reproduce, se pausa, se salta y se ralentiza.
 
