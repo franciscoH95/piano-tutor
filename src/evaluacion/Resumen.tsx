@@ -42,7 +42,41 @@ function ms(us: number): number {
   return Math.round(Math.abs(us) / 1000);
 }
 
-export function Resumen({ resultado: r }: { resultado: ResultadoPlano }) {
+/** Cuánta exigencia. */
+export type NivelElegido = "permisivo" | "intermedio" | "exigente";
+
+export type ResumenProps = {
+  resultado: ResultadoPlano;
+  nivel?: NivelElegido;
+  /** Sin manejador no se ofrece el selector: hay sitios donde no hay nada que ajustar. */
+  onNivel?: (n: NivelElegido) => void;
+};
+
+function SelectorDeNivel({
+  nivel,
+  onNivel,
+}: {
+  nivel: NivelElegido;
+  onNivel: (n: NivelElegido) => void;
+}) {
+  return (
+    <div className="exigencia">
+      <label>
+        Exigencia
+        <select value={nivel} onChange={(e) => onNivel(e.target.value as NivelElegido)}>
+          <option value="permisivo">Permisiva</option>
+          <option value="intermedio">Intermedia</option>
+          <option value="exigente">Exigente</option>
+        </select>
+      </label>
+      {/* Sin decirlo, el alumno cambiaría de nivel esperando que este resumen se
+          recalcule. No lo hace: este resultado ya está juzgado. */}
+      <p className="aviso-nivel">Se aplica a la próxima vez que toques, no a este resultado.</p>
+    </div>
+  );
+}
+
+export function Resumen({ resultado: r, nivel, onNivel }: ResumenProps) {
   // SC-002: no tocar nada no es tocarlo todo mal. Un 0 % dice «lo hiciste fatal»; esto no.
   if (r.sinTocar) {
     return (
@@ -125,6 +159,10 @@ export function Resumen({ resultado: r }: { resultado: ResultadoPlano }) {
         <p className="aparte">
           {r.noIntentadas} notas que saltaste tampoco cuentan: no llegaste a intentarlas.
         </p>
+      )}
+
+      {onNivel !== undefined && (
+        <SelectorDeNivel nivel={nivel ?? "intermedio"} onNivel={onNivel} />
       )}
     </section>
   );

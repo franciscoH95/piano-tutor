@@ -694,3 +694,68 @@ fn con_una_sola_mano_la_otra_no_aparece_como_fallada() {
     assert_eq!(r.omitidas, 0, "la de la derecha no se le pidió");
     assert_eq!(r.intentadas(), 1, "y no está en el denominador");
 }
+
+// ---------------------------------------------------------------- T055, T056, T057
+
+#[test]
+fn la_misma_nota_acierta_en_el_permisivo_y_no_en_el_exigente() {
+    // T055. Un principiante y alguien con años no se miden con la misma vara.
+    let song = cancion(&[(1_000, 60, 300)]);
+    let veredicto = |nivel| {
+        let mut e = evaluador(&song, nivel);
+        e.observar(ataque(1_060_000, 60, 90)); // 60 ms tarde
+        e.observar(suelta(1_200_000, 60));
+        e.cerrar(Micros(3_000_000))
+    };
+    assert_eq!(veredicto(Nivel::Permisivo).acertadas, 1, "120 ms de ventana: entra");
+    assert_eq!(veredicto(Nivel::Intermedio).acertadas, 1, "60 ms justos: entra");
+    assert_eq!(veredicto(Nivel::Exigente).acertadas, 0, "30 ms: no entra");
+    assert_eq!(veredicto(Nivel::Exigente).fuera_de_tiempo, 1, "pero se emparejó igual");
+}
+
+#[test]
+fn el_permisivo_nunca_da_menos_aciertos_que_el_exigente() {
+    // T056 (SC-006). Con las dos ventanas separadas esto es aritmética: mismo
+    // emparejamiento y ventanas anidadas. Pero se comprueba por si alguien las vuelve a
+    // juntar, que es justo el cambio que rompería la propiedad sin romper nada más.
+    //
+    // Cincuenta interpretaciones deterministas, con desfases de −200 a +200 ms.
+    let song = escala(20);
+    for caso in 0..50u64 {
+        let desplazamiento = (caso as i64 - 25) * 8_000;
+        let aciertos = |nivel| {
+            let mut e = evaluador(&song, nivel);
+            tocar_desplazada(&mut e, &song, desplazamiento);
+            e.cerrar(Micros(20_000_000)).acertadas
+        };
+        let (p, i, x) = (
+            aciertos(Nivel::Permisivo),
+            aciertos(Nivel::Intermedio),
+            aciertos(Nivel::Exigente),
+        );
+        assert!(p >= i, "caso {caso} ({desplazamiento} µs): permisivo {p} < intermedio {i}");
+        assert!(i >= x, "caso {caso} ({desplazamiento} µs): intermedio {i} < exigente {x}");
+    }
+}
+
+#[test]
+fn cambiar_de_nivel_no_cambia_que_se_empareja_con_que() {
+    // T057. **La razón de ser de las dos ventanas.** Si el emparejamiento dependiera del
+    // nivel, una nota podría quedar acertada en el exigente y SIN PAREJA en el permisivo,
+    // y entonces SC-006 dejaría de cumplirse sin que ninguna otra prueba lo notase.
+    let song = escala(20);
+    let emparejadas = |nivel| {
+        let mut e = evaluador(&song, nivel);
+        tocar_desplazada(&mut e, &song, 95_000); // entre la ventana exigente y la permisiva
+        e.avanzar(Micros(20_000_000)); // el emparejamiento ocurre al avanzar
+        // Qué notas recibieron pulsación, con independencia del veredicto.
+        let con_medida: Vec<usize> =
+            (0..song.notes().len()).filter(|i| e.medida_de(*i).is_some()).collect();
+        let _ = e.cerrar(Micros(20_000_000));
+        con_medida
+    };
+    let p = emparejadas(Nivel::Permisivo);
+    let x = emparejadas(Nivel::Exigente);
+    assert_eq!(p, x, "el emparejamiento no puede depender del nivel");
+    assert_eq!(p.len(), 20, "y las veinte se emparejaron en los dos");
+}

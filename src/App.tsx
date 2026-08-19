@@ -5,7 +5,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import "./App.css";
 import { Selector, type DispositivoPlano } from "./dispositivos/Selector";
-import { Resumen, type ResultadoPlano } from "./evaluacion/Resumen";
+import { Resumen, type NivelElegido, type ResultadoPlano } from "./evaluacion/Resumen";
 import { Controles } from "./practica/controles";
 import { Lienzo } from "./practica/Lienzo";
 import { construirEscena, VENTANA_US } from "./practica/escena";
@@ -20,6 +20,7 @@ import {
   abrirCancion,
   ajustarCorte,
   cambiarModo,
+  cambiarNivel,
   cambiarVelocidad,
   conectarTeclado,
   elegirArchivo,
@@ -55,6 +56,7 @@ export default function App() {
   const [teclado, setTeclado] = useState<EstadoDelTeclado | undefined>(undefined);
   const [modo, setModo] = useState<Modo>("porReloj");
   const [resultado, setResultado] = useState<ResultadoPlano | null>(null);
+  const [nivel, setNivel] = useState<NivelElegido>("intermedio");
   const [mano, setMano] = useState<ManoElegida>("ambas");
   const notasRef = useRef(notas);
   notasRef.current = notas;
@@ -184,6 +186,11 @@ export default function App() {
     [recibirAncla],
   );
 
+  const ponerNivel = useCallback(async (n: NivelElegido) => {
+    await cambiarNivel(n);
+    setNivel(n);
+  }, []);
+
   const saltarLaNota = useCallback(async () => {
     recibirAncla(await saltarPuerta());
   }, [recibirAncla]);
@@ -238,7 +245,9 @@ export default function App() {
 
       {/* Siempre visibles, haya canción o no y haya fallado la carga o no: es lo que
           mantiene la aplicación utilizable después de un error (FR-004). */}
-      {resultado !== null && <Resumen resultado={resultado} />}
+      {resultado !== null && (
+        <Resumen resultado={resultado} nivel={nivel} onNivel={ponerNivel} />
+      )}
 
       <Controles
         corte={corte}

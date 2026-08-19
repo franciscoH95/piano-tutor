@@ -180,13 +180,13 @@ queda situado en su posición y en su mano.
 **Prueba independiente**: la misma interpretación grabada en dos niveles da resultados distintos y
 coherentes.
 
-- [ ] T055 [US3] Prueba en `core/tests/evaluacion_test.rs`: una nota 60 ms tarde cuenta acertada en el nivel permisivo y no en el exigente
-- [ ] T056 [US3] Prueba en `core/tests/evaluacion_test.rs`: **SC-006 sobre un barrido**. Para 50 interpretaciones distintas, el permisivo nunca da menos aciertos que el intermedio, ni este menos que el exigente. Con dos ventanas separadas esto es aritmética, pero hay que comprobarlo por si alguien las vuelve a juntar
-- [ ] T057 [US3] Prueba en `core/tests/evaluacion_test.rs`: **cambiar de nivel no cambia el emparejamiento**, solo el veredicto. Se compara la lista de emparejamientos entre niveles y debe ser idéntica
-- [ ] T058 [US3] Implementar la selección de nivel en `core/src/evaluacion/mod.rs`
-- [ ] T059 [US3] Implementar el mando `evaluacion_nivel` en `src-tauri/src/comandos.rs`
-- [ ] T060 [US3] Prueba en `src/evaluacion/Resumen.test.tsx`: el selector de nivel emite el nivel elegido y refleja el vigente
-- [ ] T061 [US3] Implementar el selector de nivel en `src/evaluacion/Resumen.tsx`
+- [X] T055 [US3] Prueba en `core/tests/evaluacion_test.rs`: una nota 60 ms tarde cuenta acertada en el nivel permisivo y no en el exigente
+- [X] T056 [US3] Prueba en `core/tests/evaluacion_test.rs`: **SC-006 sobre un barrido**. Para 50 interpretaciones distintas, el permisivo nunca da menos aciertos que el intermedio, ni este menos que el exigente. Con dos ventanas separadas esto es aritmética, pero hay que comprobarlo por si alguien las vuelve a juntar
+- [X] T057 [US3] Prueba en `core/tests/evaluacion_test.rs`: **cambiar de nivel no cambia el emparejamiento**, solo el veredicto. Se compara la lista de emparejamientos entre niveles y debe ser idéntica
+- [X] T058 [US3] Implementar la selección de nivel en `core/src/evaluacion/mod.rs`
+- [X] T059 [US3] Implementar el mando `evaluacion_nivel` en `src-tauri/src/comandos.rs`
+- [X] T060 [US3] Prueba en `src/evaluacion/Resumen.test.tsx`: el selector de nivel emite el nivel elegido y refleja el vigente
+- [X] T061 [US3] Implementar el selector de nivel en `src/evaluacion/Resumen.tsx`
 
 **Checkpoint**: la exigencia se ajusta a quien practica.
 

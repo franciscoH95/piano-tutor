@@ -1,6 +1,7 @@
 // T044, T045 — el resumen que ve el alumno.
 import { cleanup, render, screen } from "@testing-library/react";
-import { afterEach, describe, expect, it } from "vitest";
+import userEvent from "@testing-library/user-event";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { Resumen, type ResultadoPlano } from "./Resumen";
 
 afterEach(cleanup);
@@ -131,5 +132,32 @@ describe("las dos manos", () => {
       />,
     );
     expect(screen.queryByText(/derecha/i)).not.toBeInTheDocument();
+  });
+});
+
+describe("el selector de exigencia", () => {
+  it("emite el nivel elegido", async () => {
+    const onNivel = vi.fn();
+    render(<Resumen resultado={resultado()} nivel="intermedio" onNivel={onNivel} />);
+    await userEvent.selectOptions(screen.getByRole("combobox", { name: /exigencia/i }), "exigente");
+    expect(onNivel).toHaveBeenLastCalledWith("exigente");
+  });
+
+  it("refleja el nivel vigente", () => {
+    render(<Resumen resultado={resultado()} nivel="permisivo" onNivel={() => {}} />);
+    expect(screen.getByRole("combobox", { name: /exigencia/i })).toHaveValue("permisivo");
+  });
+
+  it("dice que el cambio afecta a la próxima interpretación, no a esta", () => {
+    // Sin decirlo, el alumno cambiaría de nivel esperando que el resumen que está mirando
+    // se recalcule, y no lo hace: ese resultado ya está juzgado.
+    render(<Resumen resultado={resultado({ acertadas: 5, intentadas: 10 })} nivel="intermedio" onNivel={() => {}} />);
+    expect(screen.getByText(/próxima|siguiente/i)).toBeInTheDocument();
+  });
+
+  it("no aparece si no se le pasa manejador", () => {
+    // El resumen se usa también donde no hay nada que ajustar.
+    render(<Resumen resultado={resultado()} />);
+    expect(screen.queryByRole("combobox", { name: /exigencia/i })).not.toBeInTheDocument();
   });
 });
