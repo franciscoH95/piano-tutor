@@ -49,6 +49,14 @@ pub struct Evaluador {
     entrada: Pulsaciones,
     /// Primera pulsacion todavia sin emparejar. Solo avanza.
     siguiente: usize,
+    /// Primera nota que todavia puede recibir una pulsacion. Solo avanza.
+    ///
+    /// Sin el, buscar la candidata recorreria **todas** las notas de la pieza en cada
+    /// pulsacion, y el coste por tecla creceria con el tamaño de la cancion. Medido antes de
+    /// ponerlo: 1.300 notas examinadas con una pieza de 200 y 32.968 con una de 4.000, para
+    /// las mismas cien pulsaciones. Es el mismo fallo que un pedal largo provoco en la
+    /// feature 003, y se detecta igual: contando, no cronometrando.
+    primera: usize,
     /// Pulsaciones que no se emparejaron con ninguna nota.
     ///
     /// Se guardan y se clasifican **al cerrar**, no al llegar. FR-004 prohibe revisar el
@@ -99,6 +107,7 @@ impl Evaluador {
             notas,
             entrada: Pulsaciones::nuevas(),
             siguiente: 0,
+            primera: 0,
             sueltas: Vec::new(),
             fuera_de_alcance,
             no_intentadas: 0,
@@ -270,19 +279,41 @@ impl Evaluador {
     /// Desempate: la mas temprana. Es arbitrario pero **fijo**, que es lo que SC-005 exige;
     /// dejarlo al orden de recorrido lo haria depender de la implementacion.
     fn mejor_candidata(&mut self, key: u8, ataque: Micros) -> Option<usize> {
-        let mut mejor: Option<(usize, u64)> = None;
-        for (k, n) in self.notas.iter().enumerate() {
+        let ventana = self.tol.ventana_emparejamiento_us;
+
+        // Las notas estan ordenadas por ataque, y el instante esperado es monotono en el
+        // ataque para un ancla dada, asi que tambien lo estan por instante esperado. Eso
+        // permite dejar atras de una vez las que ya no pueden recibir NINGUNA pulsacion
+        // futura: las pulsaciones llegan en orden, asi que si esta ya no las alcanza,
+        // ninguna posterior lo hara.
+        while let Some(n) = self.notas.get(self.primera) {
             let Some(esperado) = n.esperado else {
-                continue; // sin sellar: todavia no se sabe cuando deberia sonar
+                break; // sin sellar: no se sabe donde cae, no se puede pasar de largo
             };
+            if !n.tomada && esperado.0.saturating_add(ventana) >= ataque.0 {
+                break;
+            }
+            self.primera = self.primera.saturating_add(1);
+        }
+
+        let mut mejor: Option<(usize, u64)> = None;
+        for (offset, n) in self.notas.get(self.primera..).into_iter().flatten().enumerate() {
+            let Some(esperado) = n.esperado else {
+                continue;
+            };
+            // Ordenadas: en cuanto una empieza demasiado tarde, las siguientes tambien.
+            if esperado.0 > ataque.0.saturating_add(ventana) {
+                break;
+            }
+            self.examinadas = self.examinadas.saturating_add(1);
             if n.tomada || n.key != key {
                 continue;
             }
-            self.examinadas = self.examinadas.saturating_add(1);
             let distancia = ataque.0.abs_diff(esperado.0);
-            if distancia > self.tol.ventana_emparejamiento_us {
+            if distancia > ventana {
                 continue;
             }
+            let k = self.primera.saturating_add(offset);
             match mejor {
                 Some((_, d)) if d <= distancia => {}
                 _ => mejor = Some((k, distancia)),

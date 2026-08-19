@@ -222,15 +222,15 @@ coherentes.
 
 ### Medir lo que el plan dejó pendiente
 
-- [ ] T074 Medir **cuánta precisión se pierde por no mirar el futuro** (FR-004): comparar el emparejamiento en línea con el óptimo global sobre las interpretaciones grabadas, y registrar la diferencia en `research.md`. Es la cifra que el plan dejó explícitamente sin suponer
-- [ ] T075 Prueba de coste en `core/tests/evaluacion_test.rs`: se **cuentan** notas examinadas por pulsación, no se cronometra, y el número no crece con el tamaño de la canción. En la 003 esta forma de medir destapó un coste 30 veces mayor que ninguna prueba de tiempo vio
-- [ ] T076 Prueba de presupuesto en `core/tests/evaluacion_test.rs`: SC-007, una interpretación completa de 10 minutos se evalúa en menos de 1 segundo
+- [X] T074 Medir **cuánta precisión se pierde por no mirar el futuro** (FR-004): comparar el emparejamiento en línea con el óptimo global sobre las interpretaciones grabadas, y registrar la diferencia en `research.md`. Es la cifra que el plan dejó explícitamente sin suponer
+- [X] T075 Prueba de coste en `core/tests/evaluacion_test.rs`: se **cuentan** notas examinadas por pulsación, no se cronometra, y el número no crece con el tamaño de la canción. En la 003 esta forma de medir destapó un coste 30 veces mayor que ninguna prueba de tiempo vio
+- [X] T076 Prueba de presupuesto en `core/tests/evaluacion_test.rs`: SC-007, una interpretación completa de 10 minutos se evalúa en menos de 1 segundo
 
 ### Puertas
 
-- [ ] T077 [P] Documentar con rustdoc la API pública de `core/src/evaluacion/`
-- [ ] T078 [P] Verificar `cargo clippy --workspace --all-targets -- -D warnings` limpio y `pnpm build` sin avisos
-- [ ] T079 Verificar que `cargo tree -p piano-core` **sigue dando exactamente tres líneas**: esta feature no añade ninguna dependencia
+- [X] T077 [P] Documentar con rustdoc la API pública de `core/src/evaluacion/`
+- [X] T078 [P] Verificar `cargo clippy --workspace --all-targets -- -D warnings` limpio y `pnpm build` sin avisos
+- [X] T079 Verificar que `cargo tree -p piano-core` **sigue dando exactamente tres líneas**: esta feature no añade ninguna dependencia
 - [ ] T080 Comprobación manual de SC-010 con una persona, anotada en `quickstart.md`: que alguien toque un pasaje dos veces y confirme que el sistema señala como mejor la que él considera mejor. El orden léxico es una decisión de diseño; que coincida con lo que siente un músico hay que comprobarlo
 - [ ] T081 Comprobación manual del tono del resumen, anotada en `specs/004-evaluar-interpretacion/quickstart.md`: que un principiante lea su resultado y no se desanime. Un motor correcto que desmoraliza es un motor que nadie usa dos veces, y eso no lo detecta ninguna prueba
 

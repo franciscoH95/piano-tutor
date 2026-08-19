@@ -125,5 +125,33 @@ todos modos a no recalcular.
 - **Los valores concretos de las tolerancias**. El análisis propone cifras, pero fijarlas es una
   decisión de producto que conviene tomar con la tabla de fixtures delante. Lo que la especificación
   ya exige —un solo sitio, ventanas anidadas— está garantizado por la Decisión 1.
-- **Cuánta precisión se pierde por no mirar el futuro**. Es cuantificable con las interpretaciones
-  grabadas, y esa medición es en sí una tarea de la implementación, no una suposición del plan.
+- ~~**Cuánta precisión se pierde por no mirar el futuro**~~ → **medido el 2026-08-19**, ver abajo.
+
+## Medición: el precio de FR-004
+
+`FR-004` descarta el emparejamiento óptimo global. El plan dejó **sin suponer** cuánto cuesta eso, y
+ahora está medido en `core/tests/perdida_en_linea_test.rs`, comparando el emparejamiento en línea
+con el óptimo con visión de futuro sobre casos elegidos para que difieran si van a diferir —notas
+repetidas de la misma tecla, que es el único sitio donde la elección tiene alternativa—.
+
+| Caso | Óptimo | En línea | Pérdida |
+|---|---|---|---|
+| una nota, una pulsación | 1 | 1 | 0 |
+| dos repetidas, dos pulsaciones | 2 | 2 | 0 |
+| dos repetidas, una pulsación en medio | 1 | 1 | 0 |
+| tres repetidas, dos pulsaciones tardías | 2 | 2 | 0 |
+| **la pulsación se lleva la nota equivocada** | **2** | **1** | **1** |
+| diez repetidas tocadas a destiempo | 10 | 10 | 0 |
+
+**Peor caso medido: un emparejamiento.**
+
+El caso que pierde es concreto y merece entenderse. Notas de la misma tecla en 1,000 s y 1,100 s;
+pulsaciones en 1,090 s y 1,600 s. En línea, la primera pulsación toma la nota **más cercana** —la de
+1,100— y deja varada la de 1,000; después, la pulsación de 1,600 ya no alcanza a la de 1,000, que
+queda a 600 ms, fuera de la ventana. El óptimo habría dado la primera pulsación a la nota de 1,000 y
+la segunda a la de 1,100, emparejando las dos.
+
+**Se acepta.** La alternativa es revisar decisiones ya tomadas, que es exactamente lo que `FR-004`
+prohíbe y por un motivo que vale más que un emparejamiento: un veredicto que cambia solo porque el
+alumno siguió tocando es un veredicto en el que no se puede confiar. La prueba deja la cota fijada
+en uno; si algún día sube, es que el emparejamiento ha empeorado.

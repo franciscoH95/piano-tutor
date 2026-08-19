@@ -853,3 +853,58 @@ fn no_tener_desfase_sistematico_es_mejor_que_tenerlo() {
     assert!(tarde.desfase.is_some());
     assert_eq!(comparar(&a_tempo, &tarde), Ordering::Greater);
 }
+
+// ---------------------------------------------------------------- T075, T076
+
+/// Una pieza de `n` notas, una cada 100 ms.
+fn pieza(n: u64) -> Song {
+    let notas: Vec<(u64, u8, u64)> = (0..n).map(|i| (i * 100, 60 + (i % 12) as u8, 80)).collect();
+    cancion(&notas)
+}
+
+#[test]
+fn el_coste_por_pulsacion_no_crece_con_el_tamano_de_la_cancion() {
+    // T075. Se **cuenta**, no se cronometra: cronometrar sería intermitente y no demostraría
+    // nada estructural. En la 003 esta forma de medir destapó un coste 30 veces mayor que
+    // ninguna prueba de tiempo vio.
+    let examinadas_con = |total: u64| -> usize {
+        let song = pieza(total);
+        let manos = vec![Mano::Derecha; song.notes().len()];
+        let mut e = Evaluador::nuevo(&song, &manos, None, Nivel::Intermedio);
+        // Las mismas cien pulsaciones en los dos casos, al principio de la pieza.
+        for n in song.notes().iter().take(100) {
+            e.observar(ataque(n.onset_us.0, n.key, 90));
+            e.observar(suelta(n.onset_us.0 + 50_000, n.key));
+        }
+        e.avanzar(Micros(20_000_000));
+        e.examinadas()
+    };
+    let corta = examinadas_con(200);
+    let larga = examinadas_con(4_000);
+    // Veinte veces más canción, las mismas cien pulsaciones. Si lo examinado crece con la
+    // pieza, el coste por pulsación depende del tamaño y el Principio IV está en riesgo.
+    assert!(
+        larga < corta * 3,
+        "con 200 notas se examinaron {corta} y con 4.000, {larga}: el coste crece con la pieza"
+    );
+}
+
+#[test]
+fn evaluar_diez_minutos_tarda_menos_de_un_segundo() {
+    // SC-007 (T076).
+    let song = pieza(6_000); // diez minutos a diez notas por segundo
+    let manos = vec![Mano::Derecha; song.notes().len()];
+    let inicio = std::time::Instant::now();
+    let mut e = Evaluador::nuevo(&song, &manos, None, Nivel::Intermedio);
+    for n in song.notes() {
+        e.observar(ataque(n.onset_us.0 + 20_000, n.key, 90));
+        e.observar(suelta(n.onset_us.0 + 60_000, n.key));
+    }
+    let r = e.cerrar(Micros(700_000_000));
+    let transcurrido = inicio.elapsed();
+    assert_eq!(r.acertadas, 6_000, "y las evalúa todas bien");
+    assert!(
+        transcurrido < std::time::Duration::from_secs(1),
+        "tardó {transcurrido:?}"
+    );
+}

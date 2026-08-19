@@ -146,3 +146,40 @@ saboteando dos umbrales:
 |---|---|
 | Ventana intermedia de 60 → 20 ms | «adelanto uniforme», en `acertadas` y `fuera_de_tiempo` |
 | Umbral de desfase sistemático de 30 → 60 ms | «retraso uniforme dentro de tolerancia» y «adelanto uniforme», en `desfase` |
+
+## Comprobaciones manuales pendientes
+
+Ninguna de las dos se puede automatizar, y por eso están escritas: si no están planificadas,
+nadie las hace.
+
+### SC-010 con una persona (T080)
+
+Que alguien toque un pasaje **dos veces**, una claramente mejor que la otra, y confirme que
+el sistema señala como mejor la que él considera mejor.
+
+El orden es léxico —manda el número de notas y el ritmo solo desempata— y eso es una
+**decisión de diseño**. Que coincida con lo que siente un músico hay que comprobarlo con un
+músico; ninguna prueba puede hacerlo.
+
+Si no coincide, la conversación no es sobre el código sino sobre `FR-020`, y el sitio donde
+se resuelve es `/speckit-clarify`, no un ajuste silencioso.
+
+### El tono del resumen (T081)
+
+Que un principiante lea su resultado y **no se desanime**.
+
+Un motor correcto que desmoraliza es un motor que nadie usa dos veces, y eso no lo detecta
+ninguna prueba. Cosas concretas que mirar:
+
+- ¿«3 de 20» se lee como un suspenso o como un punto de partida?
+- Cuando hay desfase sistemático, ¿el mensaje suena a diagnóstico útil o a reproche?
+- ¿Se entiende que las notas fuera del alcance del teclado y los pasajes saltados **no**
+  cuentan en su contra?
+
+## Medido en esta feature
+
+| Qué | Cuándo | Resultado |
+|---|---|---|
+| Pérdida por no mirar al futuro (T074) | 2026-08-19 | **1 emparejamiento** en el peor caso de seis; ver `research.md` |
+| Coste por pulsación (T075) | 2026-08-19 | No crece con la pieza tras añadir el cursor monótono. Antes: 1.300 notas examinadas con 200 y 32.968 con 4.000 |
+| Presupuesto de evaluación (T076) | 2026-08-19 | Diez minutos y 6.000 notas, muy por debajo del segundo de SC-007 |
