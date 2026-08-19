@@ -35,6 +35,7 @@ use crate::error::{LoadError, LoadReport};
 use crate::midi::loader::RawKind;
 use crate::tempo::TempoMap;
 use crate::time::{Micros, Ticks};
+use crate::practica::MapaDeArmaduras;
 use crate::timeline::ScheduledNote;
 
 /// Una cancion lista para practicar.
@@ -45,6 +46,7 @@ use crate::timeline::ScheduledNote;
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Song {
     tempo_map: TempoMap,
+    armaduras: MapaDeArmaduras,
     notes: Box<[ScheduledNote]>,
     report: LoadReport,
 }
@@ -57,6 +59,12 @@ impl Song {
     #[must_use]
     pub fn notes(&self) -> &[ScheduledNote] {
         &self.notes
+    }
+
+    /// Las armaduras de la cancion, para saber como se llama cada nota.
+    #[must_use]
+    pub const fn armaduras(&self) -> &MapaDeArmaduras {
+        &self.armaduras
     }
 
     /// La relacion entre tiempo musical y tiempo real de esta cancion.
@@ -119,8 +127,20 @@ pub fn load_smf(raw: &[u8]) -> Result<Song, LoadError> {
         }
     }
 
+    let mut armaduras: Vec<(u64, i8)> = Vec::new();
+    for ev in &parsed.events {
+        if let RawKind::Armadura { sf } = ev.kind {
+            armaduras.push((ev.tick, sf));
+        }
+    }
+
     let tempo_map = TempoMap::new(parsed.ppq, &tempos)?;
     let notes = timeline::build(&parsed, &tempo_map, &mut report)?;
 
-    Ok(Song { tempo_map, notes: notes.into_boxed_slice(), report })
+    Ok(Song {
+        tempo_map,
+        armaduras: MapaDeArmaduras::desde(&armaduras),
+        notes: notes.into_boxed_slice(),
+        report,
+    })
 }

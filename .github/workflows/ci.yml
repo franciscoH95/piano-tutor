@@ -32,6 +32,13 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: clippy
+      # La puerta 4 ejecuta las pruebas de la interfaz. El runner no trae `pnpm`, y sin el
+      # `verificar.sh` moria con "command not found" DESPUES de haber pasado las tres
+      # primeras puertas: parecia un fallo del proyecto y era del entorno.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: pnpm/action-setup@v4
       - name: Puertas del proyecto
         shell: bash
         run: ./scripts/verificar.sh

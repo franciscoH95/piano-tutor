@@ -27,3 +27,12 @@ mod macos;
 pub mod vigia;
 #[cfg(target_os = "macos")]
 pub use macos::{abrir, dispositivos, reabrir, traducir, Captura};
+
+// Fuera de macOS todavia no hay backend. Sin este modulo estos nombres no existen y la
+// aplicacion entera deja de compilar: es lo que pasaba, y no se noto porque no hay ninguna
+// maquina Windows a mano. La capa de plataforma existe para absorber esto; la alternativa
+// era llenar `src-tauri` de `#[cfg]`.
+#[cfg(not(target_os = "macos"))]
+mod sin_backend;
+#[cfg(not(target_os = "macos"))]
+pub use sin_backend::{abrir, dispositivos, reabrir, Captura};

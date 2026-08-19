@@ -38,6 +38,11 @@ done
 paso "4/5  Pruebas de la interfaz"
 # Los componentes de React toman decisiones, asi que se prueban. El unico archivo
 # exento es src/practica/Lienzo.tsx, que solo pinta.
+#
+# La instalacion va AQUI y no en el flujo de la CI. Este script es el que ejecutan las dos,
+# y si la CI hiciera un paso de mas, verde en local dejaria de significar verde en CI. En
+# una maquina que ya las tiene, `--frozen-lockfile` no hace nada y tarda un instante.
+pnpm install --frozen-lockfile
 pnpm test
 
 paso "5/5  Banco de latencia"

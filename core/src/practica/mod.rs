@@ -4,6 +4,18 @@
 //! ninguna decision propia (Constitucion, Principio III, y la excepcion acotada del
 //! Principio II en la v1.1.0).
 
+mod cursor;
+mod manos;
+mod preparacion;
+mod puertas;
+mod sonando;
+mod nombres;
 mod vista;
 
+pub use manos::{repartir, Mano, Reparto, RepartoDeManos};
+pub use cursor::{posicion_en, Ancla, Avance, Cursor, Paso, Velocidad};
+pub use preparacion::{NotaDetallada, Preparacion};
+pub use nombres::{Alteracion, Base, MapaDeArmaduras, NombreDeNota};
+pub use puertas::{ProgramaDePuertas, Puerta};
+pub use sonando::{ConjuntoSonando, MascaraTeclas, Situacion};
 pub use vista::{vista, EstadoNota, NotaVisible, Vista};

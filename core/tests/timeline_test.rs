@@ -129,3 +129,28 @@ fn los_eventos_de_tempo_de_la_pista_0_aplican_a_todas_las_pistas() {
     let song = load_smf(&raw).expect("valida");
     assert_eq!(song.notes()[0].onset_us, Micros(250_000), "una negra a 240 = 250 ms");
 }
+
+#[test]
+fn ninguna_nota_cargada_tiene_duracion_cero_en_microsegundos() {
+    // El cargador ya asegura `end_tick > onset_tick`, pero eso es en TICKS. Con un `ppq`
+    // alto y el tempo en el suelo, un tick vale menos de un microsegundo y la conversión
+    // entera colapsa los dos extremos: la nota queda con duración cero.
+    //
+    // Una nota de duración cero no suena nunca —el criterio es `ataque <= t < final`—, así
+    // que en modo espera su puerta **no abriría jamás** y la práctica se quedaría atascada
+    // sin que nada explicase por qué.
+    for ppq in [960u16, 10_000, 32_767] {
+        let raw = SmfBuilder::new(ppq)
+            .track(|t| t.tempo(0, 1_000).note(0, 60, 90, 1).note(2, 64, 90, 1))
+            .build();
+        let song = load_smf(&raw).expect("valida");
+        for (i, n) in song.notes().iter().enumerate() {
+            assert!(
+                n.end_us.0 > n.onset_us.0,
+                "ppq {ppq}, nota {i}: ataque {} y final {} coinciden",
+                n.onset_us.0,
+                n.end_us.0
+            );
+        }
+    }
+}

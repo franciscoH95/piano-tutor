@@ -77,10 +77,37 @@ impl Vista {
         self.examinadas
     }
 
-    /// Recoloca la vista tras un salto. Coste `O(log n)`.
+    /// Recoloca la vista tras un salto **hacia atras**. Coste `O(n)`.
+    ///
+    /// # Por que no se busca por el final de la nota
+    ///
+    /// `Song::notes` esta ordenado por **ataque**, no por final. `partition_point` exige un
+    /// predicado *monotono* sobre la ordenacion, y `end_us < objetivo` no lo es: un pedal
+    /// largo que empieza pronto termina despues de notas cortas posteriores. Con ese
+    /// predicado la busqueda devuelve un indice cualquiera y el cursor se coloca por
+    /// delante de una nota que todavia suena; al saltar al medio de un pedal, el bajo que
+    /// sostiene la armonia simplemente no aparece.
+    ///
+    /// El predicado que si es monotono es sobre el ataque. Se descarta una nota solo si
+    /// **con certeza** ha terminado: `ataque + duracion_maxima < objetivo`. Como ninguna
+    /// nota dura mas que la maxima, eso no puede dejar fuera nada que suene.
+    ///
+    /// # Por que la maxima se recalcula aqui
+    ///
+    /// `max_duracion` se aprende recorriendo la cancion, asi que en una vista recien creada
+    /// vale cero y no acota nada. Un salto no puede fiarse de lo aprendido: necesita la
+    /// cota **de la cancion entera**, y por eso es `O(n)` y no `O(log n)`. Es el precio de
+    /// que un salto sea correcto, y se paga solo al saltar, no en cada fotograma.
     pub fn reposicionar(&mut self, cancion: &Song, desde: Micros) {
-        let objetivo = desde.0.saturating_sub(self.max_duracion);
-        self.cursor = cancion.notes().partition_point(|n| n.end_us.0 < objetivo);
+        let notas = cancion.notes();
+        self.max_duracion = notas
+            .iter()
+            .map(|n| n.end_us.0.saturating_sub(n.onset_us.0))
+            .max()
+            .unwrap_or(0);
+        let cota = self.max_duracion;
+        self.cursor =
+            notas.partition_point(|n| n.onset_us.0.saturating_add(cota) < desde.0);
     }
 }
 
