@@ -5,7 +5,10 @@
 //! fixture binario es imposible de revisar en un pull request. Aqui la intencion de cada
 //! prueba esta a la vista.
 
+
 #![allow(dead_code)] // cada binario de prueba usa solo una parte del constructor
+
+pub mod interpretaciones;
 
 /// Codifica un entero como *variable-length quantity*, el formato de delta del estandar MIDI.
 fn vlq(mut value: u64) -> Vec<u8> {

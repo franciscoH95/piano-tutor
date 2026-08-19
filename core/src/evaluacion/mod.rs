@@ -13,10 +13,18 @@
 //! - **El instante esperado se sella al cruzar y no se recalcula nunca** (FR-004).
 
 mod emparejar;
+mod evaluador;
 mod estadistica;
+mod pulsacion;
+mod resultado;
 mod tolerancias;
 
 pub use emparejar::instante_de;
+pub use evaluador::Evaluador;
+pub use resultado::{
+    sistematico, Medida, Recuento, Resultado, Sistematico, Veredicto,
+};
+pub use pulsacion::{Pulsacion, Pulsaciones};
 pub use estadistica::{cuartiles, mediana};
 pub use tolerancias::{Nivel, Tolerancias};
 

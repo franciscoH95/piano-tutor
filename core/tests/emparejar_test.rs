@@ -127,3 +127,85 @@ fn el_resultado_no_depende_del_perfil_de_compilacion() {
     // Faltan 2.000.000 de canción a 3/2: hacen falta ⌈2.000.000·2/3⌉ = 1.333.334 de reloj.
     assert_eq!(instante_de(&b, Micros(3_000_000)), Some(Micros(1_833_334)));
 }
+
+// ---------------------------------------------------------------- T022, T023
+
+use fixtures::interpretaciones::{ataque, suelta};
+use piano_core::evaluacion::Pulsaciones;
+
+#[test]
+fn un_ataque_y_su_suelta_forman_una_pulsacion() {
+    // T022. La captura entrega los dos extremos por separado; casarlos es trabajo de aquí.
+    let mut p = Pulsaciones::nuevas();
+    p.observar(ataque(1_000, 60, 90));
+    p.observar(suelta(1_500, 60));
+    let v = p.cerrar();
+    assert_eq!(v.len(), 1);
+    assert_eq!(v[0].key, 60);
+    assert_eq!(v[0].ataque_us.0, 1_000);
+    assert_eq!(v[0].final_us.map(|m| m.0), Some(1_500));
+    assert_eq!(v[0].velocity, 90);
+}
+
+#[test]
+fn una_tecla_todavia_hundida_al_cerrar_tiene_final_desconocido() {
+    // T023. **Desconocido, que no es cero.** Cero significaría que la soltó en el mismo
+    // instante en que la pulsó, y eso sería mentir sobre algo que no se observó.
+    let mut p = Pulsaciones::nuevas();
+    p.observar(ataque(1_000, 60, 90));
+    let v = p.cerrar();
+    assert_eq!(v.len(), 1, "la pulsación existe aunque no se haya soltado");
+    assert_eq!(v[0].final_us, None, "final desconocido");
+}
+
+#[test]
+fn una_suelta_sin_ataque_previo_se_descarta_sin_romper_nada() {
+    // Pasa de verdad: si la aplicación arranca con una tecla ya hundida, el primer mensaje
+    // que llega de ella es el de soltarla.
+    let mut p = Pulsaciones::nuevas();
+    p.observar(suelta(1_000, 60));
+    assert!(p.cerrar().is_empty());
+}
+
+#[test]
+fn varias_teclas_a_la_vez_se_casan_cada_una_con_la_suya() {
+    let mut p = Pulsaciones::nuevas();
+    p.observar(ataque(0, 60, 80));
+    p.observar(ataque(10, 64, 90));
+    p.observar(suelta(500, 64));
+    p.observar(suelta(600, 60));
+    let v = p.cerrar();
+    assert_eq!(v.len(), 2);
+    let sesenta = v.iter().find(|x| x.key == 60).expect("el 60");
+    assert_eq!(sesenta.final_us.map(|m| m.0), Some(600), "cada suelta con su ataque");
+    let sesenta_y_cuatro = v.iter().find(|x| x.key == 64).expect("el 64");
+    assert_eq!(sesenta_y_cuatro.final_us.map(|m| m.0), Some(500));
+}
+
+#[test]
+fn repulsar_una_tecla_sin_soltarla_no_pierde_la_primera() {
+    // Un teclado real puede repetir el ataque de una tecla mantenida. La primera pulsación
+    // no puede desaparecer: el alumno la tocó.
+    let mut p = Pulsaciones::nuevas();
+    p.observar(ataque(0, 60, 80));
+    p.observar(ataque(100, 60, 85));
+    p.observar(suelta(500, 60));
+    let v = p.cerrar();
+    assert_eq!(v.len(), 2, "dos ataques son dos pulsaciones");
+    assert_eq!(v[0].ataque_us.0, 0);
+    assert_eq!(v[1].ataque_us.0, 100);
+}
+
+#[test]
+fn las_pulsaciones_salen_ordenadas_por_ataque() {
+    // SC-008: el resultado no puede depender del orden en que llegaron. Un orden canónico
+    // de salida es lo que lo garantiza aguas abajo.
+    let mut p = Pulsaciones::nuevas();
+    for (t, k) in [(300u64, 62u8), (100, 60), (200, 61)] {
+        p.observar(ataque(t, k, 90));
+        p.observar(suelta(t + 50, k));
+    }
+    let v = p.cerrar();
+    let instantes: Vec<u64> = v.iter().map(|x| x.ataque_us.0).collect();
+    assert_eq!(instantes, vec![100, 200, 300]);
+}
