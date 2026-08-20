@@ -81,12 +81,34 @@ cargo test -p piano-core identidad       # id del sistema primero, (nombre, posi
 
 ## Con un teclado de verdad (a mano)
 
-Nada de esto corre en integración continua. Se hace de vez en cuando, con el instrumento delante:
+Nada de esto corre en integración continua. Se hace de vez en cuando, con el instrumento delante.
+**Los dos programas funcionan igual en macOS y en Windows**: hasta el 2026-08-19 tenían el cuerpo
+entero bajo `#[cfg(target_os = "macos")]` y en Windows contestaban «solo implementado para macOS»
+saliendo con código 0, de modo que la única plataforma que hacía falta validar era la única que no
+se podía ejercer.
 
 ```sh
 cargo run -p piano-midi-io --example escuchar     # enumera, abre y muestra lo que tocas
+cargo run -p piano-midi-io --example escuchar -- 2   # si hay varios, el de la posición 2
 cargo run -p piano-bench --release --bin latencia -- --con-hardware
 ```
+
+### El procedimiento de T042 y T071, paso a paso
+
+`escuchar` recorre la lista de T042 en orden y da un veredicto por paso, así que el procedimiento
+manual **es ejecutarlo y leer**:
+
+| Paso | Qué se comprueba | Qué hacer |
+|------|------------------|-----------|
+| 1 | Enumerar | nada; si falla, el texto lleva el código que devolvió el sistema |
+| 2 | Abrir | nada |
+| 3 | Recibir notas | tocar unas cuantas, incluido algún acorde |
+| 4 | Detectar la retirada | **desenchufar el teclado** a mitad de captura (FR-014: < 2000 ms) |
+| 5 | Cerrar sin colgarse | nada; el paso se anuncia *antes* de intentarlo a propósito, para que un cuelgue deje escrito en pantalla dónde fue (Microsoft KB4460006) |
+| 6 | Reabrir | **volver a enchufarlo**; la captura debe reanudarse sin reiniciar nada |
+
+Un fallo de enumeración y «no hay ningún teclado conectado» se distinguen en el texto: son causas
+opuestas y antes daban el mismo cartel.
 
 El segundo mide desde el sello del propio sistema operativo. **La diferencia entre ese número y el
 de integración continua es exactamente el tramo que el banco sintético no cubre.** Hasta que se
@@ -114,5 +136,12 @@ PIANO_BENCH_MINUTOS=2 cargo run -p piano-bench --release --bin latencia -- --sos
 - **Windows.** Nada de lo planificado para Windows se ha ejecutado ni una sola vez: está sostenido
   por lectura de código, documentación oficial e issues públicos. El primer trabajo del lado
   Windows es un día de validación en máquina real. Ver `plan.md`, Complexity Tracking.
+  Las herramientas para hacerlo ya existen y compilan para `aarch64-pc-windows-msvc` y
+  `x86_64-pc-windows-msvc`; lo que falta es ejecutarlas. **Compilar no es funcionar.**
+- **La tabla de traducción de `HRESULT`** (`midi-io/src/windows.rs`). Se dedujo leyendo
+  documentación, no midiendo: nadie ha visto todavía qué devuelve WinRT con el puerto ocupado. Por
+  eso un código no contemplado ya no se convierte en «no se pudo abrir», que se tragaba el número,
+  sino que llega con él en hexadecimal. La primera ejecución en Windows corrige la tabla con un
+  dato en vez de con una suposición.
 - **La aplicación de escritorio.** Esta entrega no dibuja nada: la pantalla de selección de teclado
   llega con la feature de visualización.

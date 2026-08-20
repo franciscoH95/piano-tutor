@@ -192,24 +192,37 @@ fn modo_sostenido() -> i32 {
 /// Mide desde el sello del propio sistema operativo. Necesita un teclado delante.
 fn modo_con_hardware() -> i32 {
     println!("Modo con hardware: toca el teclado durante unos segundos.");
-    #[cfg(target_os = "macos")]
+    // Sin `#[cfg]`: `lib.rs` exporta los mismos nombres en todas las plataformas. Antes
+    // este cuerpo estaba dentro de un `cfg(target_os = "macos")` y en Windows el banco
+    // contestaba «solo implementado para macOS», de modo que la cifra que T042 pide tomar
+    // «en una maquina Windows real» no se podia tomar con la herramienta hecha para eso.
     {
         let disponibles = match piano_midi_io::dispositivos() {
             Ok(d) if !d.is_empty() => d,
-            _ => {
+            Ok(_) => {
                 println!("  No hay ningun teclado conectado. Nada que medir.");
                 return 3;
             }
+            Err(e) => {
+                // Distinto de lo anterior: la enumeracion FALLO. El texto lleva el codigo
+                // que devolvio el sistema.
+                println!("  No se pudieron enumerar los teclados: {e}");
+                return 3;
+            }
+        };
+        let Some(elegido) = disponibles.first() else {
+            println!("  No hay ningun teclado conectado. Nada que medir.");
+            return 3;
         };
         let reloj = MonotonicClock::start();
-        let mut captura = match piano_midi_io::abrir(&disponibles[0], reloj) {
+        let mut captura = match piano_midi_io::abrir(elegido, reloj) {
             Ok(c) => c,
             Err(e) => {
                 println!("  No se pudo abrir: {e}");
                 return 3;
             }
         };
-        println!("  Abierto «{}». Recogiendo 15 segundos...", disponibles[0].nombre);
+        println!("  Abierto «{}». Recogiendo 15 segundos...", elegido.nombre);
         let fin = std::time::Instant::now() + Duration::from_secs(15);
         let mut muestras = Vec::new();
         let mut buffer = Vec::with_capacity(1_024);
@@ -230,12 +243,10 @@ fn modo_con_hardware() -> i32 {
                  percentil(&muestras, 50), percentil(&muestras, 95));
         println!("\n  Este numero incluye el despacho del driver; la diferencia con el de");
         println!("  integracion continua es el tramo que el banco sintetico no cubre.");
+        println!("  Incluye tambien hasta 2 ms del sondeo de este bucle: con una decena de");
+        println!("  muestras el p95 lo nota, con cientos se diluye. Y en una maquina virtual");
+        println!("  suma ademas el paso a traves del USB del hipervisor.");
         0
-    }
-    #[cfg(not(target_os = "macos"))]
-    {
-        println!("  Solo implementado para macOS por ahora.");
-        3
     }
 }
 

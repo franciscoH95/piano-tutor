@@ -69,6 +69,22 @@ pub enum ErrorDeEntrada {
         /// Nombre del dispositivo.
         nombre: String,
     },
+    /// El sistema rechazo la operacion con un codigo que no sabemos traducir.
+    ///
+    /// Existe para que un fallo desconocido llegue **con su numero**. Sin esta variante,
+    /// todo lo que no esta en la tabla de traduccion acaba en `NoSePudoAbrir` —o peor, en
+    /// `SinDispositivos`, que se lee como «no hay teclado»— y el codigo se pierde por el
+    /// camino. En una maquina donde no se puede depurar comodamente, esa perdida deja a
+    /// ciegas justo cuando hace falta ver.
+    FalloDelSistema {
+        /// Que se estaba intentando: «enumerar los teclados», «abrir «Piano X»».
+        operacion: String,
+        /// El codigo crudo del sistema: `HRESULT` en Windows, `OSStatus` en macOS.
+        ///
+        /// `None` cuando el sistema **no llego a contestar**. Entonces no hay ningun numero
+        /// que dar, y poner un cero seria peor que no poner nada: cero es exito.
+        codigo: Option<i32>,
+    },
 }
 
 impl fmt::Display for ErrorDeEntrada {
@@ -86,6 +102,15 @@ impl fmt::Display for ErrorDeEntrada {
             ),
             Self::DesaparecioAlAbrir { nombre } => {
                 write!(f, "«{nombre}» desaparecio justo antes de poder abrirlo")
+            }
+            // En hexadecimal, que es como el fabricante publica estos codigos y como se
+            // buscan. `{:08X}` sobre un `i32` negativo ya imprime el complemento a dos, que
+            // es exactamente el patron de bits del `HRESULT`; no hace falta convertir nada.
+            Self::FalloDelSistema { operacion, codigo: Some(c) } => {
+                write!(f, "no se pudo {operacion}: el sistema respondio 0x{c:08X}")
+            }
+            Self::FalloDelSistema { operacion, codigo: None } => {
+                write!(f, "no se pudo {operacion}: el sistema no llego a responder")
             }
         }
     }

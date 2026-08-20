@@ -104,3 +104,32 @@ fn los_tres_modos_de_fallo_al_abrir_son_distinguibles() {
     // Es un Error de verdad, no un String suelto.
     let _: &dyn std::error::Error = &a;
 }
+
+#[test]
+fn un_fallo_del_sistema_conserva_su_codigo() {
+    // El backend de Windows se escribio sin ninguna maquina Windows delante. El dia que
+    // falle alli, el unico dato util sera el numero que devolvio el sistema. Hoy ese numero
+    // se descarta, y «no se pudo abrir» acaba siendo indistinguible de «no hay teclado»:
+    // dos causas opuestas, el mismo cartel, y nada que buscar.
+    let con_codigo = ErrorDeEntrada::FalloDelSistema {
+        operacion: "enumerar los teclados".into(),
+        codigo: Some(-2_147_024_891),
+    };
+    let sin_respuesta = ErrorDeEntrada::FalloDelSistema {
+        operacion: "abrir «Piano X»".into(),
+        codigo: None,
+    };
+    assert_ne!(con_codigo, sin_respuesta);
+
+    // En hexadecimal, que es como lo publica el fabricante y como se busca. En decimal,
+    // -2147024891 no encuentra absolutamente nada; 0x80070005 encuentra E_ACCESSDENIED.
+    let texto = con_codigo.to_string();
+    assert!(texto.contains("0x80070005"), "el texto fue «{texto}»");
+    assert!(texto.contains("enumerar los teclados"), "el texto fue «{texto}»");
+
+    // Y cuando el sistema no contesta no hay codigo que dar: decirlo es mejor que inventar
+    // un cero, que se leeria como exito.
+    let texto = sin_respuesta.to_string();
+    assert!(!texto.contains("0x"), "sin respuesta no hay codigo que mostrar: «{texto}»");
+    assert!(texto.contains("abrir «Piano X»"), "el texto fue «{texto}»");
+}
