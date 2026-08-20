@@ -198,6 +198,33 @@ describe("los mensajes del canal", () => {
     expect(e.pulsadas.size).toBe(0);
   });
 
+  it("no poder abrir el teclado no es lo mismo que perderlo, y trae el motivo", () => {
+    // Antes los dos casos llegaban como `dispositivoPerdido`, así que el alumno leía «se
+    // perdió la conexión» justo después de leer «Conectado», dijera lo que dijera el
+    // sistema: puerto ocupado por otro programa, permiso denegado o aparato desenchufado
+    // entre enumerar y abrir daban exactamente el mismo cartel.
+    const e = aplicar(
+      ESTADO_INICIAL,
+      { tipo: "noSePudoAbrir", motivo: "«Piano X» lo esta usando otra aplicacion" },
+      LLEGADA,
+    );
+    expect(e.falloAlAbrir).toBe("«Piano X» lo esta usando otra aplicacion");
+    expect(e.dispositivoPerdido).toBe(false);
+  });
+
+  it("una tecla que llega después borra el aviso: el teclado está vivo", () => {
+    // Sin esto el aviso se queda en pantalla para siempre, porque no hay ningún mensaje
+    // que diga «ya está arreglado». Que lleguen teclas ES ese mensaje.
+    let e = aplicar(ESTADO_INICIAL, { tipo: "dispositivoPerdido" }, LLEGADA);
+    e = aplicar(e, { tipo: "noSePudoAbrir", motivo: "lo que sea" }, LLEGADA);
+    expect(e.dispositivoPerdido).toBe(true);
+    expect(e.falloAlAbrir).not.toBeNull();
+    e = aplicar(e, { tipo: "tecla", key: 60, pulsada: true }, LLEGADA + 10);
+    expect(e.dispositivoPerdido).toBe(false);
+    expect(e.falloAlAbrir).toBeNull();
+    expect(e.pulsadas.has(60)).toBe(true);
+  });
+
   it("no muta el estado que recibe", () => {
     // Sin esto, React no volvería a pintar: compara por identidad.
     const antes = ESTADO_INICIAL;

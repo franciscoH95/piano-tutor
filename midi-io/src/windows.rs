@@ -43,7 +43,6 @@ use piano_core::capture::{
 use piano_core::capture::{Observacion, TipoEvento};
 use piano_core::clock::Clock;
 use piano_core::time::Micros;
-use std::cell::RefCell;
 use std::sync::mpsc;
 use std::time::Duration;
 use windows::core::{Interface, Ref, HSTRING};
@@ -77,7 +76,7 @@ fn huella(id: &HSTRING) -> u64 {
 /// `IAsyncOperation::join()` termina en `Waiter::drop` -> `WaitForSingleObject(INFINITE)`
 /// sin bombeo de mensajes: si la operacion no completa nunca, el hilo se cuelga para
 /// siempre. Con `when` + `recv_timeout` el peor caso es un error, no un cuelgue.
-fn esperar<T, R>(registrar: R) -> Result<T, ErrorDeEntrada>
+fn esperar<T, R>(registrar: R) -> Result<T, Fallo>
 where
     T: Send + 'static,
     R: FnOnce(Box<dyn FnOnce(windows::core::Result<T>) + Send + 'static>) -> windows::core::Result<()>,
@@ -86,20 +85,53 @@ where
     let cb: Box<dyn FnOnce(windows::core::Result<T>) + Send + 'static> = Box::new(move |r| {
         let _ = tx.send(r);
     });
-    registrar(cb).map_err(|_| ErrorDeEntrada::SinDispositivos)?;
+    registrar(cb).map_err(|e| Fallo::Codigo(e.code().0))?;
     match rx.recv_timeout(ESPERA_WINRT) {
         Ok(Ok(v)) => Ok(v),
-        Ok(Err(_)) | Err(_) => Err(ErrorDeEntrada::SinDispositivos),
+        Ok(Err(e)) => Err(Fallo::Codigo(e.code().0)),
+        Err(_) => Err(Fallo::SinRespuesta),
+    }
+}
+
+/// Que salio mal, antes de decidir como contarselo al usuario.
+///
+/// Separar las dos cosas importa: «el sistema dijo 0x80070005» y «el sistema no dijo nada en
+/// cinco segundos» son diagnosticos opuestos, y colapsarlos en un solo error borra
+/// exactamente el dato que hace falta para saber cual de los dos fue.
+enum Fallo {
+    /// El sistema contesto, con este `HRESULT`.
+    Codigo(i32),
+    /// El sistema no contesto dentro de [`ESPERA_WINRT`]. No hay codigo que dar.
+    SinRespuesta,
+}
+
+impl Fallo {
+    /// El error que vera el usuario, conservando el numero cuando lo hay.
+    fn a_error(self, operacion: &str) -> ErrorDeEntrada {
+        match self {
+            Self::Codigo(c) => ErrorDeEntrada::FalloDelSistema {
+                operacion: operacion.to_string(),
+                codigo: Some(c),
+            },
+            Self::SinRespuesta => ErrorDeEntrada::FalloDelSistema {
+                operacion: operacion.to_string(),
+                codigo: None,
+            },
+        }
     }
 }
 
 /// Una instantanea de la enumeracion: ruta de interfaz + nombre legible, en orden.
 fn enumerar() -> Result<Vec<(HSTRING, String)>, ErrorDeEntrada> {
-    let selector =
-        MidiInPort::GetDeviceSelector().map_err(|_| ErrorDeEntrada::SinDispositivos)?;
-    let op = DeviceInformation::FindAllAsyncAqsFilter(&selector)
-        .map_err(|_| ErrorDeEntrada::SinDispositivos)?;
-    let coleccion = esperar(|cb| op.when(cb))?;
+    // Que la enumeracion FALLE y que no haya ningun teclado son cosas distintas. Antes las
+    // dos daban `SinDispositivos`, es decir el cartel «no se detecta ningun teclado»: un
+    // backend roto y un cable suelto eran indistinguibles desde fuera.
+    const QUE: &str = "enumerar los teclados MIDI";
+    let selector = MidiInPort::GetDeviceSelector()
+        .map_err(|e| Fallo::Codigo(e.code().0).a_error(QUE))?;
+    let operacion = DeviceInformation::FindAllAsyncAqsFilter(&selector)
+        .map_err(|e| Fallo::Codigo(e.code().0).a_error(QUE))?;
+    let coleccion = esperar(|cb| operacion.when(cb)).map_err(|f| f.a_error(QUE))?;
     let n = usize::try_from(coleccion.Size().unwrap_or(0)).unwrap_or(0);
     let mut salida = Vec::with_capacity(n);
     for info in &coleccion {
@@ -118,6 +150,18 @@ pub fn dispositivos() -> Result<Vec<Dispositivo>, ErrorDeEntrada> {
 }
 
 /// Traduce un `HRESULT` al error que el usuario va a leer.
+///
+/// **Esta tabla esta sin confirmar contra una maquina real.** Se dedujo leyendo
+/// documentacion, no midiendo: nadie ha visto todavia que devuelve WinRT cuando otro
+/// programa tiene el puerto tomado. Por eso el caso por defecto **no** es
+/// `NoSePudoAbrir` —que se tragaria el numero— sino [`ErrorDeEntrada::FalloDelSistema`],
+/// que lo conserva. Asi la primera ejecucion en Windows corrige la tabla con un dato en vez
+/// de con una suposicion: sale el codigo por pantalla y se anade el brazo que falte.
+///
+/// Un aviso concreto para quien lea el numero: `MidiInPort::FromIdAsync` puede completar
+/// **con exito devolviendo null** en vez de fallar. En ese caso el codigo que aparece es
+/// `0x80004003` (E_POINTER), que viene de windows-rs al rechazar la interfaz nula, no del
+/// stack MIDI. Es la firma tipica de «el puerto existe pero no se pudo abrir».
 pub fn traducir(codigo: i32, nombre: &str) -> ErrorDeEntrada {
     match codigo {
         // E_ACCESSDENIED
@@ -126,7 +170,10 @@ pub fn traducir(codigo: i32, nombre: &str) -> ErrorDeEntrada {
         -2147024809 | -2147023728 => {
             ErrorDeEntrada::DesaparecioAlAbrir { nombre: nombre.to_string() }
         }
-        _ => ErrorDeEntrada::NoSePudoAbrir { nombre: nombre.to_string() },
+        _ => ErrorDeEntrada::FalloDelSistema {
+            operacion: format!("abrir «{nombre}»"),
+            codigo: Some(codigo),
+        },
     }
 }
 
@@ -209,13 +256,29 @@ where
         .get(indice)
         .ok_or_else(|| ErrorDeEntrada::NoSePudoAbrir { nombre: dispositivo.nombre.clone() })?;
 
-    let op = MidiInPort::FromIdAsync(id)
+    let operacion = MidiInPort::FromIdAsync(id)
         .map_err(|e| traducir(e.code().0, &dispositivo.nombre))?;
-    let puerto = esperar(|cb| op.when(cb))
-        .map_err(|_| ErrorDeEntrada::NoSePudoAbrir { nombre: dispositivo.nombre.clone() })?;
+    // Aqui esta el fallo de verdad. `FromIdAsync` casi nunca falla en el acto: lo que falla
+    // es la finalizacion. Antes ese camino aplastaba el `HRESULT` con un `|_|` y ni siquiera
+    // pasaba por `traducir`, de modo que «lo tiene otra aplicacion» y «desaparecio al
+    // abrirlo» eran, en Windows, ramas inalcanzables.
+    let puerto = esperar(|cb| operacion.when(cb)).map_err(|f| match f {
+        Fallo::Codigo(c) => traducir(c, &dispositivo.nombre),
+        Fallo::SinRespuesta => ErrorDeEntrada::FalloDelSistema {
+            operacion: format!("abrir «{}»", dispositivo.nombre),
+            codigo: None,
+        },
+    })?;
 
     let (emisor, receptor) = canal(CAPACIDAD);
-    let estado = RefCell::new(emisor);
+    // `Mutex` y no `RefCell`. `TypedEventHandler` solo exige `Send`, asi que un `RefCell`
+    // compila; pero el objeto COM que envuelve al cierre es agil, y nada en la firma promete
+    // que WinRT no invoque el manejador desde dos hilos del pool a la vez. Con `RefCell` ese
+    // caso hacia `try_borrow_mut` fallar y el brazo de fallo **descartaba la nota en
+    // silencio**: se perderian notas de acordes sin dejar rastro. El candado no cuesta nada
+    // medible —solo lo toma este mismo manejador, y para empujar al anillo— y ademas hace
+    // imposible la carrera en vez de dejarla a la buena fe.
+    let estado = std::sync::Mutex::new(emisor);
     let testigo = puerto
         .MessageReceived(&TypedEventHandler::new(
             move |_e: Ref<'_, MidiInPort>, args: Ref<'_, MidiMessageReceivedEventArgs>| {
@@ -223,7 +286,7 @@ where
                 let at = clock.now();
                 let Some(args) = args.as_ref() else { return Ok(()) };
                 let m = args.Message()?;
-                let Ok(mut em) = estado.try_borrow_mut() else { return Ok(()) };
+                let Ok(mut em) = estado.lock() else { return Ok(()) };
                 match m.Type()? {
                     MidiMessageType::NoteOn => {
                         let n: MidiNoteOnMessage = m.cast()?;

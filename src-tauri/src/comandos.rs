@@ -47,6 +47,14 @@ pub enum MensajeAlFrontend {
     Terminada,
     /// El teclado desaparecio a mitad de practica.
     DispositivoPerdido,
+    /// El teclado estaba en la lista y no se pudo abrir.
+    ///
+    /// Distinto de `DispositivoPerdido`, que antes cubria los dos casos: la interfaz decia
+    /// «Conectado» y una fraccion de segundo despues «Se perdio la conexion», con el mismo
+    /// texto tanto si otra aplicacion tenia el puerto como si el permiso estaba denegado o
+    /// el aparato se desenchufo entre enumerar y abrir. `motivo` trae el error de verdad,
+    /// con el codigo del sistema cuando lo hay.
+    NoSePudoAbrir { motivo: String },
 }
 
 /// Lo que la interfaz necesita saber de una cancion recien abierta.
@@ -123,16 +131,57 @@ impl From<&NotaDetallada> for NotaVisiblePlana {
     }
 }
 
+/// La captura que esta corriendo ahora mismo.
+struct CapturaEnCurso {
+    parar: std::sync::Arc<std::sync::atomic::AtomicBool>,
+    hilo: std::thread::JoinHandle<()>,
+}
+
 /// Estado compartido de la aplicacion.
 #[derive(Default)]
 pub struct Estado {
     canal: Mutex<Option<Channel<MensajeAlFrontend>>>,
     preparacion: Mutex<Option<Preparacion>>,
-    /// Se levanta al cerrar para que el hilo de captura salga de su bucle.
-    pub parar: std::sync::Arc<std::sync::atomic::AtomicBool>,
+    /// La captura en curso, si la hay.
+    ///
+    /// Antes esto era **una sola bandera compartida por todas las capturas**, y su comentario
+    /// decia «se levanta al cerrar». Nadie la levantaba nunca, en ninguna parte: el hilo de
+    /// captura no terminaba, la `Captura` no se soltaba y su `Drop` —el que cierra el
+    /// puerto— era inalcanzable. En macOS no se notaba porque CoreMIDI reparte la misma
+    /// fuente entre todos los clientes; en Windows el puerto de entrada es exclusivo y
+    /// elegir teclado por segunda vez habria fallado (FR-006).
+    captura: Mutex<Option<CapturaEnCurso>>,
 }
 
 impl Estado {
+    /// Detiene la captura en curso y **espera a que suelte el puerto**.
+    ///
+    /// Espera de verdad, con `join`, en vez de confiar en que le de tiempo: el bucle mira su
+    /// bandera cada 100 ms como mucho, asi que la espera esta acotada, y abrir el puerto
+    /// siguiente antes de haber cerrado el anterior es justo lo que falla en Windows.
+    pub fn detener_captura(&self) {
+        let anterior = {
+            let mut guarda = match self.captura.lock() {
+                Ok(g) => g,
+                Err(envenenado) => envenenado.into_inner(),
+            };
+            guarda.take()
+        };
+        if let Some(c) = anterior {
+            c.parar.store(true, std::sync::atomic::Ordering::Relaxed);
+            let _ = c.hilo.join();
+        }
+    }
+
+    /// Anota la captura que acaba de arrancar.
+    fn registrar_captura(&self, c: CapturaEnCurso) {
+        let mut guarda = match self.captura.lock() {
+            Ok(g) => g,
+            Err(envenenado) => envenenado.into_inner(),
+        };
+        *guarda = Some(c);
+    }
+
     /// Empuja un mensaje si hay canal registrado.
     ///
     /// **Nunca se llama desde el hilo de tiempo real.** `send` cuesta hasta 13 ms en el
@@ -378,12 +427,22 @@ pub enum EstadoDelTeclado {
 }
 
 /// Donde se recuerda la eleccion.
-fn ruta_preferencias() -> std::path::PathBuf {
-    let base = std::env::var_os("XDG_CONFIG_HOME")
-        .map(std::path::PathBuf::from)
-        .or_else(|| std::env::var_os("HOME").map(|h| std::path::PathBuf::from(h).join(".config")))
-        .unwrap_or_else(std::env::temp_dir);
-    base.join("piano-tutor").join("teclado.json")
+///
+/// Se pregunta al sistema en vez de deducirlo de variables de entorno. La version anterior
+/// probaba `XDG_CONFIG_HOME`, luego `HOME/.config`, y **si no habia ninguna de las dos caia
+/// en el directorio temporal**. En Windows no existe ninguna de las dos: el teclado elegido
+/// acababa en `AppData\Local\Temp`, que Windows limpia cuando le parece, y a la siguiente
+/// sesion la aplicacion volvia a preguntar sin ninguna explicacion.
+///
+/// El sitio cambia tambien en macOS, de `~/.config` al directorio de la aplicacion. El coste
+/// es que haya que elegir teclado una vez mas; el beneficio es que deja de haber una ruta
+/// deducida a mano que puede estar mal en una plataforma sin que nadie se entere.
+fn ruta_preferencias(app: &tauri::AppHandle) -> std::path::PathBuf {
+    use tauri::Manager as _;
+    app.path()
+        .app_config_dir()
+        .unwrap_or_else(|_| std::env::temp_dir().join("piano-tutor"))
+        .join("teclado.json")
 }
 
 /// Enumera los teclados MIDI disponibles.
@@ -418,6 +477,7 @@ pub async fn listar_dispositivos() -> Vec<DispositivoPlano> {
 /// a una operacion asincrona de WinRT que no puede bloquear el hilo principal.
 #[tauri::command]
 pub async fn conectar_teclado(
+    app: tauri::AppHandle,
     estado: tauri::State<'_, std::sync::Arc<Estado>>,
     reloj: tauri::State<'_, crate::RelojDeSesion>,
 ) -> Result<EstadoDelTeclado, String> {
@@ -430,7 +490,7 @@ pub async fn conectar_teclado(
     let pedir = || EstadoDelTeclado::HayQueElegir {
         dispositivos: disponibles.iter().map(DispositivoPlano::from).collect(),
     };
-    let Some(recordado) = crate::preferencias::cargar(&ruta_preferencias()) else {
+    let Some(recordado) = crate::preferencias::cargar(&ruta_preferencias(&app)) else {
         return Ok(pedir());
     };
     let buscado = piano_core::capture::Dispositivo::from(&recordado);
@@ -446,6 +506,7 @@ pub async fn conectar_teclado(
 /// El alumno elige un teclado de la lista. Se recuerda y se abre.
 #[tauri::command]
 pub async fn elegir_teclado(
+    app: tauri::AppHandle,
     estado: tauri::State<'_, std::sync::Arc<Estado>>,
     reloj: tauri::State<'_, crate::RelojDeSesion>,
     posicion: u16,
@@ -462,7 +523,7 @@ pub async fn elegir_teclado(
     };
     // Guardar puede fallar; no es motivo para no practicar. Como mucho, la proxima vez
     // habra que volver a elegir.
-    let _ = crate::preferencias::guardar(&ruta_preferencias(), &(d.into()));
+    let _ = crate::preferencias::guardar(&ruta_preferencias(&app), &(d.into()));
     Ok(arrancar_captura(&estado, &reloj, d.clone()))
 }
 
@@ -480,15 +541,39 @@ fn arrancar_captura(
     reloj: &crate::RelojDeSesion,
     dispositivo: piano_core::capture::Dispositivo,
 ) -> EstadoDelTeclado {
+    // Lo PRIMERO, antes de abrir nada: soltar el puerto anterior. En Windows el puerto de
+    // entrada es exclusivo y abrir el segundo sin cerrar el primero falla (FR-006).
+    estado.detener_captura();
+
     let nombre = dispositivo.nombre.clone();
     let clock = reloj.0;
     let compartido = std::sync::Arc::clone(estado);
-    let parar = std::sync::Arc::clone(&estado.parar);
-    std::thread::spawn(move || match piano_midi_io::abrir(&dispositivo, clock) {
-        Ok(mut captura) => crate::reenviador::bucle(captura.receptor(), &compartido, &parar),
-        // Estaba en la lista y no se pudo abrir: para el alumno es lo mismo que perderlo.
-        Err(_) => compartido.enviar(MensajeAlFrontend::DispositivoPerdido),
+    let parar = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
+    let bandera = std::sync::Arc::clone(&parar);
+
+    let hilo = std::thread::spawn(move || match piano_midi_io::abrir(&dispositivo, clock) {
+        Ok(mut captura) => {
+            // El vigia va DENTRO del hilo de captura, junto al puerto que vigila. Antes no
+            // se construia en ninguna parte —`grep Vigia src-tauri/src` no daba ni un
+            // resultado—, asi que desenchufar el teclado a media practica no producia
+            // absolutamente nada: la interfaz seguia diciendo «Conectado» para siempre.
+            let mut vigia = piano_midi_io::vigia::Vigia::nuevo(dispositivo.clone());
+            let desenlace =
+                crate::reenviador::bucle(captura.receptor(), &compartido, &bandera, &mut vigia);
+            // Cerrar explicitamente y no confiar en el `Drop`: asi el orden queda escrito.
+            captura.cerrar();
+            if desenlace == crate::reenviador::Desenlace::Perdido {
+                compartido.enviar(MensajeAlFrontend::DispositivoPerdido);
+            }
+        }
+        // Estaba en la lista y no se pudo abrir. Antes esto se contaba como si se hubiera
+        // perdido, de modo que el alumno leia «Se perdio la conexion» justo despues de leer
+        // «Conectado», dijese lo que dijese el sistema. Ahora llega el motivo, con el codigo
+        // cuando lo hay.
+        Err(e) => compartido.enviar(MensajeAlFrontend::NoSePudoAbrir { motivo: e.to_string() }),
     });
+
+    estado.registrar_captura(CapturaEnCurso { parar, hilo });
     EstadoDelTeclado::Conectado { nombre }
 }
 

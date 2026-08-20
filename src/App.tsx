@@ -331,6 +331,14 @@ export default function App() {
           Se perdió la conexión con el teclado. La canción sigue.
         </p>
       )}
+      {/* Distinto de lo anterior: éste nunca llegó a estar conectado. El motivo lo da el
+          sistema y trae su código cuando lo hay, que es lo único con lo que se puede buscar
+          qué pasa de verdad. */}
+      {canal.falloAlAbrir !== null && (
+        <p role="status" className="aviso">
+          No se pudo abrir el teclado: {canal.falloAlAbrir}
+        </p>
+      )}
 
       {resumen === null ? (
         <p>Abre una canción para empezar a practicar.</p>
