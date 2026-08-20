@@ -19,6 +19,15 @@ pub trait FuenteDeEventos {
     /// Espera hasta que haya algo que recoger. Es donde el consumidor duerme.
     fn esperar(&mut self);
 
+    /// Espera hasta que haya algo que recoger, **o hasta que pase `plazo`**.
+    ///
+    /// Es la unica forma de que un bucle de consumo pueda volver a mirar su bandera de
+    /// parada. Con [`esperar`](Self::esperar) a secas, un consumidor que deja de recibir
+    /// —porque desenchufaron el teclado— no despierta nunca. Se declara obligatorio y no
+    /// con una implementacion por defecto que llame a `esperar`: esa por defecto seria
+    /// precisamente el cuelgue, servido en silencio a quien no lo sobrescriba.
+    fn esperar_hasta(&mut self, plazo: std::time::Duration);
+
     /// `true` si la fuente ya no puede entregar nada mas.
     fn agotada(&self) -> bool;
 }
@@ -29,6 +38,9 @@ impl FuenteDeEventos for Receptor {
     }
     fn esperar(&mut self) {
         Receptor::esperar(self);
+    }
+    fn esperar_hasta(&mut self, plazo: std::time::Duration) {
+        Receptor::esperar_hasta(self, plazo);
     }
     fn agotada(&self) -> bool {
         false // un dispositivo abierto siempre puede entregar mas
@@ -87,6 +99,10 @@ impl FuenteDeEventos for FuenteGuionizada {
     fn esperar(&mut self) {
         // No hay nada que esperar: el guion entero esta disponible desde el principio.
         // Es justo lo que permite recorrer diez minutos de pieza en microsegundos.
+    }
+
+    fn esperar_hasta(&mut self, _plazo: std::time::Duration) {
+        // Tampoco espera. Dormir el plazo aqui convertiria cada prueba en una espera real.
     }
 
     fn agotada(&self) -> bool {

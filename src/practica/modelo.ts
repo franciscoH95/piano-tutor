@@ -73,7 +73,8 @@ export type MensajeDelNucleo =
     }
   | { tipo: "esperando"; teclas: number[] }
   | { tipo: "terminada" }
-  | { tipo: "dispositivoPerdido" };
+  | { tipo: "dispositivoPerdido" }
+  | { tipo: "noSePudoAbrir"; motivo: string };
 
 /** Todo lo que la interfaz sabe por el canal. */
 export interface EstadoDeCanal {
@@ -85,6 +86,14 @@ export interface EstadoDeCanal {
   readonly esperando: ReadonlySet<number>;
   readonly terminada: boolean;
   readonly dispositivoPerdido: boolean;
+  /**
+   * Por qué no se pudo abrir el teclado, o `null` si no ha fallado.
+   *
+   * Separado de `dispositivoPerdido` porque son cosas distintas: uno estaba conectado y se
+   * fue, el otro nunca llegó a abrirse. Antes los dos llegaban como pérdida y el alumno
+   * leía «se perdió la conexión» justo después de leer «Conectado».
+   */
+  readonly falloAlAbrir: string | null;
 }
 
 export const ESTADO_INICIAL: EstadoDeCanal = {
@@ -93,6 +102,7 @@ export const ESTADO_INICIAL: EstadoDeCanal = {
   esperando: new Set(),
   terminada: false,
   dispositivoPerdido: false,
+  falloAlAbrir: null,
 };
 
 /**
@@ -114,7 +124,10 @@ export function aplicar(
       // arranca con una tecla ya hundida.
       if (m.pulsada) pulsadas.add(m.key);
       else pulsadas.delete(m.key);
-      return { ...estado, pulsadas };
+      // Que lleguen teclas es la prueba de que el teclado está vivo, y es la única que hay:
+      // no existe ningún mensaje que diga «ya está arreglado». Sin esto, el aviso de pérdida
+      // se quedaría en pantalla para siempre después de reconectar.
+      return { ...estado, pulsadas, dispositivoPerdido: false, falloAlAbrir: null };
     }
     case "ancla":
       return { ...estado, ancla: anclarEnRelojLocal(m, llegadaUs) };
@@ -130,6 +143,10 @@ export function aplicar(
       // llega nunca: una tecla hundida en ese momento se quedaría encendida para siempre,
       // sin ninguna forma de apagarla. Y al reconectar se empieza en limpio.
       return { ...estado, dispositivoPerdido: true, pulsadas: new Set() };
+    case "noSePudoAbrir":
+      // Estaba en la lista y no se abrió. No es una pérdida: nunca llegó a estar conectado.
+      // El motivo viene del sistema y trae su código cuando lo hay.
+      return { ...estado, falloAlAbrir: m.motivo, pulsadas: new Set() };
     default:
       // El puente puede estrenar variantes antes de que la interfaz las conozca.
       return estado;

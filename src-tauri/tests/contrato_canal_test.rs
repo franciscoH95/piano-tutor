@@ -136,3 +136,22 @@ fn sin_desfase_los_campos_viajan_como_nulos() {
     let s = serde_json::to_string(&r).expect("serializa");
     assert!(s.contains("\"desfaseMedianaUs\":null"), "{s}");
 }
+
+#[test]
+fn no_poder_abrir_es_una_variante_propia_y_lleva_su_motivo() {
+    // Antes este caso viajaba como `dispositivoPerdido`, asi que la interfaz decia «se
+    // perdio la conexion» justo despues de decir «Conectado». Aqui queda escrito que son
+    // dos etiquetas distintas y que el motivo cruza el puente.
+    let s = json(&MensajeAlFrontend::NoSePudoAbrir {
+        motivo: "no se pudo abrir «Piano X»: el sistema respondio 0x80070005".into(),
+    });
+    assert!(s.contains("\"tipo\":\"noSePudoAbrir\""), "etiqueta de variante: {s}");
+    assert!(s.contains("0x80070005"), "el codigo tiene que llegar entero: {s}");
+    assert!(!s.contains("dispositivoPerdido"), "no es una perdida: {s}");
+}
+
+#[test]
+fn perder_el_teclado_sigue_siendo_una_etiqueta_distinta() {
+    let s = json(&MensajeAlFrontend::DispositivoPerdido);
+    assert!(s.contains("\"tipo\":\"dispositivoPerdido\""), "{s}");
+}

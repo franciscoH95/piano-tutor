@@ -74,3 +74,34 @@ fn sujeta_los_instantes_que_retroceden_igual_que_el_transporte() {
     f.recoger(&mut v);
     assert_eq!(v.iter().map(|e| e.at.0).collect::<Vec<_>>(), vec![1_000, 1_000, 2_000]);
 }
+
+// -------------------------------------------------- esperar con plazo
+
+#[test]
+fn esperar_hasta_se_rinde_y_no_deja_al_consumidor_dormido_para_siempre() {
+    // `esperar()` usa `park()` SIN plazo. Cuando el teclado deja de mandar —que es
+    // exactamente lo que pasa al desenchufarlo— el consumidor se duerme y no vuelve: no
+    // mira su bandera de parada, no termina, no suelta la `Captura`, y por tanto no se
+    // ejecuta el `Drop` que cierra el puerto. En Windows, donde el puerto de entrada es
+    // exclusivo, eso deja el teclado inservible durante el resto de la sesion.
+    let (_emisor, mut receptor) = piano_core::capture::canal(8);
+    let t0 = std::time::Instant::now();
+    receptor.esperar_hasta(std::time::Duration::from_millis(30));
+    assert!(t0.elapsed() < std::time::Duration::from_secs(5), "no se rindio: {:?}", t0.elapsed());
+}
+
+#[test]
+fn esperar_hasta_despierta_en_cuanto_llega_algo_sin_agotar_el_plazo() {
+    // El plazo es un tope, no una espera. Si se durmiese los diez segundos enteros con una
+    // nota ya disponible, cada pulsacion llegaria con ese retraso.
+    let (mut emisor, mut receptor) = piano_core::capture::canal(8);
+    std::thread::spawn(move || {
+        std::thread::sleep(std::time::Duration::from_millis(20));
+        emisor.emitir(ataque(1_000, 60));
+    });
+    let t0 = std::time::Instant::now();
+    receptor.esperar_hasta(std::time::Duration::from_secs(10));
+    assert!(t0.elapsed() < std::time::Duration::from_secs(5), "durmio de mas: {:?}", t0.elapsed());
+    let mut buffer = Vec::new();
+    assert_eq!(receptor.recoger(&mut buffer), 1);
+}

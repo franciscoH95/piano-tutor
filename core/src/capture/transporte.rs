@@ -120,6 +120,28 @@ impl Receptor {
         self.compartido.quiere_despertar.store(false, Ordering::SeqCst);
     }
 
+    /// Igual que [`esperar`](Self::esperar), pero **se rinde pasado `plazo`**.
+    ///
+    /// Existe porque `park()` a secas deja al consumidor dormido para siempre en cuanto el
+    /// productor calla, y el productor calla justo cuando mas importa despertar: al
+    /// desenchufar el teclado. Sin plazo, el bucle de consumo no vuelve a mirar su bandera
+    /// de parada, no termina, no suelta la `Captura` y no se ejecuta el `Drop` que cierra el
+    /// puerto. En Windows el puerto de entrada es exclusivo: no cerrarlo deja el teclado
+    /// inservible hasta que muere el proceso.
+    ///
+    /// El plazo es un **tope**, no una espera: si llega algo antes, vuelve enseguida.
+    pub fn esperar_hasta(&mut self, plazo: std::time::Duration) {
+        let _ = self.compartido.hilo.set(std::thread::current());
+        if !self.rx.is_empty() {
+            return;
+        }
+        self.compartido.quiere_despertar.store(true, Ordering::SeqCst);
+        if self.rx.is_empty() {
+            std::thread::park_timeout(plazo);
+        }
+        self.compartido.quiere_despertar.store(false, Ordering::SeqCst);
+    }
+
     /// `true` si no hay nada pendiente de recoger.
     #[must_use]
     pub fn vacio(&self) -> bool {
